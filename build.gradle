@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'antlr'
+}
+
+group = 'cn.edu.xjtu.sysy'
+version = '0.0.1'
+
+repositories {
+    maven { url = "https://maven.aliyun.com/repository/public" }
+    mavenCentral()
+}
+
+dependencies {
+    antlr 'org.antlr:antlr4:4.13.2'
+    runtimeOnly 'org.antlr:antlr4-runtime:4.13.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+compileJava {
+    sourceCompatibility = targetCompatibility = 21
+}
+
+compileTestJava {
+    sourceCompatibility = targetCompatibility = 21
+}
+
+generateGrammarSource {
+    maxHeapSize '512m'
+    arguments = ['-long-messages', '-no-listener', '-visitor']
+    outputDirectory = new File("build/generated-src/antlr/main/cn/edu/xjtu/sysy/parse")
+}
+
+compileJava.dependsOn(generateGrammarSource)
+compileTestJava.dependsOn(generateTestGrammarSource)
