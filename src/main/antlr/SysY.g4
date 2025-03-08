@@ -92,7 +92,7 @@ initVal: exp | '{' initVal (',' initVal)* '}';
 
 funcDef: funcType Ident '(' (funcFParam (',' funcFParam)*)? ')' block;
 funcType: 'void' | 'int' | 'float';
-funcFParam: bType Ident ('[' ']' | ('[' exp ']'))?;
+funcFParam: bType Ident ('[' ']' | ('[' exp ']'))*; // ? should be *
 
 block: '{' (blockItem)* '}';
 blockItem: decl | stmt;
@@ -116,7 +116,7 @@ lVal: Ident ('[' exp ']')*;
 primaryExp: '(' exp ')' | lVal | IntConst | FloatConst;
 unaryExp: primaryExp | Ident '(' (exp (',' exp)*)? ')' | unaryOp unaryExp;
 unaryOp: '+' | '-' | '!';
-funcRParams: exp (',' exp)*;
+funcRParams: exp (',' exp)*; // to be removed
 
 mulExp: unaryExp (op=('*' | '/' | '%') unaryExp)*;
 addExp: mulExp (op=('+' | '-') mulExp)*;

@@ -29,10 +29,16 @@ compileTestJava {
 }
 
 generateGrammarSource {
-    maxHeapSize '512m'
+    maxHeapSize = '512m'
     arguments = ['-long-messages', '-no-listener', '-visitor']
     outputDirectory = new File("build/generated-src/antlr/main/cn/edu/xjtu/sysy/parse")
 }
 
 compileJava.dependsOn(generateGrammarSource)
 compileTestJava.dependsOn(generateTestGrammarSource)
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'Compiler'
+    }
+}

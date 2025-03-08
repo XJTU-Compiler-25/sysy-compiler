@@ -1,3 +1,14 @@
+import java.io.IOException;
+
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+
+import cn.edu.xjtu.sysy.SysYLexer;
+import cn.edu.xjtu.sysy.SysYParser;
+import cn.edu.xjtu.sysy.SysYParser.CompUnitContext;
+import cn.edu.xjtu.sysy.astnodes.CompUnit;
+import cn.edu.xjtu.sysy.astvisitor.BuildAstVisitor;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 /**
@@ -14,12 +25,20 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * 性能测试：compiler testcase.sysy -S -o testcase.s-O1
  */
 public class Compiler {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Assertions.check(args.length > 4, "Not enough arguments");
 
         String input = args[0];
         String output = args[3];
 
+        CharStream inputStream = CharStreams.fromFileName(input);
+        SysYLexer lexer = new SysYLexer(inputStream);
+        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+        SysYParser parser = new SysYParser(tokenStream);
 
+        CompUnitContext cst = parser.compUnit();
+        BuildAstVisitor buildAstVisitor = new BuildAstVisitor();
+        CompUnit compUnit = buildAstVisitor.visitCompUnit(cst);
+        System.out.println(compUnit.toString());
     }
 }
