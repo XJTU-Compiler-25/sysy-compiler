@@ -5,7 +5,7 @@ options {
 }
 
 @header {
-package cn.edu.xjtu.sysy;
+package cn.edu.xjtu.sysy.parse;
 }
 
 /**
@@ -75,59 +75,64 @@ package cn.edu.xjtu.sysy;
 
   */
 
-// Parser rules
+// Parser rules (非终结符)
 
-compUnit: (decl | funcDef)* EOF;
+compUnit: (varDefs | funcDef)* EOF;
 
-decl: constDecl | varDecl;
-bType: 'int' | 'float';
+varDefs: Const? varType varDef (',' varDef)* ';';
+varDef
+    : Id ('=' exp)?                                              # scalarVarDef
+    | Id ('[' exp ']')+ ('=' (arrayLiteralExp | assignableExp))? # arrayVarDef
+    ;
+varType: 'int' | 'float';
 
-constDecl: 'const' bType constDef (',' constDef)* ';';
-constDef: Ident ('[' constExp ']')* '=' constInitVal;
-constInitVal: constExp | '{' constInitVal (',' constInitVal)* '}';
+funcDef: retType=returnableType name=Id '(' (param (',' param)*)? ')' body=block;
+returnableType: 'int' | 'float' | 'void';
+param: varType Id ('[' ']' | ('[' exp ']'))*;
 
-varDecl: bType varDef (',' varDef)* ';';
-varDef: Ident ('[' constExp ']')* ('=' initVal)?;
-initVal: exp | '{' initVal (',' initVal)* '}';
-
-funcDef: funcType Ident '(' (funcFParam (',' funcFParam)*)? ')' block;
-funcType: 'void' | 'int' | 'float';
-funcFParam: bType Ident ('[' ']' | ('[' exp ']'))*; // ? should be *
-
-block: '{' (blockItem)* '}';
-blockItem: decl | stmt;
+block: '{' stmt* '}';
 
 stmt
-    : ';'                                   # emptyStmt
-    | lVal '=' exp ';'                      # assignmentStmt
-    | exp ';'                               # expStmt
-    | block                                 # blockStmt
-    | 'if' '(' cond ')' stmt ('else' stmt)? # ifStmt
-    | 'while' '(' cond ')' stmt             # whileStmt
-    | 'break' ';'                           # breakStmt
-    | 'continue' ';'                        # continueStmt
-    | 'return' exp? ';'                     # returnStmt
+    : ';'                                  # emptyStmt
+    | varDefs                              # varDefStmt
+    | assignableExp '=' exp ';'            # assignmentStmt
+    | exp ';'                              # expStmt
+    | block                                # blockStmt
+    | If '(' cond ')' stmt ('else' stmt)?  # ifStmt
+    | While '(' cond ')' stmt              # whileStmt
+    | Break ';'                            # breakStmt
+    | Continue ';'                         # continueStmt
+    | Return exp? ';'                      # returnStmt
     ;
 
-exp: addExp;
-cond: lOrExp;
-lVal: Ident ('[' exp ']')*;
+// SysY 语言中逻辑运算必须在 Cond 中
+cond
+    : exp                                    # expCond
+    | cond op=('<' | '>' | '<=' | '>=') cond # relCond
+    | cond op=('==' | '!=') cond             # eqCond
+    | cond '&&' cond                         # andCond
+    | cond '||' cond                         # orCond
+    ;
+exp
+    : '(' exp ')'                          # parenExp
+    | IntLiteral                           # intConstExp
+    | FloatLiteral                         # floatConstExp
+    | assignableExp                        # varAccessExp
+    | op=('+' | '-' | '!') exp             # unaryExp
+    | Id '(' (arg=exp (',' arg=exp)*)? ')' # funcCallExp
+    | exp op=('*' | '/' | '%') exp         # mulExp
+    | exp op=('+' | '-') exp               # addExp
+    ;
+assignableExp
+    : Id                # scalarAssignable
+    | Id ('[' exp ']')+ # arrayAssignable
+    ;
+arrayLiteralExp
+    : exp                                                            # elementExp
+    | '{' element=arrayLiteralExp (',' element=arrayLiteralExp)* '}' # arrayExp
+    ;
 
-primaryExp: '(' exp ')' | lVal | IntConst | FloatConst;
-unaryExp: primaryExp | Ident '(' (exp (',' exp)*)? ')' | unaryOp unaryExp;
-unaryOp: '+' | '-' | '!';
-funcRParams: exp (',' exp)*; // to be removed
-
-mulExp: unaryExp (op=('*' | '/' | '%') unaryExp)*;
-addExp: mulExp (op=('+' | '-') mulExp)*;
-relExp: addExp (op=('<' | '>' | '<=' | '>=') addExp)*;
-eqExp: relExp (op=('==' | '!=') relExp)*;
-lAndExp: eqExp (op='&&' eqExp)*;
-lOrExp: lAndExp (op='||' lAndExp)*;
-
-constExp: addExp;
-
-// Lexer rules
+// Lexer rules (终结符)
 
 MultilineComment: '/*' .*? '*/' -> channel(HIDDEN);
 LineComment: '//' ~[\r\n]* -> channel(HIDDEN);
@@ -135,26 +140,38 @@ LineComment: '//' ~[\r\n]* -> channel(HIDDEN);
 // Whitespace
 WS: [ \r\n\t]+ -> channel(HIDDEN);
 
-fragment IdentHead: [a-zA-Z_];
-fragment IdentPart: IdentHead | [0-9];
+// Keywords
+Const: 'const';
+Int: 'int';
+Float: 'float';
+Void: 'void';
+If: 'if';
+While: 'while';
+Break: 'break';
+Continue: 'continue';
+Return: 'return';
 
-Ident: IdentHead IdentPart*;
+fragment IdHead: [a-zA-Z_];
+fragment IdPart: IdHead | [0-9];
+
+Id: IdHead IdPart*;
 
 fragment Digit: [0-9];
 fragment DigitNonZero: [1-9];
-fragment DecimalConst: '0' | DigitNonZero Digit*;
+fragment DecLiteral: '0' | DigitNonZero Digit*;
 
 fragment HexDigit: [0-9a-fA-F];
 fragment HexPrefix: '0' [xX];
-fragment HexadecimalConst: HexPrefix HexDigit+;
+fragment HexLiteral: HexPrefix HexDigit+;
 
-fragment OctalDigit: [0-7];
-fragment OctalPrefix: '0';
-fragment OctalConst: OctalPrefix OctalDigit+;
+fragment OctDigit: [0-7];
+fragment OctPrefix: '0';
+fragment OctLiteral: OctPrefix OctDigit+;
 
-IntConst: DecimalConst | OctalConst | HexadecimalConst;
+// 仅整数可以用其他进制表示
+IntLiteral: DecLiteral | OctLiteral | HexLiteral;
 
-FloatConst
+FloatLiteral
     : Digit* '.' Digit+ ([eE] [+-]? Digit+)?
     | Digit+ [eE] [+-]? Digit+
     ;

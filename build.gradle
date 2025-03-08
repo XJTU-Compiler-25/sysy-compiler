@@ -14,6 +14,10 @@ repositories {
 dependencies {
     antlr 'org.antlr:antlr4:4.13.2'
     runtimeOnly 'org.antlr:antlr4-runtime:4.13.2'
+
+    testImplementation platform('org.junit:junit-bom:5.12.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
@@ -21,11 +25,11 @@ test {
 }
 
 compileJava {
-    sourceCompatibility = targetCompatibility = 21
+    sourceCompatibility = targetCompatibility = 17
 }
 
 compileTestJava {
-    sourceCompatibility = targetCompatibility = 21
+    sourceCompatibility = targetCompatibility = 17
 }
 
 generateGrammarSource {

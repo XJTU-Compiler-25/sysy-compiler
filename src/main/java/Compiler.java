@@ -25,8 +25,8 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * 性能测试：compiler testcase.sysy -S -o testcase.s-O1
  */
 public class Compiler {
-    public static void main(String[] args) throws IOException {
-        Assertions.check(args.length > 4, "Not enough arguments");
+    public static void main(String[] args) {
+        Assertions.requires(args.length > 4, "Not enough arguments");
 
         String input = args[0];
         String output = args[3];
