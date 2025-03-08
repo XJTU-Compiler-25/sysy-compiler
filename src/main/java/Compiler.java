@@ -15,7 +15,7 @@ import cn.edu.xjtu.sysy.util.Assertions;
  */
 public class Compiler {
     public static void main(String[] args) {
-        Assertions.check(args.length > 4, "Not enough arguments");
+        Assertions.requires(args.length > 4, "Not enough arguments");
 
         String input = args[0];
         String output = args[3];
