@@ -33,7 +33,7 @@ public abstract class Expr extends Node {
     }
 
     public boolean isConstant() {
-        return constantValue == null;
+        return constantValue != null;
     }
 
     public boolean isAssignable() {
