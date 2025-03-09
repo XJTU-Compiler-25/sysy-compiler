@@ -1,5 +1,7 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.Arrays;
+
 import org.antlr.v4.runtime.Token;
 
 /** VarDefStmt */
@@ -14,6 +16,6 @@ public final class VarDefStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "VarDefStmt [varDefs=" + varDefs + ", toString()=" + super.toString() + "]";
+        return "VarDefStmt [varDefs=" + varDefs + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
     }
 }
