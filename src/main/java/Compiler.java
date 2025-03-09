@@ -4,11 +4,11 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
-import cn.edu.xjtu.sysy.SysYLexer;
-import cn.edu.xjtu.sysy.SysYParser;
-import cn.edu.xjtu.sysy.SysYParser.CompUnitContext;
 import cn.edu.xjtu.sysy.astnodes.CompUnit;
 import cn.edu.xjtu.sysy.astvisitor.BuildAstVisitor;
+import cn.edu.xjtu.sysy.parse.SysYLexer;
+import cn.edu.xjtu.sysy.parse.SysYParser;
+import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 /**
@@ -25,7 +25,7 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * 性能测试：compiler testcase.sysy -S -o testcase.s-O1
  */
 public class Compiler {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Assertions.requires(args.length > 4, "Not enough arguments");
 
         String input = args[0];

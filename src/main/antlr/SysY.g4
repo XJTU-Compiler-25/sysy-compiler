@@ -88,7 +88,7 @@ varType: 'int' | 'float';
 
 funcDef: retType=returnableType name=Id '(' (param (',' param)*)? ')' body=block;
 returnableType: 'int' | 'float' | 'void';
-param: varType Id ('[' ']' | ('[' exp ']'))*;
+param: varType Id ('[' ']' ('[' exp ']')*)?;
 
 block: '{' stmt* '}';
 

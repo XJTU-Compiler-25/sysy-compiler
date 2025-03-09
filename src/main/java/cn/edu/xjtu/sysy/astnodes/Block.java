@@ -1,26 +1,27 @@
 package cn.edu.xjtu.sysy.astnodes;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
-/** Block */
+/** Block 
+ * 1. Block 表示语句块。语句块会创建作用域，语句块内声明的变量的生存期在
+该语句块内。
+2. 语句块内可以再次定义与语句块外同名的变量或常量（通过 Decl 语句)，其
+作用域从定义处开始到该语句块尾结束，它隐藏语句块外的同名变量或常量
+*/
 public final class Block extends Node {
-    public final List<Node> blockItems;
+    /** 语句块元素 */
+    public List<Stmt> stmts;
 
-    public Block(Token start, Token end) {
+    public Block(Token start, Token end, List<Stmt> stmts) {
         super(start, end);
-        this.blockItems = new ArrayList<>();
-    }
-
-    public void addBlockItem(Node node) {
-        this.blockItems.add(node);
+        this.stmts = stmts;
     }
 
     @Override
     public String toString() {
-        return "Block [blockItems=" + blockItems + "]";
+        return "Block [stmts=" + stmts + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
     }
-
 }

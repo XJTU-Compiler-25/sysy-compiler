@@ -1,9 +1,11 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.Arrays;
+
 import org.antlr.v4.runtime.Token;
 
-/** Stmts */
-public class WhileStmt extends Stmt {
+/** WhileStmt */
+public final class WhileStmt extends Stmt {
 
     public Expr cond;
     public Stmt bodyStmt;
@@ -12,5 +14,11 @@ public class WhileStmt extends Stmt {
         super(start, end);
         this.bodyStmt = bodyStmt;
         this.cond = cond;
+    }
+
+    @Override
+    public String toString() {
+        return "WhileStmt [cond=" + cond + ", bodyStmt=" + bodyStmt + ", getLocation()="
+                + Arrays.toString(getLocation()) + "]";
     }
 }

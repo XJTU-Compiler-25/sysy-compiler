@@ -14,11 +14,11 @@ public abstract class Node {
     public Node(Token start, Token end) {
         if (start != null) {
             location[0] = start.getLine();
-            location[1] = start.getStartIndex();
+            location[1] = start.getCharPositionInLine();
         }
         if (end != null) {
             location[2] = end.getLine();
-            location[3] = end.getStartIndex();
+            location[3] = end.getCharPositionInLine() + end.getText().length() - 1;
         }
         this.kind = getClass().getSimpleName();
     }

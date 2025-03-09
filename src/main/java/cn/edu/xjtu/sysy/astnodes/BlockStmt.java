@@ -1,10 +1,12 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.Arrays;
+
 import org.antlr.v4.runtime.Token;
 
-/** Stmts */
-public class BlockStmt extends Stmt {
-
+/** BlockStmt */
+public final class BlockStmt extends Stmt {
+    /** 语句块 */
     public Block block;
 
     public BlockStmt(Token start, Token end, Block block) {
@@ -14,6 +16,6 @@ public class BlockStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "BlockStmt [block=" + block + "]";
+        return "BlockStmt [block=" + block + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
     }
 }
