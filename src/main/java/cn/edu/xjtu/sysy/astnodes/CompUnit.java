@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,12 +19,16 @@ public final class CompUnit extends Node {
 
     public final List<Decl> declarations;
 
-    //TODO: public List<SemanticError> semErrors;
-    //TODO: SymbolTable
+    public List<SemanticError> semErrors = new ArrayList<>();
 
     public CompUnit(Token start, Token end, List<Decl> declarations) {
         super(start, end);
         this.declarations = declarations;
+    }
+
+    public void semError(Node errNode, String errMsgForm, Object... args) {
+        SemanticError err = new SemanticError(errNode, String.format(errMsgForm, args));
+        this.semErrors.add(err);
     }
 
     @Override

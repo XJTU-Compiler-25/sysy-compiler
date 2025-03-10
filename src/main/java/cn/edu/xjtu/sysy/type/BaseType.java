@@ -1,11 +1,16 @@
 package cn.edu.xjtu.sysy.type;
 
+import cn.edu.xjtu.sysy.astnodes.TypeAnnotation;
+
 public final class BaseType extends ValueType {
-    // TODO
-    private String name;
+    private final String name;
 
     public BaseType(String name) {
         this.name = name;
+    }
+
+    public BaseType(TypeAnnotation type) {
+        this.name = type.name;
     }
 
     @Override
