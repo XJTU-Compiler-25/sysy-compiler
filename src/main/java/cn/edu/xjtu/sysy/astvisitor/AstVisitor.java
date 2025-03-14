@@ -34,7 +34,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 /** 抽象类，用于遍历AST。
  *  派生类应该重写所有需要使用的方法。
  */
-public abstract class AstVisitor<T> {
+public abstract class AstVisitor {
     public void visit(CompUnit node) {
         unreachable();
     }
@@ -62,8 +62,10 @@ public abstract class AstVisitor<T> {
     public void visit(Decl node) {
         if (node instanceof VarDefs it) {
             visit(it);
+            return;
         } else if (node instanceof FuncDef it) {
             visit(it);
+            return;
         }
         unreachable();
     }
@@ -72,37 +74,12 @@ public abstract class AstVisitor<T> {
         unreachable();
     }
 
-    public T visit(FloatLiteral node) {
-        return unreachable();
-    }
-
     public void visit(FuncDef node) {
         unreachable();
     }
 
-    public T visit(Ident node) {
-        return unreachable();
-    }
-
     public void visit(IfStmt node) {
         unreachable();
-    }
-
-    public T visit(IndexExpr node) {
-        return unreachable();
-    }
-
-    public T visit(IntLiteral node) {
-        return unreachable();
-    }
-
-    public T visit(Literal node) {
-        if (node instanceof IntLiteral it) {
-            return visit(it);
-        } else if (node instanceof FloatLiteral it) {
-            return visit(it);
-        }
-        return unreachable();
     }
 
     public void visit(Param node) {
@@ -116,32 +93,37 @@ public abstract class AstVisitor<T> {
     public void visit(Stmt node) {
         if (node instanceof AssignStmt it) {
             visit(it);
+            return;
         } else if (node instanceof BlockStmt it) {
             visit(it);
+            return;
         } else if (node instanceof BreakStmt it) {
             visit(it);
+            return;
         } else if (node instanceof ContinueStmt it) {
             visit(it);
+            return;
         } else if (node instanceof ExprStmt it) {
             visit(it);
+            return;
         } else if (node instanceof IfStmt it) {
             visit(it);
+            return;
         } else if (node instanceof ReturnStmt it) {
             visit(it);
+            return;
         } else if (node instanceof VarDefStmt it) {
             visit(it);
+            return;
         } else if (node instanceof WhileStmt it) {
             visit(it);
+            return;
         }
         unreachable();
     }
 
     public void visit(TypeAnnotation node) {
         unreachable();
-    }
-
-    public T visit(UnaryExpr node) {
-        return unreachable();
     }
 
     public void visit(VarDef node) {
@@ -160,41 +142,80 @@ public abstract class AstVisitor<T> {
         unreachable();
     }
 
-    public T visit(Expr node) {
+    public void visit(Expr node) {
         if (node instanceof AssignableExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof ArrayExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof BinaryExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof CallExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof Literal it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof UnaryExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         }
-        return unreachable();
+        unreachable();
     }
 
-    public T visit(CallExpr node) {
-        return unreachable();
+    public void visit(CallExpr node) {
+        unreachable();
     }
 
-    public T visit(BinaryExpr node) {
-        return unreachable();
+    public void visit(BinaryExpr node) {
+        unreachable();
     }
 
-    public T visit(AssignableExpr node) {
+    public void visit(AssignableExpr node) {
         if (node instanceof Ident it) {
-            return visit(it);
+            visit(it);
+            return;
         } else if (node instanceof IndexExpr it) {
-            return visit(it);
+            visit(it);
+            return;
         }
-        return unreachable();
+        unreachable();
     }
 
-    public T visit(ArrayExpr node) {
-        return unreachable();
+    public void visit(ArrayExpr node) {
+        unreachable();
+    }
+
+    public void visit(UnaryExpr node) {
+        unreachable();
+    }
+
+    public void visit(IndexExpr node) {
+        unreachable();
+    }
+    
+    public void visit(IntLiteral node) {
+        unreachable();
+    }
+
+    public void visit(Literal node) {
+        if (node instanceof IntLiteral it) {
+            visit(it);
+            return;
+        } else if (node instanceof FloatLiteral it) {
+            visit(it);
+            return;
+        }
+        unreachable();
+    }
+
+    public void visit(FloatLiteral node) {
+        unreachable();
+    }
+
+    public void visit(Ident node) {
+        unreachable();
     }
 }

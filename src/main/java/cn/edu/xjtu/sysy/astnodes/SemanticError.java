@@ -12,8 +12,8 @@ public final class SemanticError {
 
     @Override
     public String toString() {
-        //TODO: format
-        return "errMsg=" + errMsg;
+        int[] location = errNode.getLocation();
+        return String.format("%d:%d: error: %s", location[0], location[1], errMsg);
     }
     
 }

@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** Single Variable Definition
  * 1. ConstDef 用于定义符号常量。ConstDef 中的 Ident 为常量的标识符，在 Ident
 后、‘=’之前是可选的数组维度和各维长度的定义部分，在 ‘=’ 之后是初始值。
@@ -89,5 +91,15 @@ public final class VarDef extends Node {
     public String toString() {
         return "VarDef [id=" + id + ", dimensions=" + dimensions + ", value=" + value + ", getLocation()="
                 + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(id);
+        if (dimensions != null) {
+            for (Expr dim : dimensions) {
+                visitor.visit(dim);
+            }
+        }
+        visitor.visit(value);
     }
 }

@@ -5,7 +5,9 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 import cn.edu.xjtu.sysy.astnodes.CompUnit;
+import cn.edu.xjtu.sysy.astnodes.SemanticError;
 import cn.edu.xjtu.sysy.astvisitor.BuildAstVisitor;
+import cn.edu.xjtu.sysy.astvisitor.TopLevelSemanticAnalyzer;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
@@ -39,6 +41,22 @@ public class Compiler {
         CompUnitContext cst = parser.compUnit();
         BuildAstVisitor buildAstVisitor = new BuildAstVisitor();
         CompUnit compUnit = buildAstVisitor.visitCompUnit(cst);
+        if (buildAstVisitor.hasError()) {
+            for (SemanticError error : buildAstVisitor.getErrors()) {
+                System.out.println(error);
+            }
+            return;
+        }
+
+        TopLevelSemanticAnalyzer analyzer = new TopLevelSemanticAnalyzer();
+        analyzer.visit(compUnit);
+
+        if (analyzer.hasError()) {
+            for (SemanticError error : analyzer.getErrors()) {
+                System.err.println(error);
+            }
+            return;
+        }
         System.out.println(compUnit.toString());
     }
 }

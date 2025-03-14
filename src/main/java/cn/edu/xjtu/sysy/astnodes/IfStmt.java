@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** Stmts */
 public final class IfStmt extends Stmt {
 
@@ -22,5 +24,13 @@ public final class IfStmt extends Stmt {
     public String toString() {
         return "IfStmt [cond=" + cond + ", thenStmt=" + thenStmt + ", elseStmt=" + elseStmt + ", getLocation()="
                 + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(cond);
+        visitor.visit(thenStmt);
+        if (elseStmt != null) {
+            visitor.visit(elseStmt);
+        }
     }
 }

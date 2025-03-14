@@ -1,6 +1,6 @@
 package cn.edu.xjtu.sysy.type;
 
-public abstract sealed class ValueType permits BaseType, ArrayType {
+public abstract sealed class ValueType permits BaseType, ArrayType, ArrayLiteralType {
     // TODO
 
     public static final BaseType FLOAT_TYPE = new BaseType("float");

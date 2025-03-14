@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** ExprStmt */
 public final class ExprStmt extends Stmt {
 
@@ -17,5 +19,9 @@ public final class ExprStmt extends Stmt {
     @Override
     public String toString() {
         return "ExprStmt [expr=" + expr + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(expr);
     }
 }

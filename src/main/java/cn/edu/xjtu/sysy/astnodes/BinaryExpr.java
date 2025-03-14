@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** BinaryExpr
  * 二元表达式
  *  | cond op=('<' | '>' | '<=' | '>=') cond # relCond
@@ -28,16 +30,42 @@ public final class BinaryExpr extends Expr {
     /** 运算符 */
     public String operator;
 
+    private boolean isArithExpr = false;
+    private boolean isRelExpr = false;
+    private boolean isLogicalExpr = false;
+
     public BinaryExpr(Token start, Token end, Expr left, String operator, Expr right) {
         super(start, end);
         this.left = left;
         this.operator = operator;
         this.right = right;
+        switch (operator) {
+            case "+", "-", "*", "/", "%" -> this.isArithExpr = true;
+            case "&&", "||" -> this.isLogicalExpr = true;
+            case "==", "!=", ">=", "<=", ">", "<" -> this.isRelExpr = true;
+        }
     }
 
     @Override
     public String toString() {
         return "BinaryExpr [left=" + left + ", right=" + right + ", operator=" + operator + ", getLocation()="
                 + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(left);
+        visitor.visit(right);
+    }
+
+    public boolean isArithExpr() {
+        return isArithExpr;
+    }
+
+    public boolean isRelExpr() {
+        return isRelExpr;
+    }
+
+    public boolean isLogicalExpr() {
+        return isLogicalExpr;
     }
 }

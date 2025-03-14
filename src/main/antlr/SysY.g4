@@ -129,7 +129,7 @@ assignableExp
     ;
 arrayLiteralExp
     : exp                                                            # elementExp
-    | '{' element=arrayLiteralExp (',' element=arrayLiteralExp)* '}' # arrayExp
+    | '{' (element=arrayLiteralExp (',' element=arrayLiteralExp)*)? '}' # arrayExp
     ;
 
 // Lexer rules (终结符)

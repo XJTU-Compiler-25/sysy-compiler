@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** Function Definition
  * FuncDef 表示函数定义。其中的 FuncType 指明返回类型。
 a) 当返回类型为 int/float 时，函数内所有分支都应当含有带有 Exp 的 return
@@ -17,22 +19,31 @@ b) 当返回值类型为 void 时，函数内只能出现不带返回值的 retu
 public final class FuncDef extends Decl {
 
     public List<Param> params;
-    public final Ident name;
+    public final Ident id;
     public final TypeAnnotation retType;
     public Block body;
 
     public FuncDef(
-            Token start, Token end, List<Param> params, Ident name, TypeAnnotation retType, Block body) {
+            Token start, Token end, List<Param> params, Ident id, TypeAnnotation retType, Block body) {
         super(start, end);
         this.params = params;
-        this.name = name;
+        this.id = id;
         this.retType = retType;
         this.body = body;
     }
 
     @Override
     public String toString() {
-        return "FuncDef [params=" + params + ", name=" + name + ", retType=" + retType + ", body=" + body
+        return "FuncDef [params=" + params + ", id=" + id + ", retType=" + retType + ", body=" + body
                 + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        for (Param param : params) {
+            visitor.visit(param);
+        }
+        visitor.visit(id);
+        visitor.visit(retType);
+        visitor.visit(body);
     }
 }

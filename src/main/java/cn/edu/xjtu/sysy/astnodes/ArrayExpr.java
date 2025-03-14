@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /**
  * ArrayExpr ConstInitVal 初始化器必须是以下三种情况之一： a) 一对花括号 {}，表示所有元素初始为 0。 b)
  * 与多维数组中数组维数和各维长度完全对应的初始值，如{{1,2},{3,4}, {5,6}}、{1,2,3,4,5,6}、{1,2,{3,4},5,6}均可作为 a[3][2]的初始值。 c)
@@ -33,5 +35,11 @@ public final class ArrayExpr extends Expr {
                 + ", getLocation()="
                 + Arrays.toString(getLocation())
                 + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        for (Expr element : elements) {
+            visitor.visit(element);
+        }
     }
 }

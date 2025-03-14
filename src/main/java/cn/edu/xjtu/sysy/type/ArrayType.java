@@ -10,6 +10,14 @@ public final class ArrayType extends ValueType {
         this.dimensions = dimensions;
     }
 
+    public ArrayType getSubArray(int depth) {
+        int[] dims = new int[dimensions.length - depth];
+        for (int i = depth; i < dimensions.length; i++) {
+            dims[i-depth] = dimensions[i];
+        }
+        return new ArrayType(elementType, dims);
+    }
+
     @Override
     public boolean isArrayType() {
         return true;
@@ -21,6 +29,9 @@ public final class ArrayType extends ValueType {
         }
         if (type == null) {
             return false;
+        }
+        if (type instanceof ArrayLiteralType aType) {
+            return equals(aType);
         }
         if (getClass() != type.getClass()) {
             return false;
@@ -38,3 +49,4 @@ public final class ArrayType extends ValueType {
         return true;
     }
 }
+
