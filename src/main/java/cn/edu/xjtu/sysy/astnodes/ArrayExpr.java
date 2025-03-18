@@ -30,9 +30,7 @@ public final class ArrayExpr extends Expr {
 
     @Override
     public String toString() {
-        return "ArrayExpr [elements="
-                + elements
-                + ", getLocation()="
+        return "ArrayExpr [Location="
                 + Arrays.toString(getLocation())
                 + "]";
     }

@@ -89,7 +89,7 @@ public final class VarDef extends Node {
 
     @Override
     public String toString() {
-        return "VarDef [id=" + id + ", dimensions=" + dimensions + ", value=" + value + ", getLocation()="
+        return "VarDef [Location="
                 + Arrays.toString(getLocation()) + "]";
     }
 

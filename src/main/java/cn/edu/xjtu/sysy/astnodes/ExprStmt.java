@@ -18,7 +18,7 @@ public final class ExprStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "ExprStmt [expr=" + expr + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "ExprStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {

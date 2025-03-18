@@ -4,6 +4,9 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
+
 import cn.edu.xjtu.sysy.astnodes.CompUnit;
 import cn.edu.xjtu.sysy.astnodes.SemanticError;
 import cn.edu.xjtu.sysy.astvisitor.BuildAstVisitor;
@@ -57,6 +60,6 @@ public class Compiler {
             }
             return;
         }
-        System.out.println(compUnit.toString());
+        System.out.println(JSON.toJSONString(compUnit, JSONWriter.Feature.PrettyFormat));
     }
 }

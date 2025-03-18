@@ -22,7 +22,7 @@ public final class IfStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "IfStmt [cond=" + cond + ", thenStmt=" + thenStmt + ", elseStmt=" + elseStmt + ", getLocation()="
+        return "IfStmt [Location="
                 + Arrays.toString(getLocation()) + "]";
     }
 

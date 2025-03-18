@@ -23,7 +23,7 @@ public final class VarDefs extends Decl {
 
     @Override
     public String toString() {
-        return  (isConst ? "Const" : "") + "VarDefs [type=" + type + ", defs=" + defs + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return  (isConst ? "Const" : "") + "VarDefs [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {

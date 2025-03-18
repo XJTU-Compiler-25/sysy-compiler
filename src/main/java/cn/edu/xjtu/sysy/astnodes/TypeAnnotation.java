@@ -20,6 +20,6 @@ public final class TypeAnnotation extends Node {
 
     @Override
     public String toString() {
-        return "TypeAnnotation [name=" + name + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "TypeAnnotation [Location=" + Arrays.toString(getLocation()) + "]";
     }
 }

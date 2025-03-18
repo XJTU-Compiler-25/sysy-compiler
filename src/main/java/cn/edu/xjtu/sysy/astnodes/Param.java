@@ -34,7 +34,7 @@ public final class Param extends Node {
 
     @Override
     public String toString() {
-        return "Param [type=" + type + ", id=" + id + ", dimensions=" + dimensions + ", getLocation()="
+        return "Param [Location="
                 + Arrays.toString(getLocation()) + "]";
     }
 

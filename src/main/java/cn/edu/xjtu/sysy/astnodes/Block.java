@@ -28,7 +28,7 @@ public final class Block extends Node {
 
     @Override
     public String toString() {
-        return "Block [stmts=" + stmts + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "Block [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public SymbolTable<VarInfo> getVarInfos() {

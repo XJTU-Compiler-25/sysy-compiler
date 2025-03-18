@@ -18,7 +18,7 @@ public final class BlockStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "BlockStmt [block=" + block + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "BlockStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {

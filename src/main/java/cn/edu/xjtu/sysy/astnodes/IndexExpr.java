@@ -21,7 +21,7 @@ public final class IndexExpr extends AssignableExpr {
 
     @Override
     public String toString() {
-        return "IndexExpr [id=" + id + ", indexes=" + indexes + ", getLocation()=" + Arrays.toString(getLocation())
+        return "IndexExpr [Location=" + Arrays.toString(getLocation())
                 + "]";
     }
 

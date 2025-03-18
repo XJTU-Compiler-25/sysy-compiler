@@ -29,8 +29,9 @@ public final class UnaryExpr extends Expr {
 
     @Override
     public String toString() {
-        return "UnaryExpr [operand=" + operand + ", operator=" + operator + ", getLocation()="
-                + Arrays.toString(getLocation()) + "]";
+        return "UnaryExpr [Location="
+                + Arrays.toString(getLocation()) + 
+                ", op=" + operator + "]";
     }
 
     public void accept(AstVisitor visitor) {

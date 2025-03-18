@@ -18,7 +18,7 @@ public final class VarDefStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "VarDefStmt [varDefs=" + varDefs + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "VarDefStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {

@@ -4,6 +4,7 @@ import org.antlr.v4.runtime.Token;
 
 /** 声明基类 */
 public abstract sealed class Decl extends Node permits VarDefs, FuncDef {
+    
     private boolean isDead = false;
 
     public Decl(Token start, Token end) {

@@ -22,11 +22,7 @@ public final class AssignStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "AssignStmt [target="
-                + target
-                + ", value="
-                + value
-                + ", getLocation()="
+        return "AssignStmt [Location="
                 + Arrays.toString(getLocation())
                 + "]";
     }

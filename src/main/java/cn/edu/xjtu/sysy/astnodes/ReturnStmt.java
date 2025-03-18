@@ -18,7 +18,7 @@ public final class ReturnStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "ReturnStmt [value=" + value + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "ReturnStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {

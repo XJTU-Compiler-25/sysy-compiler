@@ -8,7 +8,7 @@ import cn.edu.xjtu.sysy.type.ValueType;
 /** Expressions */
 public abstract class Expr extends Node {
     public ValueType inferredType = null;
-
+    
     public boolean isComptime = false;
 
     /** 可在编译时确认的常量值 */

@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import com.alibaba.fastjson2.annotation.JSONField;
+
 import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
 import cn.edu.xjtu.sysy.scope.FuncInfo;
 import cn.edu.xjtu.sysy.scope.SymbolTable;
@@ -23,10 +25,12 @@ import cn.edu.xjtu.sysy.scope.VarInfo;
 public final class CompUnit extends Node {
 
     public final List<Decl> declarations;
-
+    
+    @JSONField(serialize = false)
     public List<SemanticError> semErrors = new ArrayList<>();
 
     private SymbolTable<FuncInfo> funcInfos;
+    
     private SymbolTable<VarInfo> varInfos;
 
     public CompUnit(Token start, Token end, List<Decl> declarations) {
@@ -41,7 +45,7 @@ public final class CompUnit extends Node {
 
     @Override
     public String toString() {
-        return "CompUnit [declarations=" + declarations + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "CompUnit [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public SymbolTable<FuncInfo> getFuncInfos() {

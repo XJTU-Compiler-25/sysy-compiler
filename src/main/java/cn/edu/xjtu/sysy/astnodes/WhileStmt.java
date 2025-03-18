@@ -20,7 +20,7 @@ public final class WhileStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "WhileStmt [cond=" + cond + ", bodyStmt=" + bodyStmt + ", getLocation()="
+        return "WhileStmt [Location="
                 + Arrays.toString(getLocation()) + "]";
     }
 

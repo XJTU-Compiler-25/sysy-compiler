@@ -34,16 +34,15 @@ public final class FuncDef extends Decl {
 
     @Override
     public String toString() {
-        return "FuncDef [params=" + params + ", id=" + id + ", retType=" + retType + ", body=" + body
-                + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "FuncDef [Location=" + Arrays.toString(getLocation()) + "]";
     }
 
     public void accept(AstVisitor visitor) {
+        visitor.visit(id);
+        visitor.visit(retType);
         for (Param param : params) {
             visitor.visit(param);
         }
-        visitor.visit(id);
-        visitor.visit(retType);
         visitor.visit(body);
     }
 }

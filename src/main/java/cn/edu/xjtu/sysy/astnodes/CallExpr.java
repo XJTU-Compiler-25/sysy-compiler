@@ -24,7 +24,7 @@ public final class CallExpr extends Expr {
 
     @Override
     public String toString() {
-        return "CallExpr [function=" + function + ", args=" + args + ", getLocation()=" + Arrays.toString(getLocation())
+        return "CallExpr [Location=" + Arrays.toString(getLocation())
                 + "]";
     }
 
