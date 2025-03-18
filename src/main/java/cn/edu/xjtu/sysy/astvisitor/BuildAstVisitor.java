@@ -29,6 +29,7 @@ import cn.edu.xjtu.sysy.astnodes.IntLiteral;
 import cn.edu.xjtu.sysy.astnodes.Node;
 import cn.edu.xjtu.sysy.astnodes.Param;
 import cn.edu.xjtu.sysy.astnodes.ReturnStmt;
+import cn.edu.xjtu.sysy.astnodes.SemanticError;
 import cn.edu.xjtu.sysy.astnodes.Stmt;
 import cn.edu.xjtu.sysy.astnodes.TypeAnnotation;
 import cn.edu.xjtu.sysy.astnodes.UnaryExpr;
@@ -66,9 +67,18 @@ import cn.edu.xjtu.sysy.parse.SysYParser.VarDefStmtContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.VarDefsContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.WhileStmtContext;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-import static cn.edu.xjtu.sysy.util.Todo.todo;
 
 public class BuildAstVisitor extends SysYBaseVisitor<Node> {
+    
+    private List<SemanticError> errors = new ArrayList<>();
+    
+    public void err(Node node, String msgForm, Object... args) {
+        errors.add(new SemanticError(node, String.format(msgForm, args)));
+    }
+
+    public boolean hasError() {
+        return !errors.isEmpty();
+    }
 
     @Override
     public CompUnit visitCompUnit(SysYParser.CompUnitContext ctx) {
@@ -559,9 +569,10 @@ public class BuildAstVisitor extends SysYBaseVisitor<Node> {
             return null;
         }
 
-        if (ctx instanceof SysYParser.ElementExpContext) {
-            // report semantic error: scalar exp can't be assigned to an array.
-            return todo();
+        if (ctx instanceof SysYParser.ElementExpContext it) {
+            Expr expr = visitElementExp(it);
+            err(expr, "invalid initializer");
+            return null;
         } else if (ctx instanceof SysYParser.ArrayExpContext it) {
             return visitArrayExp(it);
         }
@@ -601,5 +612,9 @@ public class BuildAstVisitor extends SysYBaseVisitor<Node> {
                         .map(this::visitArrayLiteralExpRecursive)
                         .collect(Collectors.toList());
         return new ArrayExpr(ctx.getStart(), ctx.getStop(), elements);
+    }
+
+    public List<SemanticError> getErrors() {
+        return errors;
     }
 }

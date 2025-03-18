@@ -13,6 +13,6 @@ public final class ContinueStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "ContinueStmt [" + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "ContinueStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 }

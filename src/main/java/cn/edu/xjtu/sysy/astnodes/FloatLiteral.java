@@ -26,6 +26,6 @@ public final class FloatLiteral extends Literal {
 
     @Override
     public String toString() {
-        return "FloatLiteral [value=" + value + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "FloatLiteral [Location=" + Arrays.toString(getLocation()) + ", value="+ value +"]";
     }
 }

@@ -1,9 +1,17 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.antlr.v4.runtime.Token;
+
+import com.alibaba.fastjson2.annotation.JSONField;
+
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+import cn.edu.xjtu.sysy.scope.FuncInfo;
+import cn.edu.xjtu.sysy.scope.SymbolTable;
+import cn.edu.xjtu.sysy.scope.VarInfo;
 
 /** Compile Unit
  * 1. 一个 SysY 程序由单个文件组成，文件内容对应 EBNF 表示中的 CompUnit。
@@ -17,17 +25,48 @@ import org.antlr.v4.runtime.Token;
 public final class CompUnit extends Node {
 
     public final List<Decl> declarations;
+    
+    @JSONField(serialize = false)
+    public List<SemanticError> semErrors = new ArrayList<>();
 
-    //TODO: public List<SemanticError> semErrors;
-    //TODO: SymbolTable
+    private SymbolTable<FuncInfo> funcInfos;
+    
+    private SymbolTable<VarInfo> varInfos;
 
     public CompUnit(Token start, Token end, List<Decl> declarations) {
         super(start, end);
         this.declarations = declarations;
     }
 
+    public void semError(Node errNode, String errMsgForm, Object... args) {
+        SemanticError err = new SemanticError(errNode, String.format(errMsgForm, args));
+        this.semErrors.add(err);
+    }
+
     @Override
     public String toString() {
-        return "CompUnit [declarations=" + declarations + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "CompUnit [Location=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public SymbolTable<FuncInfo> getFuncInfos() {
+        return funcInfos;
+    }
+
+    public void setFuncInfos(SymbolTable<FuncInfo> funcInfos) {
+        this.funcInfos = funcInfos;
+    }
+
+    public SymbolTable<VarInfo> getVarInfos() {
+        return varInfos;
+    }
+
+    public void setVarInfos(SymbolTable<VarInfo> varInfos) {
+        this.varInfos = varInfos;
+    }
+
+    public void accept(AstVisitor visitor) {
+        for (Decl decl : declarations) {
+            visitor.visit(decl);
+        }
     }
 }

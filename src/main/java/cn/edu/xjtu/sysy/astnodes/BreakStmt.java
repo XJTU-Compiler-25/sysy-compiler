@@ -13,6 +13,6 @@ public final class BreakStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "BreakStmt [" + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "BreakStmt [Location=" + Arrays.toString(getLocation()) + "]";
     }
 }

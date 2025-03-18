@@ -14,8 +14,12 @@ public final class TypeAnnotation extends Node {
         this.name = name;
     }
 
+    public boolean isVoid() {
+        return name.equals("void");
+    }
+
     @Override
     public String toString() {
-        return "TypeAnnotation [name=" + name + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "TypeAnnotation [Location=" + Arrays.toString(getLocation()) + "]";
     }
 }

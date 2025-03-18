@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** WhileStmt */
 public final class WhileStmt extends Stmt {
 
@@ -18,7 +20,12 @@ public final class WhileStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "WhileStmt [cond=" + cond + ", bodyStmt=" + bodyStmt + ", getLocation()="
+        return "WhileStmt [Location="
                 + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(cond);
+        visitor.visit(bodyStmt);
     }
 }

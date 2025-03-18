@@ -1,17 +1,21 @@
 package cn.edu.xjtu.sysy.type;
 
-import java.util.List;
-
-import cn.edu.xjtu.sysy.astnodes.Expr;
-
 public final class ArrayType extends ValueType {
-    //TODO
-    private BaseType elementType;
-    private List<Expr> dimensions;
+    private final BaseType elementType;
+    // At this point, dimensions of array should be determined. 
+    private final int[] dimensions;
 
-    public ArrayType(BaseType elementType, List<Expr> dimensions) {
+    public ArrayType(BaseType elementType, int[] dimensions) {
         this.elementType = elementType;
         this.dimensions = dimensions;
+    }
+
+    public ArrayType getSubArray(int depth) {
+        int[] dims = new int[dimensions.length - depth];
+        for (int i = depth; i < dimensions.length; i++) {
+            dims[i-depth] = dimensions[i];
+        }
+        return new ArrayType(elementType, dims);
     }
 
     @Override
@@ -26,15 +30,23 @@ public final class ArrayType extends ValueType {
         if (type == null) {
             return false;
         }
+        if (type instanceof ArrayLiteralType aType) {
+            return equals(aType);
+        }
         if (getClass() != type.getClass()) {
             return false;
         }
         ArrayType arrType = (ArrayType) type;
-
-        // TODO: check dimensions equal. Constant Folding of dimension should be done at this moment.
-        boolean dimensionEq = false;
-        return this.elementType.equals(arrType.elementType) && dimensionEq;
-
+        if (dimensions.length != arrType.dimensions.length
+                || this.elementType.equals(arrType.elementType)) {
+            return false;
+        }
+        for (int i = 0; i < dimensions.length; i++) {
+            if (dimensions[i] != arrType.dimensions[i]) {
+                return false;
+            }
+        }
+        return true;
     }
-
 }
+

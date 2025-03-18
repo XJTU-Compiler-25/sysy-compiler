@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** VarDecl */
 public final class VarDefs extends Decl {
 
@@ -21,6 +23,13 @@ public final class VarDefs extends Decl {
 
     @Override
     public String toString() {
-        return  (isConst ? "Const" : "") + "VarDefs [type=" + type + ", defs=" + defs + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return  (isConst ? "Const" : "") + "VarDefs [Location=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(type);
+        for (VarDef varDef : defs) {
+            visitor.visit(varDef);
+        }
     }
 }

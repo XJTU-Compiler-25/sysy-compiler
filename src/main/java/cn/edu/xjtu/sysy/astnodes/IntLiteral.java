@@ -26,6 +26,6 @@ public final class IntLiteral extends Literal {
 
     @Override
     public String toString() {
-        return "IntLiteral [value=" + value + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "IntLiteral [Location=" + Arrays.toString(getLocation()) + ", value=" + value + "]";
     }
 }

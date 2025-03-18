@@ -1,6 +1,10 @@
 package cn.edu.xjtu.sysy.astnodes;
 
+import java.util.Arrays;
+
 import org.antlr.v4.runtime.Token;
+
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
 
 /** VarDefStmt */
 public final class VarDefStmt extends Stmt {
@@ -14,6 +18,10 @@ public final class VarDefStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "VarDefStmt [varDefs=" + varDefs + ", toString()=" + super.toString() + "]";
+        return "VarDefStmt [Location=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(varDefs);
     }
 }

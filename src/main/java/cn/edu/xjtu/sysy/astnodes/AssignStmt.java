@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** AssignStmt assignableExp '=' exp ';' */
 public final class AssignStmt extends Stmt {
     /** 赋值表达式的左值 */
@@ -20,12 +22,13 @@ public final class AssignStmt extends Stmt {
 
     @Override
     public String toString() {
-        return "AssignStmt [target="
-                + target
-                + ", value="
-                + value
-                + ", getLocation()="
+        return "AssignStmt [Location="
                 + Arrays.toString(getLocation())
                 + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(target);
+        visitor.visit(value);
     }
 }

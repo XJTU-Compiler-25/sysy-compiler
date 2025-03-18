@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** Expressions */
 public final class IndexExpr extends AssignableExpr {
 
@@ -19,7 +21,14 @@ public final class IndexExpr extends AssignableExpr {
 
     @Override
     public String toString() {
-        return "IndexExpr [id=" + id + ", indexes=" + indexes + ", getLocation()=" + Arrays.toString(getLocation())
+        return "IndexExpr [Location=" + Arrays.toString(getLocation())
                 + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(id);
+        for (Expr index : indexes) {
+            visitor.visit(index);
+        }
     }
 }

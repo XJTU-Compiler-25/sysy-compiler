@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+
 /** Function Parameters
  * 1.FuncFParam 定义一个函数的一个形式参数。当 Ident 后面的可选部分存在时，
 表示数组定义。
@@ -32,7 +34,15 @@ public final class Param extends Node {
 
     @Override
     public String toString() {
-        return "Param [type=" + type + ", id=" + id + ", dimensions=" + dimensions + ", getLocation()="
+        return "Param [Location="
                 + Arrays.toString(getLocation()) + "]";
+    }
+
+    public void accept(AstVisitor visitor) {
+        visitor.visit(type);
+        visitor.visit(id);
+        for (Expr dim : dimensions) {
+            visitor.visit(dim);
+        }
     }
 }

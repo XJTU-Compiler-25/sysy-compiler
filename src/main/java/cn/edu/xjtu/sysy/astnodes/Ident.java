@@ -21,6 +21,6 @@ public final class Ident extends AssignableExpr {
 
     @Override
     public String toString() {
-        return "Ident [name=" + name + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "Ident [Location=" + Arrays.toString(getLocation()) + ", name="+ name +"]";
     }
 }

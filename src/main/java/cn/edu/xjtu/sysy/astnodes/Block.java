@@ -5,6 +5,10 @@ import java.util.List;
 
 import org.antlr.v4.runtime.Token;
 
+import cn.edu.xjtu.sysy.astvisitor.AstVisitor;
+import cn.edu.xjtu.sysy.scope.SymbolTable;
+import cn.edu.xjtu.sysy.scope.VarInfo;
+
 /** Block 
  * 1. Block 表示语句块。语句块会创建作用域，语句块内声明的变量的生存期在
 该语句块内。
@@ -14,6 +18,8 @@ import org.antlr.v4.runtime.Token;
 public final class Block extends Node {
     /** 语句块元素 */
     public List<Stmt> stmts;
+    
+    private SymbolTable<VarInfo> varInfos;
 
     public Block(Token start, Token end, List<Stmt> stmts) {
         super(start, end);
@@ -22,6 +28,20 @@ public final class Block extends Node {
 
     @Override
     public String toString() {
-        return "Block [stmts=" + stmts + ", getLocation()=" + Arrays.toString(getLocation()) + "]";
+        return "Block [Location=" + Arrays.toString(getLocation()) + "]";
+    }
+
+    public SymbolTable<VarInfo> getVarInfos() {
+        return varInfos;
+    }
+
+    public void setVarInfos(SymbolTable<VarInfo> varInfos) {
+        this.varInfos = varInfos;
+    }
+
+    public void accept(AstVisitor visitor) {
+        for (Stmt stmt : stmts) {
+            visitor.visit(stmt);
+        }
     }
 }
