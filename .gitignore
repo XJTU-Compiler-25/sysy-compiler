@@ -41,3 +41,6 @@ bin/
 
 ### IntelliJ ANTLR Plugin generated ###
 src/main/gen/
+
+### VS Code ANTLR Plugin generated ###
+.antlr/
