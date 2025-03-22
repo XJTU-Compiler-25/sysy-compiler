@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import cn.edu.xjtu.sysy.ast.node.*;
+import cn.edu.xjtu.sysy.ast.node.Expr.Operator;
 import cn.edu.xjtu.sysy.symbol.SymbolTable;
 
 /**
@@ -20,7 +21,7 @@ public class CompTimeValueFolder extends AstVisitor {
         return val ? 1 : 0;
     }
 
-    public Number calculate(float left, String op, float right) {
+    public Number calculate(float left, Operator op, float right) {
         return switch (op) {
             case "+" -> left + right;
             case "-" -> left - right;
