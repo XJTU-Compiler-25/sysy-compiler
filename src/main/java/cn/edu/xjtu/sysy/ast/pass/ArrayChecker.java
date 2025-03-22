@@ -1,13 +1,11 @@
-package cn.edu.xjtu.sysy.analysis;
+package cn.edu.xjtu.sysy.ast.pass;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import cn.edu.xjtu.sysy.astnodes.ArrayExpr;
-import cn.edu.xjtu.sysy.astnodes.Expr;
-import cn.edu.xjtu.sysy.astnodes.IntLiteral;
-import cn.edu.xjtu.sysy.astnodes.Node;
-import cn.edu.xjtu.sysy.astnodes.SemanticError;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Node;
+import cn.edu.xjtu.sysy.ast.node.SemanticError;
 
 /** 检查数组初始化器合法性，并进行补0.
  *  大致思想：
@@ -22,7 +20,7 @@ import cn.edu.xjtu.sysy.astnodes.SemanticError;
  *   |   |
  *   |   v
  *   - 补充‘}’，depth-1 = 1
- */        
+ */
 public class ArrayChecker {
     /** 对于每一个维度，均初始化一个定长数组，用于每一维的初始化 */
     public List<List<Expr>> initList = new ArrayList<>();
@@ -69,7 +67,7 @@ public class ArrayChecker {
             if (!checkSize(1, node)) {
                 return;
             }
-            initList.get(depth - 1).add(new ArrayExpr(null, null, ts));
+            initList.get(depth - 1).add(new Expr.Array(null, null, ts));
             initList.get(depth).clear();
         }
     }
@@ -80,7 +78,7 @@ public class ArrayChecker {
         while (initList.get(minDepth - 1).size() < dimensions[minDepth - 1]) {
             depth = dimensions.length;
             while (initList.get(depth - 1).size() < dimensions[depth - 1]) {
-                initList.get(depth - 1).add(new IntLiteral(null, null, 0));
+                initList.get(depth - 1).add(new Expr.IntLiteral(null, null, 0));
             }
             down(minDepth, node);
         }
@@ -98,9 +96,9 @@ public class ArrayChecker {
     /** 用于递归检查数组表达式。遍历数组的所有元素，如果元素是子数组，则增加深度并递归检查；
      * 如果是普通元素，则设置深度为最大值并调用单元素的check方法。
      * 如果在处理子数组后发现当前层级还有元素，则调用paddingZero来补充缺失的元素。 */
-    private void check(ArrayExpr expr) {
+    private void check(Expr.Array expr) {
         for (Expr t : expr.elements) {
-            if (t instanceof ArrayExpr aExp) {
+            if (t instanceof Expr.Array aExp) {
                 if (depth == dimensions.length) {
                     err(expr, "braces around scalar initializer");
                     if (aExp.elements.size() > 1) {
@@ -124,7 +122,7 @@ public class ArrayChecker {
 
     /** 整个类的主要入口。它首先检查提供的数组表达式，然后补充缺失的元素，
      * 最后检查是否所有内部维度都被正确处理（都应该为空），并返回处理后的数组表达式。 */
-    public ArrayExpr generateRealValue(ArrayExpr expr) {
+    public Expr.Array generateRealValue(Expr.Array expr) {
         check(expr);
         paddingZero(1, expr);
         for (int i = 1; i < dimensions.length; i++) {
@@ -133,6 +131,6 @@ public class ArrayChecker {
                 break;
             }
         }
-        return new ArrayExpr(null, null, initList.get(0));
+        return new Expr.Array(null, null, initList.get(0));
     }
 }

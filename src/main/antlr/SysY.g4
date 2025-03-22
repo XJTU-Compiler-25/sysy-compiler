@@ -79,57 +79,57 @@ package cn.edu.xjtu.sysy.parse;
 
 compUnit: (varDefs | funcDef)* EOF;
 
-varDefs: Const? varType varDef (',' varDef)* ';';
+varDefs: constmark=Const? type=varType varDef (',' varDef)* ';';
 varDef
-    : Id ('=' exp)?                                              # scalarVarDef
-    | Id ('[' exp ']')+ ('=' (arrayLiteralExp | assignableExp))? # arrayVarDef
+    : name=Id ('=' initVal=exp)?                                      # scalarVarDef
+    | name=Id ('[' exp ']')+ ('=' (arrayLiteralExp | assignableExp))? # arrayVarDef
     ;
 varType: 'int' | 'float';
 
 funcDef: retType=returnableType name=Id '(' (param (',' param)*)? ')' body=block;
 returnableType: 'int' | 'float' | 'void';
-param: varType Id ('[' ']' ('[' exp ']')*)?;
+param: type=varType name=Id (emptyDim='[' ']')? ('[' exp ']')*;
 
 block: '{' stmt* '}';
 
 stmt
-    : ';'                                  # emptyStmt
-    | varDefs                              # varDefStmt
-    | assignableExp '=' exp ';'            # assignmentStmt
-    | exp ';'                              # expStmt
-    | block                                # blockStmt
-    | If '(' cond ')' stmt ('else' stmt)?  # ifStmt
-    | While '(' cond ')' stmt              # whileStmt
-    | Break ';'                            # breakStmt
-    | Continue ';'                         # continueStmt
-    | Return exp? ';'                      # returnStmt
+    : ';'                                                             # emptyStmt
+    | defs=varDefs                                                    # varDefStmt
+    | target=assignableExp '=' value=exp ';'                          # assignmentStmt
+    | value=exp ';'                                                   # expStmt
+    | body=block                                                      # blockStmt
+    | If '(' condition=cond ')' thenStmt=stmt ('else' elseStmt=stmt)? # ifStmt
+    | While '(' condition=cond ')' body=stmt                          # whileStmt
+    | Break ';'                                                       # breakStmt
+    | Continue ';'                                                    # continueStmt
+    | Return value=exp? ';'                                           # returnStmt
     ;
 
 // SysY 语言中逻辑运算必须在 Cond 中
 cond
-    : exp                                    # expCond
-    | cond op=('<' | '>' | '<=' | '>=') cond # relCond
-    | cond op=('==' | '!=') cond             # eqCond
-    | cond '&&' cond                         # andCond
-    | cond '||' cond                         # orCond
+    : value=exp                                      # expCond
+    | lhs=cond op=('<' | '>' | '<=' | '>=') rhs=cond # relCond
+    | lhs=cond op=('==' | '!=') rhs=cond             # eqCond
+    | lhs=cond '&&' rhs=cond                         # andCond
+    | lhs=cond '||' rhs=cond                         # orCond
     ;
 exp
-    : '(' exp ')'                          # parenExp
+    : '(' value=exp ')'                    # parenExp
     | IntLiteral                           # intConstExp
     | FloatLiteral                         # floatConstExp
     | assignableExp                        # varAccessExp
-    | op=('+' | '-' | '!') exp             # unaryExp
-    | Id '(' (arg=exp (',' arg=exp)*)? ')' # funcCallExp
-    | exp op=('*' | '/' | '%') exp         # mulExp
-    | exp op=('+' | '-') exp               # addExp
+    | name=Id '(' (exp (',' exp)*)? ')'    # funcCallExp
+    | op=('+' | '-' | '!') rhs=exp         # unaryExp
+    | lhs=exp op=('*' | '/' | '%') rhs=exp # mulExp
+    | lhs=exp op=('+' | '-') rhs=exp       # addExp
     ;
 assignableExp
-    : Id                # scalarAssignable
-    | Id ('[' exp ']')+ # arrayAssignable
+    : name=Id                # scalarAssignable
+    | name=Id ('[' exp ']')+ # arrayAssignable
     ;
 arrayLiteralExp
-    : exp                                                            # elementExp
-    | '{' (element=arrayLiteralExp (',' element=arrayLiteralExp)*)? '}' # arrayExp
+    : value=exp                                      # elementExp
+    | '{' arrayLiteralExp (',' arrayLiteralExp)* '}' # arrayExp
     ;
 
 // Lexer rules (终结符)

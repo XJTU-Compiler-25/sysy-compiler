@@ -1,24 +1,13 @@
-package cn.edu.xjtu.sysy.astvisitor;
+package cn.edu.xjtu.sysy.ast.pass;
 
-import cn.edu.xjtu.sysy.astnodes.ArrayExpr;
-import cn.edu.xjtu.sysy.astnodes.BinaryExpr;
-import cn.edu.xjtu.sysy.astnodes.CallExpr;
-import cn.edu.xjtu.sysy.astnodes.FloatLiteral;
-import cn.edu.xjtu.sysy.astnodes.Ident;
-import cn.edu.xjtu.sysy.astnodes.IndexExpr;
-import cn.edu.xjtu.sysy.astnodes.IntLiteral;
-import cn.edu.xjtu.sysy.astnodes.UnaryExpr;
-import cn.edu.xjtu.sysy.scope.SymbolTable;
+import cn.edu.xjtu.sysy.ast.node.*;
+import cn.edu.xjtu.sysy.symbol.SymbolTable;
 
-/** 第一轮遍历，仅确定定义中的编译时可确定表达式（即constExp），不包括effectively final */
-public class CompTimeValueAnalyzer extends ExprVisitor<Number> {
-    
-    private SymbolTable<Number> constInfos;
-    
-    public CompTimeValueAnalyzer(SymbolTable<Number> constInfos) {
-        this.constInfos = constInfos;
-    }
-    
+/**
+ * 第一轮遍历，仅确定定义中的编译时可确定表达式（即constExp），不包括effectively final
+ */
+@Deprecated(forRemoval = true) // 即将合并到 AstAnnotator 中
+public class CompTimeValueFolder extends AstVisitor {
     private boolean toBool(int val) {
         return val != 0;
     }
@@ -88,76 +77,76 @@ public class CompTimeValueAnalyzer extends ExprVisitor<Number> {
     }
 
     @Override
-    public Number visit(BinaryExpr expr) {
-        Number left = visit(expr.left);
+    public Number visit(Expr.Binary expr) {
+        Number left = visit(expr.lhs);
         if (expr.isLogicalExpr()) {
-            if (expr.operator.equals("&&") && left.floatValue() == 0.f) {
+            if (expr.op.equals("&&") && left.floatValue() == 0.f) {
                 //expr.setConstantValue(0);
                 return 0;
-            } else if (expr.operator.equals("||") && left.floatValue() != 0.f) {
+            } else if (expr.op.equals("||") && left.floatValue() != 0.f) {
                 //expr.setConstantValue(1);
                 return 1;
             }
         }
-        Number right = visit(expr.right);
+        Number right = visit(expr.rhs);
         if (left == null || right == null) {
             return null;
         }
         if (left instanceof Float || right instanceof Float) {
-            Number value = calculate(left.floatValue(), expr.operator, right.floatValue());
+            Number value = calculate(left.floatValue(), expr.op, right.floatValue());
             //expr.setConstantValue(value);
             return value;
         }
-        Integer value = calculate(left.intValue(), expr.operator, right.intValue());
+        Integer value = calculate(left.intValue(), expr.op, right.intValue());
         //expr.setConstantValue(value);
         return value;
     }
 
     @Override
-    public Number visit(UnaryExpr expr) {
-        Number operand = visit(expr.operand);
+    public Number visit(Expr.Unary expr) {
+        Number operand = visit(expr.rhs);
         if (operand == null) {
             return null;
         }
         if (operand instanceof Float) {
-            Number value = calculate(expr.operator, operand.floatValue());
+            Number value = calculate(expr.op, operand.floatValue());
             //expr.setConstantValue(value);
             return value;
         }
-        Integer value = calculate(expr.operator, operand.intValue());
+        Integer value = calculate(expr.op, operand.intValue());
         //expr.setConstantValue(value);
         return value;
     }
 
     @Override
-    public Number visit(CallExpr node) {
+    public Number visit(Expr.Call node) {
         return null;
     }
 
     @Override
-    public Number visit(ArrayExpr node) {
+    public Number visit(Expr.Array node) {
         return null;
     }
 
     @Override
-    public Number visit(IndexExpr node) {
+    public Number visit(Expr.IndexAccess node) {
         return null;
     }
 
     @Override
-    public Number visit(IntLiteral node) {
+    public Number visit(Expr.IntLiteral node) {
         //node.setConstantValue(node.value);
         return node.value;
     }
 
     @Override
-    public Number visit(FloatLiteral node) {
+    public Number visit(Expr.FloatLiteral node) {
         //node.setConstantValue(node.value);
         return node.value;
     }
 
     @Override
-    public Number visit(Ident node) {
+    public Number visit(Expr.VarAccess node) {
         return constInfos.get(node.name);
     }
 }
