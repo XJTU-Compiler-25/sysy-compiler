@@ -1,5 +1,19 @@
 package cn.edu.xjtu.sysy;
 
-public abstract class Pass<T> {
+import cn.edu.xjtu.sysy.error.ErrManaged;
+import cn.edu.xjtu.sysy.error.ErrManager;
+
+public abstract class Pass<T> implements ErrManaged {
+    private final ErrManager errManager;
+
+    public Pass(ErrManager errManager) {
+        this.errManager = errManager;
+    }
+
+    @Override
+    public ErrManager getErrManager() {
+        return errManager;
+    }
+
     public abstract void process(T obj);
 }

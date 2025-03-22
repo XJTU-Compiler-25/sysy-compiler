@@ -1,21 +1,38 @@
 package cn.edu.xjtu.sysy;
 
-import java.util.ArrayList;
+import cn.edu.xjtu.sysy.error.ErrManaged;
+import cn.edu.xjtu.sysy.error.ErrManager;
+
 import java.util.Arrays;
-import java.util.List;
+import java.util.function.Function;
 
-public final class PassGroup<T> {
-    public List<Pass<T>> passes;
+public final class PassGroup<T> implements ErrManaged {
+    private final Pass<T>[] passes;
+    private final ErrManager errManager;
 
-    public PassGroup(List<Pass<T>> passes) {
-        this.passes = passes;
+    @SafeVarargs
+    @SuppressWarnings("unchecked")
+    public PassGroup(ErrManager errManager, Function<ErrManager, Pass<T>>... passSuppliers) {
+        this.errManager = errManager;
+        this.passes = (Pass<T>[]) Arrays.stream(passSuppliers)
+                .map(it -> it.apply(errManager))
+                .toArray(Pass[]::new);
     }
 
-    public PassGroup(Pass<T>... passes) {
-        this.passes = new ArrayList<>(Arrays.asList(passes));
+    @SafeVarargs
+    public PassGroup(Function<ErrManager, Pass<T>>... passSuppliers) {
+        this(new ErrManager(), passSuppliers);
+    }
+
+    @Override
+    public ErrManager getErrManager() {
+        return errManager;
     }
 
     public void process(T obj) {
-        for (var pass : passes) pass.process(obj);
+        for (var pass : passes) {
+            pass.process(obj);
+            if(pass.hasErr()) break;
+        }
     }
 }
