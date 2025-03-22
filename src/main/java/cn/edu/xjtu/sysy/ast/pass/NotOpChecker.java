@@ -2,11 +2,16 @@ package cn.edu.xjtu.sysy.ast.pass;
 
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.error.ErrManager;
 
 /**
  * 识别出例如算术表达式中包含 ! 运算符等语义错误
  */
-public final class ExprValidator extends AstVisitor {
+public final class NotOpChecker extends AstVisitor {
+    public NotOpChecker(ErrManager errManager) {
+        super(errManager);
+    }
+
     private boolean isInCondition = false;
 
     @Override

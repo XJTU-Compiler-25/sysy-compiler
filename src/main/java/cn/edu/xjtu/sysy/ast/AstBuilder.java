@@ -4,16 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.edu.xjtu.sysy.error.Err;
+import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.symbol.Symbol;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Node;
-import cn.edu.xjtu.sysy.ast.node.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.parse.SysYBaseVisitor;
 import cn.edu.xjtu.sysy.parse.SysYParser;
@@ -46,15 +44,20 @@ import cn.edu.xjtu.sysy.parse.SysYParser.VarDefsContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.WhileStmtContext;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
-public class AstBuilder extends SysYBaseVisitor<Node> {
-    private ErrManager errManager = new ErrManager();
-    
-    public void err(Node node, String msgForm, Object... args) {
-        errManager.add(new SemanticError(node, String.format(msgForm, args)));
+public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManaged {
+    private final ErrManager errManager;
+
+    public AstBuilder(ErrManager em) {
+        errManager = em;
     }
 
-    public boolean hasError() {
-        return errManager.hasErr();
+    @Override
+    public ErrManager getErrManager() {
+        return errManager;
+    }
+
+    public void err(Node node, String msgForm, Object... args) {
+        errManager.err(new SemanticError(node, String.format(msgForm, args)));
     }
 
     @Override
@@ -134,7 +137,7 @@ public class AstBuilder extends SysYBaseVisitor<Node> {
         String type = ctx.type.getText();
         List<Expr> dimensions = ctx.exp().stream().map(this::visitExp).collect(Collectors.toList());
         // 有空第一维，在最前加上 -1 项
-        if(ctx.emptyDim != null) dimensions.addFirst(new Expr.IntLiteral(null, null, -1));
+        if(ctx.emptyDim != null) dimensions.addFirst(new Expr.Literal(null, null, -1));
         return new Decl.VarDef(ctx.getStart(), ctx.getStop(), Symbol.Var.Kind.LOCAL,  name, type, dimensions, false, null);
     }
 
@@ -363,13 +366,13 @@ public class AstBuilder extends SysYBaseVisitor<Node> {
     }
 
     @Override
-    public Expr.IntLiteral visitIntConstExp(SysYParser.IntConstExpContext ctx) {
-        return new Expr.IntLiteral(ctx.getStart(), ctx.getStop(), Integer.parseInt(ctx.IntLiteral().getText()));
+    public Expr.Literal visitIntConstExp(SysYParser.IntConstExpContext ctx) {
+        return new Expr.Literal(ctx.getStart(), ctx.getStop(), Integer.parseInt(ctx.IntLiteral().getText()));
     }
 
     @Override
-    public Expr.FloatLiteral visitFloatConstExp(SysYParser.FloatConstExpContext ctx) {
-        return new Expr.FloatLiteral(ctx.getStart(), ctx.getStop(), Float.parseFloat(ctx.FloatLiteral().getText()));
+    public Expr.Literal visitFloatConstExp(SysYParser.FloatConstExpContext ctx) {
+        return new Expr.Literal(ctx.getStart(), ctx.getStop(), Float.parseFloat(ctx.FloatLiteral().getText()));
     }
 
     public Expr.Array visitArrayLiteralExp(SysYParser.ArrayLiteralExpContext ctx) {

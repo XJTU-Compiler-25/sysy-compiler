@@ -1,10 +1,11 @@
-package cn.edu.xjtu.sysy.ast.node;
+package cn.edu.xjtu.sysy.ast;
 
+import cn.edu.xjtu.sysy.ast.node.Node;
 import cn.edu.xjtu.sysy.error.Err;
 
 public final class SemanticError extends Err {
-    private String errMsg;
-    private Node errNode;
+    private final String errMsg;
+    private final Node errNode;
 
     public SemanticError(Node errNode, String errMsg) {
         super(errMsg);

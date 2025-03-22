@@ -1,6 +1,7 @@
 import java.io.IOException;
 
 import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
+import cn.edu.xjtu.sysy.error.ErrManager;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -9,9 +10,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.node.SemanticError;
 import cn.edu.xjtu.sysy.ast.AstBuilder;
-import cn.edu.xjtu.sysy.ast.pass.TopLevelSemanticAnalyzer;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
@@ -28,7 +27,7 @@ import cn.edu.xjtu.sysy.util.Assertions;
 
  * 编译生成的学生编译器统一命名为compiler，参数如下：
  * 功能测试：compiler testcase.sysy -S -o testcase.s
- * 性能测试：compiler testcase.sysy -S -o testcase.s-O1
+ * 性能测试：compiler testcase.sysy -S -o testcase.s -O1
  */
 public class Compiler {
     public static void main(String[] args) throws IOException {
@@ -42,8 +41,9 @@ public class Compiler {
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
         SysYParser parser = new SysYParser(tokenStream);
 
+        ErrManager em = ErrManager.GLOBAL;
         CompUnitContext cst = parser.compUnit();
-        AstBuilder astBuilder = new AstBuilder();
+        AstBuilder astBuilder = new AstBuilder(em);
         CompUnit compUnit = astBuilder.visitCompUnit(cst);
 
         AstPassGroups.GROUP.process(compUnit);

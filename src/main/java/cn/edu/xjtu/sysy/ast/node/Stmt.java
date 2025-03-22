@@ -48,7 +48,7 @@ public abstract sealed class Stmt extends Node {
     /** AssignStmt assignableExp '=' exp ';' */
     public static final class Assign extends Stmt {
         /** 赋值表达式的左值 */
-        public final Expr.Assignable target;
+        public Expr.Assignable target;
 
         /** 右值 */
         public Expr value;
