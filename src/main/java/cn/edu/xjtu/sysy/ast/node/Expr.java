@@ -18,9 +18,8 @@ public abstract sealed class Expr extends Node {
         super(start, end);
     }
 
-    public void setType(Type type) {
-        if (this.type != null) throw new IllegalArgumentException("Double infer");
-        this.type = type;
+    public final boolean isComptime() {
+        return comptimeValue != null;
     }
 
     public enum Operator {
@@ -181,51 +180,15 @@ public abstract sealed class Expr extends Node {
     }
 
     /** Literal */
-    public abstract sealed static class Literal extends Expr {
-        public Literal(Token start, Token end) {
+    public static final class Literal extends Expr {
+        public Literal(Token start, Token end, int value) {
             super(start, end);
-        }
-    }
-
-    /** Integer Literal
-     * SysY 语言的 int 和 float 类型的数有以下隐式类型转换：
-    1、当 float 类型的值隐式转换为整型时，例如通过赋值 int i = 4.0; 小数部分将被
-    丢弃；如果整数部分的值不在整型的表示范围，则其行为是未定义的；
-    2、当 int 类型的值转换为 float 型时，例如通过赋值 float j = 3; 则转换后的值保
-    持不变。
-    注：编译器在实现隐式类型转换时，需要结合硬件体系结构提供的类型转换指令
-    或运行时的 ABI（应用二进制接口）。例如，对于 ARM 架构，可以调用运行时
-    ABI 函数 float __aeabi_i2f(int) 来将 int 转换为 float。
-    参见 https://developer.arm.com/documentation/ihi0043/latest
-     */
-    public static final class IntLiteral extends Literal {
-        public int value;
-
-        public IntLiteral(Token start, Token end, int value) {
-            super(start, end);
-            this.value = value;
             this.type = Type.Primitive.INT;
-            this.comptimeValue = new ComptimeValue.Float(value);
+            this.comptimeValue = new ComptimeValue.Int(value);
         }
-    }
 
-    /** FloatLiteral
-     * SysY 语言的 int 和 float 类型的数有以下隐式类型转换：
-    1、当 float 类型的值隐式转换为整型时，例如通过赋值 int i = 4.0; 小数部分将被
-    丢弃；如果整数部分的值不在整型的表示范围，则其行为是未定义的；
-    2、当 int 类型的值转换为 float 型时，例如通过赋值 float j = 3; 则转换后的值保
-    持不变。
-    注：编译器在实现隐式类型转换时，需要结合硬件体系结构提供的类型转换指令
-    或运行时的 ABI（应用二进制接口）。例如，对于 ARM 架构，可以调用运行时
-    ABI 函数 float __aeabi_i2f(int) 来将 int 转换为 float。
-    参见 https://developer.arm.com/documentation/ihi0043/latest
-     */
-    public static final class FloatLiteral extends Literal {
-        public float value;
-
-        public FloatLiteral(Token start, Token end, float value) {
+        public Literal(Token start, Token end, float value) {
             super(start, end);
-            this.value = value;
             this.type = Type.Primitive.FLOAT;
             this.comptimeValue = new ComptimeValue.Float(value);
         }
@@ -248,14 +211,33 @@ public abstract sealed class Expr extends Node {
          */
         public List<Expr> elements;
 
-        /**
-         * 整理过的数组元素，只有 单值 或 Array 元素
-         */
-        public List<Expr> normalizedElements;
-
         public Array(Token start, Token end, List<Expr> elements) {
             super(start, end);
             this.elements = elements;
+        }
+    }
+
+    /**
+     * 隐式转换，在类型分析中被插入，AstBuilder 不需要生成这个节点
+     * 便于直接遍历生成下一步 IR，不用在 expected type 是 int/float 时特判 actual type 是否是 float/int
+     */
+    public static final class Cast extends Expr {
+        public Expr value;
+        public Type fromType;
+        public Type toType;
+
+        public Cast(Expr value, Type toType) {
+            this(null, null, value, toType);
+        }
+
+        public Cast(Token start, Token end, Expr value, Type toType) {
+            super(start, end);
+            this.value = value;
+            this.toType = toType;
+
+            this.fromType = value.type;
+            this.type = toType;
+            this.comptimeValue = value.comptimeValue;
         }
     }
 }

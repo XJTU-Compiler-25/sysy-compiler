@@ -5,7 +5,7 @@ import java.util.List;
 
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Node;
-import cn.edu.xjtu.sysy.ast.node.SemanticError;
+import cn.edu.xjtu.sysy.ast.SemanticError;
 
 /** 检查数组初始化器合法性，并进行补0.
  *  大致思想：
@@ -78,7 +78,7 @@ public class ArrayChecker {
         while (initList.get(minDepth - 1).size() < dimensions[minDepth - 1]) {
             depth = dimensions.length;
             while (initList.get(depth - 1).size() < dimensions[depth - 1]) {
-                initList.get(depth - 1).add(new Expr.IntLiteral(null, null, 0));
+                initList.get(depth - 1).add(new Expr.Literal(null, null, 0));
             }
             down(minDepth, node);
         }
