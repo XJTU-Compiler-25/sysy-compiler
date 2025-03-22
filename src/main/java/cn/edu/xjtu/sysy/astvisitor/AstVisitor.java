@@ -1,5 +1,8 @@
 package cn.edu.xjtu.sysy.astvisitor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import cn.edu.xjtu.sysy.astnodes.ArrayExpr;
 import cn.edu.xjtu.sysy.astnodes.AssignStmt;
 import cn.edu.xjtu.sysy.astnodes.AssignableExpr;
@@ -20,8 +23,10 @@ import cn.edu.xjtu.sysy.astnodes.IfStmt;
 import cn.edu.xjtu.sysy.astnodes.IndexExpr;
 import cn.edu.xjtu.sysy.astnodes.IntLiteral;
 import cn.edu.xjtu.sysy.astnodes.Literal;
+import cn.edu.xjtu.sysy.astnodes.Node;
 import cn.edu.xjtu.sysy.astnodes.Param;
 import cn.edu.xjtu.sysy.astnodes.ReturnStmt;
+import cn.edu.xjtu.sysy.astnodes.SemanticError;
 import cn.edu.xjtu.sysy.astnodes.Stmt;
 import cn.edu.xjtu.sysy.astnodes.TypeAnnotation;
 import cn.edu.xjtu.sysy.astnodes.UnaryExpr;
@@ -35,6 +40,25 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
  *  派生类应该重写所有需要使用的方法。
  */
 public abstract class AstVisitor {
+
+    private List<SemanticError> errors = new ArrayList<>();
+
+    public void err(Node errNode, String errForm, Object... args) {
+        errors.add(new SemanticError(errNode, String.format(errForm, args)));
+    }
+
+    public void err(List<SemanticError> errors) {
+        this.errors.addAll(errors);
+    }
+
+    public boolean hasError() {
+        return !errors.isEmpty();
+    }
+
+    public List<SemanticError> getErrors() {
+        return errors;
+    }
+
     public void visit(CompUnit node) {
         unreachable();
     }

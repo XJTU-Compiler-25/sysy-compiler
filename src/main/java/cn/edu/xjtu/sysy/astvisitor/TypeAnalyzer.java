@@ -23,11 +23,19 @@ public class TypeAnalyzer extends ExprVisitor<ValueType> {
         ValueType right = visit(expr.right);
         if (left == null || right == null) {
             //err  void value not ignored as it ought to be
-            return left;
+            expr.setInferredType(ValueType.ERR_TYPE);
+            return ValueType.ERR_TYPE;
         }
+        if (left.equals(ValueType.ERR_TYPE) || right.equals(ValueType.ERR_TYPE)) {
+            expr.setInferredType(ValueType.ERR_TYPE);
+            return ValueType.ERR_TYPE;
+        }
+        
         // 非基本类型无法运算。
         if (!left.isBaseType() || !right.isBaseType()) {
             //err invalid operands to binary %s (have ‘%s’ and ‘%s’), op, lefttype, righttype
+            expr.setInferredType(ValueType.ERR_TYPE);
+            return ValueType.ERR_TYPE;
         }
         // 关系运算和逻辑运算均返回0，1的int类型
         if (!expr.isArithExpr()) {
@@ -49,9 +57,15 @@ public class TypeAnalyzer extends ExprVisitor<ValueType> {
         ValueType operand = visit(expr.operand);
         if (operand == null) {
             //err  void value not ignored as it ought to be
+            return ValueType.ERR_TYPE;
+        }
+        if (operand.equals(ValueType.ERR_TYPE)) {
+            return ValueType.ERR_TYPE;
         }
         if (!operand.isBaseType()) {
             //err invalid operands to unary %s (have ‘%s’), op, type
+            expr.setInferredType(ValueType.ERR_TYPE);
+            return ValueType.ERR_TYPE;
         }
         // 逻辑运算（非），返回类型为int
         if (expr.isLogicalExpr()) {
@@ -64,13 +78,14 @@ public class TypeAnalyzer extends ExprVisitor<ValueType> {
     }
 
     @Override
-    public ValueType visit(CallExpr node) {
-        FuncInfo funcInfo = funcInfos.get(node.function.name);
+    public ValueType visit(CallExpr expr) {
+        FuncInfo funcInfo = funcInfos.get(expr.function.name);
         // 函数先声明再使用
         if (funcInfo == null) {
             //err
+            expr.setInferredType(ValueType.ERR_TYPE);
+            return ValueType.ERR_TYPE;
         }
-        // 可以为null
         //ValueType type = funcInfo.retType;
         //node.setInferredType(type);
         //return type;
