@@ -241,7 +241,7 @@ public abstract sealed class Expr extends Node {
 
             this.fromType = value.type;
             this.type = toType;
-            this.comptimeValue = value.comptimeValue;
+            this.comptimeValue = value.comptimeValue.toType(toType);
         }
     }
 }

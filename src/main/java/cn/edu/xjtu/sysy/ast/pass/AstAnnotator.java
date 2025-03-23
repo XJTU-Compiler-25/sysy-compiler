@@ -64,7 +64,7 @@ public final class AstAnnotator extends AstVisitor {
         for (var d : node.dimensions) visit(d);
         var isConst = node.isConst;
         var initExpr = node.init;
-        visit(initExpr);
+        if (initExpr != null) visit(initExpr);
         resolveType(node);
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
@@ -73,6 +73,7 @@ public final class AstAnnotator extends AstVisitor {
         node.resolution = varSymbol;
         // foldComptimeValue
         if(isConst) {
+            if (initExpr == null) throw new IllegalArgumentException("Const variable must be initialized");
             if (!initExpr.isComptime())
                 throw new IllegalArgumentException("Const variable must be initialized with a const expression");
             varSymbol.comptimeValue = initExpr.comptimeValue;
@@ -85,8 +86,8 @@ public final class AstAnnotator extends AstVisitor {
         var baseType = Type.Primitive.of(node.baseType);
         Type varType = baseType;
         // if array var, construct array type
-        if(dimExprs != null) {
-            int[] dims = node.dimensions.stream().mapToInt(it -> {
+        if(!dimExprs.isEmpty()) {
+            int[] dims = dimExprs.stream().mapToInt(it -> {
                 var v = it.comptimeValue;
                 if (!(v instanceof ComptimeValue.Int intVal))
                     throw new IllegalArgumentException("Dimension not comptime constant");
@@ -97,46 +98,39 @@ public final class AstAnnotator extends AstVisitor {
         node.type = varType;
 
         // type check
-        var valueExpr = node.init;
+        var initExpr = node.init;
+        if (initExpr != null) node.init = matchVarValueType(varType, initExpr);
+    }
+
+    private Expr matchVarValueType(Type varType, Expr valueExpr) {
         var valueType = valueExpr.type;
         if(!varType.equals(valueExpr.type)) {
             // int/float 互相可以隐式转换
             if (varType instanceof Type.Primitive && valueType instanceof Type.Primitive) {
-                node.init = new Expr.Cast(valueExpr, varType);
-            } else if (varType instanceof Type.Array aType && valueType instanceof Type.EmptyArray) {
-                if (aType.isWildcard()) {
-                    var originDims = aType.dimensions;
-                    var newDims = Arrays.copyOf(originDims, originDims.length);
-                    newDims[0] = 0;
-                    valueExpr.type = new Type.Array(aType.elementType, newDims);
-                } else valueExpr.type = varType; // 从接收该空数组值的变量类型推导出该空数组值的类型
-            } else throw new IllegalArgumentException("Type of init value is not compatible with the type of variable");
+                return new Expr.Cast(valueExpr, varType);
+            } else if (varType instanceof Type.Array aType) {
+                if(valueType instanceof Type.EmptyArray) {
+                    if (aType.isWildcard()) {
+                        var originDims = aType.dimensions;
+                        var newDims = Arrays.copyOf(originDims, originDims.length);
+                        newDims[0] = 0;
+                        valueExpr.type = new Type.Array(aType.elementType, newDims);
+                    } else valueExpr.type = varType; // 从接收该空数组值的变量类型推导出该空数组值的类型
+                } else if (valueType instanceof Type.Array vType
+                        && aType.isWildcard()
+                        && Arrays.equals(aType.dimensions, 1, aType.dimensions.length,
+                            vType.dimensions, 1, vType.dimensions.length)) {
+                    Placeholder.pass();
+                } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable");
+            } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable");
         }
+        return valueExpr;
     }
 
     @Override
     public void visit(Stmt.Assign node) {
         super.visit(node);
-        resolveType(node);
-    }
-
-    private void resolveType(Stmt.Assign node) {
-        var varType = node.target.type;
-        var valueExpr = node.value;
-        var valueType = valueExpr.type;
-        if(!varType.equals(valueExpr.type)) {
-            // int/float 互相可以隐式转换
-            if (varType instanceof Type.Primitive && valueType instanceof Type.Primitive) {
-                node.value = new Expr.Cast(valueExpr, varType);
-            } else if (varType instanceof Type.Array aType && valueType instanceof Type.EmptyArray) {
-                if (aType.isWildcard()) {
-                    var originDims = aType.dimensions;
-                    var newDims = Arrays.copyOf(originDims, originDims.length);
-                    newDims[0] = 0;
-                    valueExpr.type = new Type.Array(aType.elementType, newDims);
-                } else valueExpr.type = varType; // 从接收该空数组值的变量类型推导出该空数组值的类型
-            } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable");
-        }
+        matchVarValueType(node.target.type, node.value);
     }
 
     @Override
@@ -183,10 +177,7 @@ public final class AstAnnotator extends AstVisitor {
         var paramsCount = params.size();
         if(args.size() != paramsCount) throw new IllegalArgumentException("Argument count does not match");
 
-        for (int i = 0; i < paramsCount; i++) {
-            if(!params.get(i).type.equals(args.get(i).type))
-                throw new IllegalArgumentException("Type of argument is not compatible with the type of parameter");
-        }
+        for (int i = 0; i < paramsCount; i++) args.set(i, matchVarValueType(params.get(i).type, args.get(i)));
     }
 
     @Override
@@ -228,6 +219,7 @@ public final class AstAnnotator extends AstVisitor {
         var elemCount = elements.size();
         if (elemCount == 0) {
             node.type = Type.EmptyArray.INSTANCE;
+            node.comptimeValue = new ComptimeValue.Array(new ComptimeValue[0]);
             return;
         }
         System.out.println(elements.get(0));
@@ -339,7 +331,7 @@ public final class AstAnnotator extends AstVisitor {
             }
             case EQ, NE -> Type.Primitive.INT;
             case AND, OR -> {
-                if (type.equals(Type.Primitive.INT))
+                if (!type.equals(Type.Primitive.INT))
                     throw new IllegalArgumentException("Binary operator can only be applied to int (bool)");
                 yield Type.Primitive.INT;
             }

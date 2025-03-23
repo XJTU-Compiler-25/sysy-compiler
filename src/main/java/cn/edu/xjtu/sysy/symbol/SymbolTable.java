@@ -11,6 +11,25 @@ public abstract sealed class SymbolTable {
     public static final class Global extends SymbolTable {
         private final Map<String, Symbol> table = new HashMap<>();
 
+        public Global() {
+            this(true);
+        }
+
+        public Global(boolean declBuiltin) {
+            if (declBuiltin) {
+                declareFunc(BuiltinSymbols.GETINT);
+                declareFunc(BuiltinSymbols.GETCH);
+                declareFunc(BuiltinSymbols.GETFLOAT);
+                declareFunc(BuiltinSymbols.GETARRAY);
+                declareFunc(BuiltinSymbols.GETFARRAY);
+                declareFunc(BuiltinSymbols.PUTINT);
+                declareFunc(BuiltinSymbols.PUTCH);
+                declareFunc(BuiltinSymbols.PUTFLOAT);
+                declareFunc(BuiltinSymbols.PUTARRAY);
+                declareFunc(BuiltinSymbols.PUTFARRAY);
+            }
+        }
+
         @Override
         public SymbolTable getParent() {
             return null;
