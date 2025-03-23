@@ -1,14 +1,19 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
-import cn.edu.xjtu.sysy.ast.node.*;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.symbol.*;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import java.util.Arrays;
 import java.util.List;
 
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import cn.edu.xjtu.sysy.ast.node.ComptimeValue;
+import cn.edu.xjtu.sysy.ast.node.Decl;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.symbol.SymbolTable;
+import cn.edu.xjtu.sysy.symbol.Type;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 /**
  * 标注类型信息、做类型检查、
@@ -225,6 +230,7 @@ public final class AstAnnotator extends AstVisitor {
             node.type = Type.EmptyArray.INSTANCE;
             return;
         }
+        System.out.println(elements.get(0));
         var elemType = elements.get(0).type;
         var comptimeValues = new ComptimeValue[elemCount];
         for (var i = 0; i < elemCount; i++) {
@@ -360,6 +366,11 @@ public final class AstAnnotator extends AstVisitor {
             // 在 C 语言中，两个变量具有相同的数组常量值，但是应该不会被分配到同一地址
             // 因此指针比较是不相等的，不应该做常量折叠？
         } else unreachable();
+    }
+
+    @Override
+    public void visit(Expr.Literal node) {
+        node.type = Type.Primitive.INT;
     }
 
     private static int calculate(Expr.Operator op, int left, int right) {

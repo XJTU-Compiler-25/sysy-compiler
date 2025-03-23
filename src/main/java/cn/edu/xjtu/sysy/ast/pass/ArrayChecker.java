@@ -3,9 +3,9 @@ package cn.edu.xjtu.sysy.ast.pass;
 import java.util.ArrayList;
 import java.util.List;
 
+import cn.edu.xjtu.sysy.ast.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Node;
-import cn.edu.xjtu.sysy.ast.SemanticError;
 
 /** 检查数组初始化器合法性，并进行补0.
  *  大致思想：
@@ -72,14 +72,33 @@ public class ArrayChecker {
         }
     }
 
-    /** 此方法用于补充缺失的元素为0。它会从最内层维度开始，补充足够的0元素直到填满该维度，
+    /** 此方法用于补充缺失的元素为空子数组。它会从最内层维度开始，直到填满该维度，
      * 然后通过down方法将这些元素合并到上一级维度，并重复这个过程，直到从指定的最小深度开始的所有维度都被填满。*/
-    private void paddingZero(int minDepth, Node node) {
+    private void paddingEmptyArr(int minDepth, Node node) {
         while (initList.get(minDepth - 1).size() < dimensions[minDepth - 1]) {
-            depth = dimensions.length;
-            while (initList.get(depth - 1).size() < dimensions[depth - 1]) {
-                initList.get(depth - 1).add(new Expr.Literal(null, null, 0));
+            if (depth == dimensions.length && minDepth == dimensions.length) {
+                if (depth > 1) {
+                    depth--;
+                    List<Expr> ts = new ArrayList<>(initList.get(depth));
+                    if (!checkSize(1, node)) {
+                        return;
+                    }
+                    initList.get(depth - 1).add(new Expr.Array(null, null, ts));
+                    initList.get(depth).clear();
+                }
+                return;
             }
+            depth = dimensions.length;
+            if (depth > minDepth) {
+                depth--;
+                List<Expr> ts = new ArrayList<>(initList.get(depth));
+                if (!checkSize(1, node)) {
+                    return;
+                }
+                initList.get(depth - 1).add(new Expr.Array(null, null, ts));
+                initList.get(depth).clear();
+            }
+            
             down(minDepth, node);
         }
     }
@@ -110,7 +129,7 @@ public class ArrayChecker {
                 int tmp = depth;
                 check(aExp);
                 if (!initList.get(tmp - 1).isEmpty()) {
-                    paddingZero(tmp, expr);
+                    paddingEmptyArr(tmp, expr);
                 }
                 down(1, expr);
             } else {
@@ -124,7 +143,7 @@ public class ArrayChecker {
      * 最后检查是否所有内部维度都被正确处理（都应该为空），并返回处理后的数组表达式。 */
     public Expr.Array generateRealValue(Expr.Array expr) {
         check(expr);
-        paddingZero(1, expr);
+        paddingEmptyArr(1, expr);
         for (int i = 1; i < dimensions.length; i++) {
             if (!initList.get(i).isEmpty()) {
                 err(expr, "excess elements in array initializer");

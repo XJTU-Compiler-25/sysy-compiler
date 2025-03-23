@@ -1,15 +1,19 @@
 package cn.edu.xjtu.sysy.ast.node;
 
-import cn.edu.xjtu.sysy.symbol.Symbol;
+import java.util.List;
+
 import org.antlr.v4.runtime.Token;
 
-import cn.edu.xjtu.sysy.symbol.Type;
+import com.alibaba.fastjson2.JSONWriter;
+import com.alibaba.fastjson2.annotation.JSONField;
 
-import java.util.List;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.symbol.Type;
 
 /** Expressions */
 public abstract sealed class Expr extends Node {
     /** 表达式的类型 */
+    @JSONField(serializeFeatures = JSONWriter.Feature.WriteMapNullValue)
     public Type type = null;
     /** 编译期常量值 */
     public ComptimeValue comptimeValue = null;
