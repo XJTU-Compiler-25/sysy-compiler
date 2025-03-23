@@ -39,12 +39,12 @@ public abstract class AstVisitor extends Pass<CompUnit> {
 
     public void visit(Decl.VarDef node) {
         for(var d : node.dimensions) visit(d);
-        var initExpr = node.init;
-        if (initExpr != null) visit(initExpr);
+        visit(node.init);
     }
 
     public void visit(Stmt node) {
-        if (node instanceof Stmt.Assign it) visit(it);
+        if (node == null) Placeholder.pass();
+        else if (node instanceof Stmt.Assign it) visit(it);
         else if (node instanceof Stmt.Block it) visit(it);
         else if (node instanceof Stmt.Break it) visit(it);
         else if (node instanceof Stmt.Continue it) visit(it);
@@ -97,7 +97,8 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     public void visit(Stmt.Continue node) { }
 
     public void visit(Expr node) {
-        if (node instanceof Expr.Assignable it) visit(it);
+        if (node == null) Placeholder.pass();
+        else if (node instanceof Expr.Assignable it) visit(it);
         else if (node instanceof Expr.Array it) visit(it);
         else if (node instanceof Expr.Binary it) visit(it);
         else if (node instanceof Expr.Call it) visit(it);
