@@ -17,16 +17,10 @@ public abstract sealed class Symbol {
         public ComptimeValue comptimeValue;
 
         public Var(Kind kind, String name, Type type, boolean isConst) {
-            this(kind, name, type, isConst, null);
-        }
-
-        public Var(Kind kind, String name, Type type, boolean isConst, ComptimeValue comptimeValue) {
             this.kind = kind;
             this.name = name;
             this.type = type;
             this.isConst = isConst;
-            if(comptimeValue == null) throw new IllegalArgumentException("comptime value is null");
-            this.comptimeValue = comptimeValue;
         }
     }
 

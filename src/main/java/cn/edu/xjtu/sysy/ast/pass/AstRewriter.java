@@ -6,6 +6,7 @@ import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
@@ -42,7 +43,8 @@ public abstract class AstRewriter extends Pass<CompUnit> {
 
     public Decl.VarDef visit(Decl.VarDef node) {
         node.dimensions = node.dimensions.stream().map(this::visit).toList();
-        node.init = visit(node.init);
+        var initExpr = node.init;
+        if(initExpr != null) node.init = visit(initExpr);
         return node;
     }
 
@@ -56,8 +58,11 @@ public abstract class AstRewriter extends Pass<CompUnit> {
         else if (node instanceof Stmt.LocalVarDef it) return visit(it);
         else if (node instanceof Stmt.Return it) return visit(it);
         else if (node instanceof Stmt.While it) return visit(it);
+        else if (node instanceof Stmt.Empty it) return visit(it);
         else return unreachable();
     }
+
+    public Stmt visit(Stmt.Empty node) { return node; }
 
     public Stmt.Block visit(Stmt.Block node) {
         node.stmts = node.stmts.stream().map(this::visit).toList();

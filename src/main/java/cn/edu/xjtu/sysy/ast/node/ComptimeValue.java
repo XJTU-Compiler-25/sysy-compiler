@@ -1,11 +1,15 @@
 package cn.edu.xjtu.sysy.ast.node;
 
+import cn.edu.xjtu.sysy.symbol.Type;
+
 import java.util.Arrays;
 
 /**
  * 编译期求得的常量值
  */
 public sealed abstract class ComptimeValue {
+    public abstract ComptimeValue toType(Type toType);
+
     public static final class Int extends ComptimeValue {
         public int value;
 
@@ -14,9 +18,21 @@ public sealed abstract class ComptimeValue {
         }
 
         @Override
+        public ComptimeValue toType(Type toType) {
+            if (toType.equals(Type.Primitive.FLOAT)) return new Float(value);
+            else if (toType.equals(Type.Primitive.INT)) return this;
+            else throw new RuntimeException("Unsupported type conversion");
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if(obj instanceof Int val) return val.value == value;
             else return false;
+        }
+
+        @Override
+        public String toString() {
+            return Integer.toString(value);
         }
     }
 
@@ -28,9 +44,21 @@ public sealed abstract class ComptimeValue {
         }
 
         @Override
+        public ComptimeValue toType(Type toType) {
+            if (toType.equals(Type.Primitive.INT)) return new Int((int) value);
+            else if (toType.equals(Type.Primitive.FLOAT)) return this;
+            else throw new RuntimeException("Unsupported type conversion");
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if(obj instanceof Float val) return val.value == value;
             else return false;
+        }
+
+        @Override
+        public String toString() {
+            return java.lang.Float.toString(value);
         }
     }
 
@@ -42,9 +70,19 @@ public sealed abstract class ComptimeValue {
         }
 
         @Override
+        public ComptimeValue toType(Type toType) {
+            throw new RuntimeException("Unsupported type conversion");
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if(obj instanceof Array val) return Arrays.equals(values, val.values);
             else return false;
+        }
+
+        @Override
+        public String toString() {
+            return Arrays.toString(values);
         }
     }
 }
