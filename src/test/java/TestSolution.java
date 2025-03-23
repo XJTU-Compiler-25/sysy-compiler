@@ -26,7 +26,7 @@ public final class TestSolution {
     @Test
     @Order(1)
     public void testFunctional() {
-        try (var testFile = this.getClass().getResourceAsStream("functional/68_brainfk.sy")) {
+        try (var testFile = this.getClass().getResourceAsStream("sysy-testcases/functional/68_brainfk.sy")) {
             var testCase = new String(testFile.readAllBytes());
             var ast = compileToAst(testCase);
             AstPassGroups.GROUP.process(ast);
