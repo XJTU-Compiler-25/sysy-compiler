@@ -59,7 +59,7 @@ public final class AstAnnotator extends AstVisitor {
         for (var d : node.dimensions) visit(d);
         var isConst = node.isConst;
         var initExpr = node.init;
-        if (initExpr != null) visit(initExpr);
+        visit(initExpr);
         resolveType(node);
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
@@ -105,19 +105,19 @@ public final class AstAnnotator extends AstVisitor {
                 return new Expr.Cast(valueExpr, varType);
             } else if (varType instanceof Type.Array aType) {
                 if(valueType instanceof Type.EmptyArray) {
-                    if (aType.isWildcard()) {
-                        var originDims = aType.dimensions;
-                        var newDims = Arrays.copyOf(originDims, originDims.length);
-                        newDims[0] = 0;
-                        valueExpr.type = new Type.Array(aType.elementType, newDims);
-                    } else valueExpr.type = varType; // 从接收该空数组值的变量类型推导出该空数组值的类型
-                } else if (valueType instanceof Type.Array vType
-                        && aType.isWildcard()
-                        && Arrays.equals(aType.dimensions, 1, aType.dimensions.length,
-                            vType.dimensions, 1, vType.dimensions.length)) {
+                    // 从接收该空数组值的变量类型推导出该空数组值的类型
+                    var originDims = aType.dimensions;
+                    var newDims = Arrays.copyOf(originDims, originDims.length);
+                    newDims[0] = 0;
+                    valueExpr.type = new Type.Array(aType.elementType, newDims);
+                } else if (valueType instanceof Type.Array vType && Arrays.equals(aType.dimensions, 1,
+                        aType.dimensions.length, vType.dimensions, 1, vType.dimensions.length)
+                        && (aType.isWildcard() || aType.dimensions[0] > vType.dimensions[0]))
                     Placeholder.pass();
-                } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable");
-            } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable");
+                else throw new IllegalArgumentException("Type of value is not compatible with the type of variable, " +
+                        "value = " + valueType + ", var = " + varType);
+            } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable, " +
+                        "value = " + valueType + ", var = " + varType);
         }
         return valueExpr;
     }
@@ -183,13 +183,13 @@ public final class AstAnnotator extends AstVisitor {
         var lhsType = lhs.type;
         if(!(lhsType instanceof Type.Array arrType))
             throw new IllegalArgumentException("Index access on non-array type");
-        var depth = node.indexes.size();
-        node.type = arrType.getIndexElementType(depth);
+        var indexes = node.indexes;
+        var indexCount = node.indexes.size();
+        node.type = arrType.getIndexElementType(indexCount);
 
         if(!lhs.isComptime()) return;
         var comptimeValue = lhs.comptimeValue;
-        List<Expr> indexes = node.indexes;
-        for (int i = 0, indexesSize = indexes.size(); i < indexesSize; i++) {
+        for (int i = 0; i < indexCount; i++) {
             var index = indexes.get(i);
             var indexType = index.type;
             if (!indexType.equals(Type.Primitive.INT)) {
@@ -217,25 +217,50 @@ public final class AstAnnotator extends AstVisitor {
             node.comptimeValue = new ComptimeValue.Array(new ComptimeValue[0]);
             return;
         }
+
         var elemType = elements.get(0).type;
+        boolean elemTypeWidened = false;
         var comptimeValues = new ComptimeValue[elemCount];
         for (var i = 0; i < elemCount; i++) {
             var thisElem = elements.get(i);
             var thisElemType = thisElem.type;
             if (!elemType.equals(thisElemType)) {
                 // int 可以在 float[] 中，但 float 不能在 int[] 中
-                if (elemType.equals(Type.Primitive.INT) && thisElemType.equals(Type.Primitive.FLOAT))
+                if (!elemTypeWidened && elemType.equals(Type.Primitive.INT) && thisElemType.equals(Type.Primitive.FLOAT)) {
+                    elemTypeWidened = true;
                     elemType = Type.Primitive.FLOAT;
-                else if (elemType.equals(Type.Primitive.FLOAT) && thisElemType.equals(Type.Primitive.INT))
-                    elements.set(i, new Expr.Cast(thisElem, Type.Primitive.FLOAT));
+                } else if (elemType.equals(Type.Primitive.FLOAT) && thisElemType.equals(Type.Primitive.INT))
+                    Placeholder.pass();
                 else throw new IllegalArgumentException("Type of element is not compatible with the type of array");
             }
 
-            if (comptimeValues != null) {
-                if (thisElem.isComptime()) comptimeValues[i] = thisElem.comptimeValue;
-                else comptimeValues = null;
-            }
+            if (!thisElem.isComptime()) comptimeValues = null;
         }
+
+        for (var i = 0; i < elemCount; ++i) {
+            var thisElem = elements.get(i);
+
+            if(elemTypeWidened && thisElem.type.equals(Type.Primitive.INT)) {
+                elements.set(i, new Expr.Cast(thisElem, Type.Primitive.FLOAT));
+                elements.set(i, thisElem);
+            }
+
+            if (comptimeValues != null) comptimeValues[i] = thisElem.comptimeValue;
+        }
+
+        if (elemType instanceof Type.Primitive pType) {
+            node.type = new Type.Array(pType, new int[] { elemCount });
+        } else if (elemType instanceof Type.Array aType) {
+            var elemDims = aType.dimensions;
+            var elemDimCount = elemDims.length;
+            var dims = new int[elemDimCount + 1];
+            dims[0] = elemCount;
+            System.arraycopy(elemDims, 0, dims, 1, elemDimCount);
+            node.type = new Type.Array(aType.elementType, dims);
+        } else if (elemType instanceof Type.EmptyArray) {
+            node.type = Type.EmptyArray.INSTANCE;
+        } else unreachable();
+
         if(comptimeValues != null) node.comptimeValue = new ComptimeValue.Array(comptimeValues);
     }
 

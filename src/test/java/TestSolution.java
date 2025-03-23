@@ -9,9 +9,17 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.*;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
+import java.util.Arrays;
+import java.util.Comparator;
+
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public final class TestSolution {
+
+    private AstPrettyPrinter app = new AstPrettyPrinter();
 
     private CompUnit compileToAst(String s) {
         var cs = CharStreams.fromString(s);
@@ -24,16 +32,32 @@ public final class TestSolution {
     }
 
     @Test
+    @Order(0)
+    public void test() throws Exception {
+        var testFileStream = this.getClass().getResourceAsStream("test.sy");
+        var testCase = new String(testFileStream.readAllBytes());
+        var ast = compileToAst(testCase);
+        AstPassGroups.GROUP.process(ast);
+        app.visit(ast);
+        testFileStream.close();
+    }
+
+    @Test
     @Order(1)
-    public void testFunctional() {
-        try (var testFile = this.getClass().getResourceAsStream("sysy-testcases/functional/68_brainfk.sy")) {
-            var testCase = new String(testFile.readAllBytes());
+    public void testFunctional() throws Exception {
+        var testFileFolder = new File(this.getClass().getResource("functional").toURI());
+        var testFiles = testFileFolder.listFiles();
+        testFiles = Arrays.stream(testFiles)
+                .filter(f -> f.getName().endsWith(".sy"))
+                .sorted(Comparator.comparing(File::getName))
+                .toArray(File[]::new);
+        for (var testFile : testFiles) {
+            var testFileStream = new FileInputStream(testFile);
+            var testCase = new String(testFileStream.readAllBytes());
             var ast = compileToAst(testCase);
             AstPassGroups.GROUP.process(ast);
-            var pp = new AstPrettyPrinter();
-            pp.visit(ast);
-        } catch (Exception e) {
-            throw Exceptions.sneakyThrows(e);
+            app.visit(ast);
+            testFileStream.close();
         }
     }
 

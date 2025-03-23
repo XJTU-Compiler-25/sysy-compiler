@@ -82,7 +82,7 @@ compUnit: (varDefs | funcDef)* EOF;
 varDefs: constmark=Const? type=varType varDef (',' varDef)* ';';
 varDef
     : name=Id ('=' initVal=exp)?                                      # scalarVarDef
-    | name=Id ('[' exp ']')+ ('=' (arrayLiteralExp | assignableExp))? # arrayVarDef
+    | name=Id ('[' exp ']')+ ('=' (assignableExp | arrayLiteralExp))? # arrayVarDef
     ;
 varType: 'int' | 'float';
 
@@ -128,7 +128,7 @@ assignableExp
     | name=Id ('[' exp ']')+ # arrayAssignable
     ;
 arrayLiteralExp
-    : value=exp                                      # elementExp
+    : value=exp                                         # elementExp
     | '{' (arrayLiteralExp (',' arrayLiteralExp)*)? '}' # arrayExp
     ;
 
