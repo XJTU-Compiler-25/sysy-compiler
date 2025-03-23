@@ -3,9 +3,6 @@ package cn.edu.xjtu.sysy;
 import java.util.Arrays;
 import java.util.function.Function;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONWriter;
-
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 
@@ -35,7 +32,6 @@ public final class PassGroup<T> implements ErrManaged {
     public void process(T obj) {
         for (var pass : passes) {
             pass.process(obj);
-            System.out.println(JSON.toJSONString(obj, JSONWriter.Feature.PrettyFormat));
             if(pass.hasErr()) break;
         }
     }
