@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.ast.pass;
 import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.ast.node.*;
 import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
@@ -38,7 +39,8 @@ public abstract class AstVisitor extends Pass<CompUnit> {
 
     public void visit(Decl.VarDef node) {
         for(var d : node.dimensions) visit(d);
-        visit(node.init);
+        var initExpr = node.init;
+        if (initExpr != null) visit(initExpr);
     }
 
     public void visit(Stmt node) {
@@ -51,9 +53,12 @@ public abstract class AstVisitor extends Pass<CompUnit> {
         else if (node instanceof Stmt.LocalVarDef it) visit(it);
         else if (node instanceof Stmt.Return it) visit(it);
         else if (node instanceof Stmt.While it) visit(it);
+        else if (node instanceof Stmt.Empty it) visit(it);
 
         else unreachable();
     }
+
+    public void visit(Stmt.Empty node) { }
 
     public void visit(Stmt.Block node) {
         for (var s : node.stmts) visit(s);

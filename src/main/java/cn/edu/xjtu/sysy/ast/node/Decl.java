@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.symbol.SymbolTable;
 import cn.edu.xjtu.sysy.symbol.Type;
 import org.antlr.v4.runtime.Token;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** 声明基类 */
@@ -108,6 +109,7 @@ public abstract sealed class Decl extends Node {
         public String name;
         public String baseType;
         /**
+         * dimensions 应该是 NotNull 的
          * Param 中具有空第一维的情况，[0] 会赋值为 -1，注意 type 构造中的处理
          */
         public List<Expr> dimensions;
@@ -128,7 +130,7 @@ public abstract sealed class Decl extends Node {
                 String baseType,
                 boolean isConst,
                 Expr init) {
-            this(start, end, kind, name, baseType, null, isConst, init);
+            this(start, end, kind, name, baseType, List.of(), isConst, init);
         }
 
         public VarDef(
