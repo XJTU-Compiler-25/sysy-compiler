@@ -213,7 +213,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         Expr cond = visitCond(ctx.condition);
         Stmt thenStmt = visitStmt(ctx.thenStmt);
         var es = ctx.elseStmt;
-        Stmt elseStmt = es == null ? Stmt.Empty.INSTANCE : visitStmt(ctx.elseStmt);
+        var elseStmt = es == null ? Stmt.Empty.INSTANCE : visitStmt(ctx.elseStmt);
         return new Stmt.If(ctx.getStart(), ctx.getStop(), cond, thenStmt, elseStmt);
     }
 
