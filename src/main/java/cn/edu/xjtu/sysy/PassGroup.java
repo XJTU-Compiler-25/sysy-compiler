@@ -1,10 +1,10 @@
 package cn.edu.xjtu.sysy;
 
-import cn.edu.xjtu.sysy.error.ErrManaged;
-import cn.edu.xjtu.sysy.error.ErrManager;
-
 import java.util.Arrays;
 import java.util.function.Function;
+
+import cn.edu.xjtu.sysy.error.ErrManaged;
+import cn.edu.xjtu.sysy.error.ErrManager;
 
 public final class PassGroup<T> implements ErrManaged {
     private final Pass<T>[] passes;

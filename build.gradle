@@ -43,7 +43,7 @@ compileJava.dependsOn(generateGrammarSource)
 compileTestJava.dependsOn(generateTestGrammarSource)
 
 application {
-    mainClass = 'Compiler' // 替换为你的主类
+    mainClass = 'Compiler'
 }
 
 jar {

@@ -1,8 +1,10 @@
 package cn.edu.xjtu.sysy.ast.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+
+import cn.edu.xjtu.sysy.symbol.Type;
 
 /**
  * 编译期求得的常量值
@@ -67,6 +69,18 @@ public sealed abstract class ComptimeValue {
 
         public Array(ComptimeValue[] values) {
             this.values = values;
+        }
+
+        public List<ComptimeValue> flatValue() {
+            List<ComptimeValue> flatten = new ArrayList<>();
+            for (ComptimeValue value : values) {
+                if (value instanceof Array it) {
+                    flatten.addAll(it.flatValue());
+                } else {
+                    flatten.add(value);
+                }
+            } 
+            return flatten;
         }
 
         @Override

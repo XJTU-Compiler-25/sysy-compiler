@@ -1,11 +1,11 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
+import java.io.PrintStream;
+
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
-
-import java.io.PrintStream;
 
 public final class AstPrettyPrinter extends AstVisitor {
     private final PrintStream output;
@@ -162,6 +162,15 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     @Override
     public void visit(Expr.Array node) {
+        printf("[Expr.Array | type = %s, comptimeValue = %s, elements = {\n", node.type, node.comptimeValue);
+        incIndent();
+        for (var element : node.elements) visit(element);
+        decIndent();
+        println("}]");
+    }
+
+    @Override
+    public void visit(Expr.NormalizedArray node) {
         printf("[Expr.Array | type = %s, comptimeValue = %s, elements = {\n", node.type, node.comptimeValue);
         incIndent();
         for (var element : node.elements) visit(element);

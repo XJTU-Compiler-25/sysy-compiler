@@ -6,8 +6,6 @@ import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 /**
@@ -134,6 +132,11 @@ public abstract class AstRewriter extends Pass<CompUnit> {
     }
 
     public Expr visit(Expr.Array node) {
+        node.elements = node.elements.stream().map(this::visit).toList();
+        return node;
+    }
+
+    public Expr visit(Expr.NormalizedArray node) {
         node.elements = node.elements.stream().map(this::visit).toList();
         return node;
     }

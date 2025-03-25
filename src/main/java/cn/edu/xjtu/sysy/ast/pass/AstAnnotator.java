@@ -1,14 +1,19 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
-import cn.edu.xjtu.sysy.ast.node.*;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.symbol.*;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import java.util.Arrays;
 import java.util.List;
 
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import cn.edu.xjtu.sysy.ast.node.ComptimeValue;
+import cn.edu.xjtu.sysy.ast.node.Decl;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.symbol.SymbolTable;
+import cn.edu.xjtu.sysy.symbol.Type;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 /**
  * 标注类型信息、做类型检查、
@@ -86,6 +91,7 @@ public final class AstAnnotator extends AstVisitor {
                 var v = it.comptimeValue;
                 if (!(v instanceof ComptimeValue.Int intVal))
                     throw new IllegalArgumentException("Dimension not comptime constant");
+                    // return 1; // gcc默认行为似乎是返回1
                 return intVal.value;
             }).toArray();
             varType = new Type.Array(baseType, dims);

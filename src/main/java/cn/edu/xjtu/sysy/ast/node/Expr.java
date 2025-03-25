@@ -1,21 +1,29 @@
 package cn.edu.xjtu.sysy.ast.node;
 
-import cn.edu.xjtu.sysy.symbol.Symbol;
+import java.util.List;
+
 import org.antlr.v4.runtime.Token;
 
-import cn.edu.xjtu.sysy.symbol.Type;
+import com.alibaba.fastjson2.JSONWriter;
+import com.alibaba.fastjson2.annotation.JSONField;
 
-import java.util.List;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.symbol.Type;
 
 /** Expressions */
 public abstract sealed class Expr extends Node {
     /** 表达式的类型 */
+    @JSONField(serializeFeatures = JSONWriter.Feature.WriteMapNullValue)
     public Type type = null;
     /** 编译期常量值 */
     public ComptimeValue comptimeValue = null;
 
     public Expr(Token start, Token end) {
         super(start, end);
+    }
+
+    public Expr(int[] location) {
+        super(location);
     }
 
     public final boolean isComptime() {
@@ -214,6 +222,50 @@ public abstract sealed class Expr extends Node {
         public Array(Token start, Token end, List<Expr> elements) {
             super(start, end);
             this.elements = elements;
+        }
+    }
+    
+    /**
+     *  标准化数组结点，仅储存所有显示初始化的元素及其位置信息
+     *  eg. int a[3][3] = {1,2,3,{4,5},6} => {{1,2,3},{4,5,0},{6,0,0}}
+     *      标准化之后: elements = [1, 2, 3, 4, 5, 6]
+     *                 indexes = [0, 1, 2, 3, 4, 6] 
+     */
+    public static final class NormalizedArray extends Expr {
+        /**
+         * 数组元素
+         */
+        public List<Expr> elements;
+        /**
+         * 与以上元素一一对应的位置信息
+         */
+        public List<Integer> indexes;
+
+        public NormalizedArray(Array node, List<Expr> elements, List<Integer> indexes) {
+            super(node.getLocation());
+            this.elements = elements;
+            this.indexes = indexes;
+            this.type = node.type;
+            if (node.comptimeValue instanceof ComptimeValue.Array it) {
+                var flatten = it.flatValue();
+                this.comptimeValue = new ComptimeValue.Array(flatten.toArray(ComptimeValue[]::new));
+            } else {
+                this.comptimeValue = node.comptimeValue;
+            }
+            
+        }
+        
+        /**
+         * 获取index位置的元素，注意index是否合法要在调用前进行检查
+         * @param index - 返回的元素在展平后的数组的位置
+         * @return - 在指定位置的元素
+         */
+        public Expr get(int index) {
+            int i = indexes.indexOf(index);
+            if (i == -1) {
+                return new Literal(null, null, 0);
+            }
+            return elements.get(indexes.indexOf(index));
         }
     }
 
