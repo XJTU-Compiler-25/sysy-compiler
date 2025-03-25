@@ -4,12 +4,10 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONWriter;
-
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
+import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
@@ -48,6 +46,7 @@ public class Compiler {
 
         AstPassGroups.GROUP.process(compUnit);
         
-        System.out.println(JSON.toJSONString(compUnit, JSONWriter.Feature.PrettyFormat));
+        var pp = new AstPrettyPrinter();
+        pp.visit(compUnit);
     }
 }

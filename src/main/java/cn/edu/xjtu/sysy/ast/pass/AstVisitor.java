@@ -1,10 +1,11 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.ast.node.*;
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import cn.edu.xjtu.sysy.ast.node.Decl;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 /**
@@ -118,6 +119,10 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     }
 
     public void visit(Expr.Array node) {
+        for (var e : node.elements) visit(e);
+    }
+
+    public void visit(Expr.NormalizedArray node) {
         for (var e : node.elements) visit(e);
     }
 

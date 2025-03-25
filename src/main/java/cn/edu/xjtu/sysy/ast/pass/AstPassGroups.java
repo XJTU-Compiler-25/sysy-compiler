@@ -10,8 +10,8 @@ public final class AstPassGroups {
 
     public static final PassGroup<CompUnit> GROUP = new PassGroup<>(ErrManager.GLOBAL,
             NotOpChecker::new,
-            ArrayNormalizer::new,
             AstAnnotator::new,
+            ArrayNormalizer::new,
             PureFunctionChecker::new
     );
 

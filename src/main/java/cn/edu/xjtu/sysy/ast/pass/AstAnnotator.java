@@ -91,6 +91,7 @@ public final class AstAnnotator extends AstVisitor {
                 var v = it.comptimeValue;
                 if (!(v instanceof ComptimeValue.Int intVal))
                     throw new IllegalArgumentException("Dimension not comptime constant");
+                    // return 1; // gcc默认行为似乎是返回1
                 return intVal.value;
             }).toArray();
             varType = new Type.Array(baseType, dims);
@@ -222,7 +223,6 @@ public final class AstAnnotator extends AstVisitor {
             node.comptimeValue = new ComptimeValue.Array(new ComptimeValue[0]);
             return;
         }
-        System.out.println(elements.get(0));
         var elemType = elements.get(0).type;
         var comptimeValues = new ComptimeValue[elemCount];
         for (var i = 0; i < elemCount; i++) {
@@ -358,11 +358,6 @@ public final class AstAnnotator extends AstVisitor {
             // 在 C 语言中，两个变量具有相同的数组常量值，但是应该不会被分配到同一地址
             // 因此指针比较是不相等的，不应该做常量折叠？
         } else unreachable();
-    }
-
-    @Override
-    public void visit(Expr.Literal node) {
-        node.type = Type.Primitive.INT;
     }
 
     private static int calculate(Expr.Operator op, int left, int right) {
