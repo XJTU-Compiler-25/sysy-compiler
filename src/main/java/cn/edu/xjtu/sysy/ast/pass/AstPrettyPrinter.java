@@ -43,13 +43,13 @@ public final class AstPrettyPrinter extends AstVisitor {
     @Override
     public void visit(Decl.VarDef node) {
         var symbol = node.resolution;
-        printf("[Decl.VarDef | name = %s, type = %s, isConst = %b, initExpr = \n",
-                symbol.name, symbol.type, symbol.isConst);
+        printf("[Decl.VarDef | name = %s, type = %s, isConst = %b, comptimeValue = %s, initExpr = \n",
+                symbol.name, symbol.type, symbol.isConst, symbol.comptimeValue);
         incIndent();
         var initExpr = node.init;
         if (initExpr != null) visit(initExpr);
         decIndent();
-        printf(", comptimeValue = %s]\n", symbol.comptimeValue);
+        println("]");
     }
 
     @Override
