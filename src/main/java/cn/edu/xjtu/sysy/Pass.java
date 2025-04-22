@@ -4,7 +4,7 @@ import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 
 public abstract class Pass<T> implements ErrManaged {
-    private final ErrManager errManager;
+    protected final ErrManager errManager;
 
     public Pass(ErrManager errManager) {
         this.errManager = errManager;

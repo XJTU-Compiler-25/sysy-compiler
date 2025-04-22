@@ -1,7 +1,5 @@
 package cn.edu.xjtu.sysy.symbol;
 
-import cn.edu.xjtu.sysy.ast.node.ComptimeValue;
-
 import java.util.List;
 
 public abstract sealed class Symbol {
@@ -14,7 +12,7 @@ public abstract sealed class Symbol {
         public String name;
         public Type type;
         public boolean isConst;
-        public ComptimeValue comptimeValue;
+        public Number comptimeValue;
 
         public Var(Kind kind, String name, Type type, boolean isConst) {
             this.kind = kind;

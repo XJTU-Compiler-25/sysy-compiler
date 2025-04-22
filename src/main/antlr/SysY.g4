@@ -79,7 +79,10 @@ package cn.edu.xjtu.sysy.parse;
 
 compUnit: (varDefs | funcDef)* EOF;
 
-varDefs: constmark=Const? type=varType varDef (',' varDef)* ';';
+varDefs
+    : Const type=varType varDef (',' varDef)* ';' # constVarDefs
+    | type=varType varDef (',' varDef)* ';' # normalVarDefs
+    ;
 varDef
     : name=Id ('=' initVal=exp)?                                      # scalarVarDef
     | name=Id ('[' exp ']')+ ('=' (assignableExp | arrayLiteralExp))? # arrayVarDef

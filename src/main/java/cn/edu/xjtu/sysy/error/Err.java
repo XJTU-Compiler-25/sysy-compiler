@@ -6,4 +6,9 @@ public class Err {
     public Err(String msg) {
         this.msg = msg;
     }
+
+    @Override
+    public String toString() {
+        return msg;
+    }
 }
