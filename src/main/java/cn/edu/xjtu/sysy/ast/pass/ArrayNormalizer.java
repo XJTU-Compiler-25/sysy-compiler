@@ -6,7 +6,7 @@ import java.util.List;
 import cn.edu.xjtu.sysy.ast.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
-import cn.edu.xjtu.sysy.ast.node.Expr.NormalizedArray;
+import cn.edu.xjtu.sysy.ast.node.Expr.Array;
 import cn.edu.xjtu.sysy.ast.node.Node;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.symbol.Type;
@@ -27,7 +27,7 @@ public final class ArrayNormalizer extends AstVisitor {
                 }
             }
             var initExpr = node.init;
-            if (initExpr instanceof Expr.Array array) {
+            if (initExpr instanceof Expr.RawArray array) {
                 var checker = new ArrayChecker(dimensions);
                 node.init = checker.normalize(array);
             }
@@ -85,12 +85,12 @@ public final class ArrayNormalizer extends AstVisitor {
         }
 
         /** 获取当前数组表达式中第一个非数组表达式 */
-        private Expr getNonArrayExpr(Expr.Array array) {
+        private Expr getNonArrayExpr(Expr.RawArray array) {
             if (array.elements.size() > 1) {
                 err(array, "excess elements in scalar initializer");
             }
             var el = array.elements.get(0);
-            if (el instanceof Expr.Array arr) {
+            if (el instanceof Expr.RawArray arr) {
                 return getNonArrayExpr(arr);
             } else {
                 return el;
@@ -119,7 +119,7 @@ public final class ArrayNormalizer extends AstVisitor {
             return depth;
         }
 
-        public void visit(Expr.Array array) {
+        public void visit(Expr.RawArray array) {
             for (var el : array.elements) {
                 /** 数组已满的情况 */
                 if (index == length) {
@@ -127,7 +127,7 @@ public final class ArrayNormalizer extends AstVisitor {
                     return;
                 }
                 /** 如果是子数组 */
-                if (el instanceof Expr.Array arr) {
+                if (el instanceof Expr.RawArray arr) {
                     int depth = getDepth();
                     /** 如果已经到达最大深度 i.e. 目前位置应该填的是标量 */
                     if (depth == dimensions.length) {
@@ -173,9 +173,9 @@ public final class ArrayNormalizer extends AstVisitor {
             return length;
         }
 
-        public Expr.NormalizedArray normalize(Expr.Array array) {
+        public Array normalize(Expr.RawArray array) {
             visit(array);
-            return new NormalizedArray(array, elements, indexes);
+            return new Array(array, elements, indexes);
         }
     }
 }

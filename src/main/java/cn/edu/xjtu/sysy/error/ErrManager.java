@@ -26,4 +26,14 @@ public final class ErrManager {
     public void clear() {
         errs.clear();
     }
+
+    public void printErrs() {
+        errs.forEach(System.out::println);
+    }
+
+    public void terminate(String msg) {
+        err(msg);
+        throw new RuntimeException("Terminated by:" + msg);
+    }
+
 }

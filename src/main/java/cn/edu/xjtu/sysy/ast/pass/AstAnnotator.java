@@ -1,10 +1,8 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import java.util.Arrays;
-import java.util.List;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.node.ComptimeValue;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
@@ -19,6 +17,8 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * 标注类型信息、做类型检查、
  * 标注符号表信息、
  * 折叠编译期常量表达式
+ *
+ * 应当注意此时处理的数组仍然是 RawArray
  */
 public final class AstAnnotator extends AstVisitor {
     public AstAnnotator(ErrManager errManager) {
@@ -27,6 +27,8 @@ public final class AstAnnotator extends AstVisitor {
 
     private SymbolTable.Global globalST;
     private SymbolTable currentST;
+
+    private Symbol.Func currentFunc;
 
     @Override
     public void visit(CompUnit node) {
@@ -43,40 +45,58 @@ public final class AstAnnotator extends AstVisitor {
         var funcST = new SymbolTable.Local(currentST);
         currentST = funcST;
         node.symbolTable = funcST;
+
         // resolveType
         var retTypeName = node.retTypeName;
         node.retType = retTypeName.equals("void") ? Type.Void.INSTANCE : Type.Primitive.of(node.retTypeName);
+
         // func symbol 依赖于 param symbol 和 func ret type
-        for (var p : node.params) visit(p);
+        node.params.forEach(this::visit);
+
         // resolveSymbol
         var paramSymbols = node.params.stream().map(p -> p.resolution).toList();
         var funcSymbol = new Symbol.Func(node.name, node.retType, paramSymbols);
+        // 先 declare func symbol，再 visit func body 是为了防止递归时找不到 func symbol
         globalST.declareFunc(funcSymbol);
         node.resolution = funcSymbol;
-        // 先 declare func symbol，再 visit func body 是为了防止递归时找不到 func symbol
+
+        currentFunc = funcSymbol;
         visit(node.body);
 
+        currentFunc = null;
         currentST = funcST.getParent();
     }
 
     @Override
     public void visit(Decl.VarDef node) {
-        for (var d : node.dimensions) visit(d);
         var isConst = node.isConst;
+
+        node.dimensions.forEach(this::visit);
+
         var initExpr = node.init;
         visit(initExpr);
+
         resolveType(node);
+
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
         var varSymbol = new Symbol.Var(node.kind, node.name, node.type, isConst);
         currentST.declare(varSymbol);
         node.resolution = varSymbol;
+
         // foldComptimeValue
         if(isConst) {
-            if (initExpr == null) throw new IllegalArgumentException("Const variable must be initialized");
-            if (!initExpr.isComptime())
-                throw new IllegalArgumentException("Const variable must be initialized with a const expression");
-            varSymbol.comptimeValue = initExpr.comptimeValue;
+            if (initExpr == null) {
+                err(node, "Const variable must be initialized");
+                return;
+            }
+
+            if (!initExpr.isComptime) {
+                err(node, "Const variable must be initialized with a const expression");
+                return;
+            }
+
+            varSymbol.comptimeValue = initExpr.getComptimeValue();
         }
     }
 
@@ -86,13 +106,13 @@ public final class AstAnnotator extends AstVisitor {
         var baseType = Type.Primitive.of(node.baseType);
         Type varType = baseType;
         // if array var, construct array type
-        if(!dimExprs.isEmpty()) {
+        if (!dimExprs.isEmpty()) {
             int[] dims = dimExprs.stream().mapToInt(it -> {
-                var v = it.comptimeValue;
-                if (!(v instanceof ComptimeValue.Int intVal))
-                    throw new IllegalArgumentException("Dimension not comptime constant");
-                    // return 1; // gcc默认行为似乎是返回1
-                return intVal.value;
+                var v = it.getComptimeValue();
+                if (v instanceof Integer intVal) return intVal;
+
+                err(node, "Dimension not comptime constant");
+                return 1; // gcc默认行为似乎是返回1
             }).toArray();
             varType = new Type.Array(baseType, dims);
         }
@@ -100,31 +120,43 @@ public final class AstAnnotator extends AstVisitor {
 
         // type check
         var initExpr = node.init;
-        if (initExpr != null) node.init = matchVarValueType(varType, initExpr);
+        if (initExpr == null) return;
+        node.init = matchVarValueType(varType, initExpr);
     }
 
     private Expr matchVarValueType(Type varType, Expr valueExpr) {
         var valueType = valueExpr.type;
-        if(!varType.equals(valueExpr.type)) {
-            // int/float 互相可以隐式转换
-            if (varType instanceof Type.Primitive && valueType instanceof Type.Primitive) {
-                return new Expr.Cast(valueExpr, varType);
-            } else if (varType instanceof Type.Array aType) {
-                if(valueType instanceof Type.EmptyArray) {
-                    // 从接收该空数组值的变量类型推导出该空数组值的类型
-                    var originDims = aType.dimensions;
-                    var newDims = Arrays.copyOf(originDims, originDims.length);
-                    newDims[0] = 0;
-                    valueExpr.type = new Type.Array(aType.elementType, newDims);
-                } else if (valueType instanceof Type.Array vType && Arrays.equals(aType.dimensions, 1,
-                        aType.dimensions.length, vType.dimensions, 1, vType.dimensions.length)
-                        && (aType.isWildcard() || aType.dimensions[0] > vType.dimensions[0]))
-                    Placeholder.pass();
-                else throw new IllegalArgumentException("Type of value is not compatible with the type of variable, " +
-                        "value = " + valueType + ", var = " + varType);
-            } else throw new IllegalArgumentException("Type of value is not compatible with the type of variable, " +
-                        "value = " + valueType + ", var = " + varType);
+        if (varType.equals(valueExpr.type)) {
+            return valueExpr;
         }
+
+        if (!(valueExpr instanceof Expr.RawArray valueArrExpr)) {
+            // int/float 互相可以隐式转换
+            if (varType instanceof Type.Primitive) return new Expr.Cast(valueExpr, varType);
+            err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+            return valueExpr;
+        }
+
+        if (!(varType instanceof Type.Array varArrType)) {
+            err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+            return valueExpr;
+        }
+
+        var varElemType = varArrType.elementType;
+        if (valueType instanceof Type.EmptyArray) {
+            // 从接收该空数组值的变量类型推导出该空数组值的类型
+            var originDims = varArrType.dimensions;
+            var newDims = Arrays.copyOf(originDims, originDims.length);
+            newDims[0] = 0;
+            valueArrExpr.type = new Type.Array(varElemType, newDims);
+        } else if (valueType instanceof Type.Primitive baseType) {
+            if (varElemType == baseType) valueExpr.type = varType;
+            else if (varElemType == Type.Primitive.FLOAT && baseType == Type.Primitive.INT) {
+                valueArrExpr.type = varType;
+                promoteElementType(valueArrExpr);
+            } else err( valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+        } else err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+
         return valueExpr;
     }
 
@@ -146,24 +178,36 @@ public final class AstAnnotator extends AstVisitor {
     }
 
     @Override
+    public void visit(Stmt.Return node) {
+        var retType = currentFunc.retType;
+        matchVarValueType(retType, node.value);
+    }
+
+    @Override
     public void visit(Expr.VarAccess node) {
         super.visit(node);
+
         // resolveSymbol
         var resolution = currentST.resolve(node.name);
         node.resolution = resolution;
+
         // resolveType
         node.type = resolution.type;
+
         // foldComptimeValue
-        if(resolution.isConst) node.comptimeValue = resolution.comptimeValue;
+        if(resolution.isConst) node.setComptimeValue(resolution.comptimeValue);
     }
 
     @Override
     public void visit(Expr.Call node) {
         super.visit(node);
+
         // resolveSymbol
         node.resolution = globalST.resolveFunc(node.funcName);
+
         // resolveType
         resolveType(node);
+
         // foldComptimeValue
         // 待定.
         // 纯函数编译时求值暂未实现，而且似乎等化为线性 IR 之后做 inline + const fold 也可以
@@ -176,104 +220,91 @@ public final class AstAnnotator extends AstVisitor {
         var params = resolution.params;
         var args = node.args;
         var paramsCount = params.size();
-        if(args.size() != paramsCount) throw new IllegalArgumentException("Argument count does not match");
+        if(args.size() != paramsCount) err(node, "Argument count does not match");
 
-        for (int i = 0; i < paramsCount; i++) args.set(i, matchVarValueType(params.get(i).type, args.get(i)));
+        for (int i = 0; i < paramsCount; i++)
+            args.set(i, matchVarValueType(params.get(i).type, args.get(i)));
     }
 
     @Override
     public void visit(Expr.IndexAccess node) {
         super.visit(node);
+
         // resolveType & foldComptimeValue
         var lhs = node.lhs;
         var lhsType = lhs.type;
-        if(!(lhsType instanceof Type.Array arrType))
-            throw new IllegalArgumentException("Index access on non-array type");
-        var indexes = node.indexes;
-        var indexCount = node.indexes.size();
-        node.type = arrType.getIndexElementType(indexCount);
 
-        if(!lhs.isComptime()) return;
-        var comptimeValue = lhs.comptimeValue;
-        for (int i = 0; i < indexCount; i++) {
-            var index = indexes.get(i);
-            var indexType = index.type;
-            if (!indexType.equals(Type.Primitive.INT)) {
-                if (indexType.equals(Type.Primitive.FLOAT)) indexes.set(i, new Expr.Cast(index, Type.Primitive.INT));
-                else throw new IllegalArgumentException("Index must be an number");
-            }
-
-            if (comptimeValue != null) {
-                if (index.isComptime()) comptimeValue =
-                        ((ComptimeValue.Array) comptimeValue).values[((ComptimeValue.Int) index.comptimeValue).value];
-                else comptimeValue = null;
-            }
-        }
-        if(comptimeValue != null) node.comptimeValue = comptimeValue;
+        if(lhsType instanceof Type.Array arrType) node.type = arrType.getIndexElementType(node.indexes.size());
+        else err(node, "Index access on non-array type");
     }
 
+    /**
+     * RawArray 此时只需标注 baseType，在 VarDef 或者 Assign 中确定具体 type
+     * baseType 只可能是 EmptyArray, int 或 float
+     */
     @Override
-    public void visit(Expr.Array node) {
+    public void visit(Expr.RawArray node) {
         super.visit(node);
-        // resolveType & foldComptimeValue
+
+        // resolveType
         var elements = node.elements;
         var elemCount = elements.size();
         if (elemCount == 0) {
+            node.isComptime = true;
             node.type = Type.EmptyArray.INSTANCE;
-            node.comptimeValue = new ComptimeValue.Array(new ComptimeValue[0]);
             return;
         }
 
-        var elemType = elements.get(0).type;
+        var elemType = Type.Primitive.INT;
         boolean elemTypeWidened = false;
-        var comptimeValues = new ComptimeValue[elemCount];
+        for (var thisElem : elements) {
+            var thisElemType = thisElem.type;
+            switch (thisElemType) {
+                case Type.EmptyArray _ -> { continue; }
+                case Type.Array aType -> thisElemType = aType.elementType;
+                default -> { }
+            }
+
+            if (thisElemType == Type.Primitive.FLOAT) {
+                elemTypeWidened = true;
+                elemType = Type.Primitive.FLOAT;
+                break;
+            }
+        }
+
+        if (elemTypeWidened) promoteElementType(node);
+
+        node.type = elemType;
+
+        boolean isComptime = true;
+        for (var thisElem : elements) {
+            if (!thisElem.isComptime) {
+                isComptime = false;
+                break;
+            }
+        }
+
+        node.isComptime = isComptime;
+    }
+
+    private void promoteElementType(Expr.RawArray node) {
+        var elements = node.elements;
+        var elemCount = elements.size();
         for (var i = 0; i < elemCount; i++) {
             var thisElem = elements.get(i);
-            var thisElemType = thisElem.type;
-            if (!elemType.equals(thisElemType)) {
-                // int 可以在 float[] 中，但 float 不能在 int[] 中
-                if (!elemTypeWidened && elemType.equals(Type.Primitive.INT) && thisElemType.equals(Type.Primitive.FLOAT)) {
-                    elemTypeWidened = true;
-                    elemType = Type.Primitive.FLOAT;
-                } else if (elemType.equals(Type.Primitive.FLOAT) && thisElemType.equals(Type.Primitive.INT))
-                    Placeholder.pass();
-                else throw new IllegalArgumentException("Type of element is not compatible with the type of array");
-            }
 
-            if (!thisElem.isComptime()) comptimeValues = null;
-        }
-
-        for (var i = 0; i < elemCount; ++i) {
-            var thisElem = elements.get(i);
-
-            if(elemTypeWidened && thisElem.type.equals(Type.Primitive.INT)) {
+            if (thisElem instanceof Expr.RawArray arr) promoteElementType(arr);
+            else if (thisElem.type == Type.Primitive.INT)
                 elements.set(i, new Expr.Cast(thisElem, Type.Primitive.FLOAT));
-                elements.set(i, thisElem);
-            }
-
-            if (comptimeValues != null) comptimeValues[i] = thisElem.comptimeValue;
         }
-
-        if (elemType instanceof Type.Primitive pType) {
-            node.type = new Type.Array(pType, new int[] { elemCount });
-        } else if (elemType instanceof Type.Array aType) {
-            var elemDims = aType.dimensions;
-            var elemDimCount = elemDims.length;
-            var dims = new int[elemDimCount + 1];
-            dims[0] = elemCount;
-            System.arraycopy(elemDims, 0, dims, 1, elemDimCount);
-            node.type = new Type.Array(aType.elementType, dims);
-        } else if (elemType instanceof Type.EmptyArray) {
-            node.type = Type.EmptyArray.INSTANCE;
-        } else unreachable();
-
-        if(comptimeValues != null) node.comptimeValue = new ComptimeValue.Array(comptimeValues);
     }
 
     @Override
     public void visit(Expr.Unary node) {
         super.visit(node);
+
         resolveType(node);
+
         foldComptimeValue(node);
     }
 
@@ -281,13 +312,13 @@ public final class AstAnnotator extends AstVisitor {
         var rhsType = node.rhs.type;
         node.type = switch (node.op) {
             case NOT -> {
-                if (!rhsType.equals(Type.Primitive.INT))
-                    throw new IllegalArgumentException("Not operator can only be applied to int (bool)");
+                if (rhsType != Type.Primitive.INT)
+                    err(node, "Not operator can only be applied to int (bool)");
                 yield Type.Primitive.INT;
             }
             case ADD, SUB -> {
-                if (!(rhsType.equals(Type.Primitive.INT) || rhsType.equals(Type.Primitive.FLOAT)))
-                    throw new IllegalArgumentException("Unary operator can only be applied to number");
+                if (rhsType != Type.Primitive.INT && rhsType != Type.Primitive.FLOAT)
+                    err(node, "Unary operator can only be applied to number");
                 yield rhsType;
             }
             default -> unreachable();
@@ -296,21 +327,19 @@ public final class AstAnnotator extends AstVisitor {
 
     private void foldComptimeValue(Expr.Unary node) {
         var rhs = node.rhs;
-        if (!rhs.isComptime()) return;
+        if (!rhs.isComptime) return;
 
-        var rhsValue = rhs.comptimeValue;
-        node.comptimeValue = switch (node.op) {
-            case NOT -> new ComptimeValue.Int(((ComptimeValue.Int) rhsValue).value == 0 ? 1 : 0);
+        var rhsValue = rhs.getComptimeValue();
+        node.setComptimeValue(switch (node.op) {
+            case NOT -> ((Integer) rhsValue) == 0 ? 1 : 0;
             case ADD -> rhsValue;
-            case SUB -> {
-                if (rhsValue instanceof ComptimeValue.Int intVal)
-                    yield new ComptimeValue.Int(-intVal.value);
-                else if (rhsValue instanceof ComptimeValue.Float floatVal)
-                    yield new ComptimeValue.Float(-floatVal.value);
-                else yield unreachable();
-            }
+            case SUB -> switch (rhsValue) {
+                case Integer intVal -> -intVal;
+                case Float floatVal -> -floatVal;
+                default -> unreachable();
+            };
             default -> unreachable();
-        };
+        });
     }
 
     @Override
@@ -334,30 +363,29 @@ public final class AstAnnotator extends AstVisitor {
             lhsType = Type.Primitive.FLOAT;
         }
 
-        if (!lhsType.equals(rhsType))
-            throw new IllegalArgumentException("Binary operator can only be applied to the same type");
+        if (!lhsType.equals(rhsType)) err(node, "Binary operator can only be applied to the same type");
         var type = lhsType;
 
         node.type = switch(node.op) {
             case ADD, SUB, MUL, DIV -> {
-                if (!(type == Type.Primitive.INT || type == Type.Primitive.FLOAT))
-                    throw new IllegalArgumentException("Arithmetic operator can only be applied to number");
+                if (type != Type.Primitive.INT && type != Type.Primitive.FLOAT)
+                    err(node, "Arithmetic operator can only be applied to number");
                 yield type;
             }
             case MOD -> {
-                if (!(type == Type.Primitive.INT))
-                    throw new IllegalArgumentException("Mod operator can only be applied to int");
+                if (type != Type.Primitive.INT)
+                    err(node, "Mod operator can only be applied to int");
                 yield type;
             }
             case GT, GE, LT, LE -> {
-                if (!(type == Type.Primitive.INT || type == Type.Primitive.FLOAT))
-                    throw new IllegalArgumentException("Relational operator can only be applied to number");
+                if (type != Type.Primitive.INT && type != Type.Primitive.FLOAT)
+                    err(node, "Relational operator can only be applied to number");
                 yield Type.Primitive.INT;
             }
             case EQ, NE -> Type.Primitive.INT;
             case AND, OR -> {
-                if (!type.equals(Type.Primitive.INT))
-                    throw new IllegalArgumentException("Binary operator can only be applied to int (bool)");
+                if (type != Type.Primitive.INT)
+                    err(node, "Binary operator can only be applied to int (bool)");
                 yield Type.Primitive.INT;
             }
             default -> unreachable();
@@ -367,17 +395,17 @@ public final class AstAnnotator extends AstVisitor {
     private void foldComptimeValue(Expr.Binary node) {
         var lhs = node.lhs;
         var rhs = node.rhs;
-        if (!(lhs.isComptime() && rhs.isComptime())) return;
+        if (!(lhs.isComptime && rhs.isComptime)) return;
 
         // 由于在 resolveType 中已经保证了两侧类型一致，不用检查 lhs.type == rhs.type
         var type = lhs.type;
-        var lhsValue = lhs.comptimeValue;
-        var rhsValue = rhs.comptimeValue;
+        var lhsValue = lhs.getComptimeValue();
+        var rhsValue = rhs.getComptimeValue();
 
-        if(type.equals(Type.Primitive.INT)) node.comptimeValue = new ComptimeValue.Int(calculate(node.op,
-                ((ComptimeValue.Int) lhsValue).value, ((ComptimeValue.Int) rhsValue).value));
-        else if(type.equals(Type.Primitive.FLOAT)) node.comptimeValue = new ComptimeValue.Float(calculate(node.op,
-                ((ComptimeValue.Float) lhsValue).value, ((ComptimeValue.Float) rhsValue).value));
+        if(type.equals(Type.Primitive.INT))
+            node.setComptimeValue(calculate(node.op, (Integer) lhsValue, (Integer) rhsValue));
+        else if(type.equals(Type.Primitive.FLOAT))
+            node.setComptimeValue(calculate(node.op, (Integer) lhsValue, (Integer) rhsValue));
         else if (type instanceof Type.Array) {
             Placeholder.pass();
             // 在 C 语言中，两个变量具有相同的数组常量值，但是应该不会被分配到同一地址
