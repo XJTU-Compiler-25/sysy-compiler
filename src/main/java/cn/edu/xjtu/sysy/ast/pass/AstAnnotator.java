@@ -52,7 +52,7 @@ public final class AstAnnotator extends AstVisitor {
         node.retType = retTypeName.equals("void") ? Type.Void.INSTANCE : Type.Primitive.of(node.retTypeName);
 
         // func symbol 依赖于 param symbol 和 func ret type
-        node.params.forEach(this::visit);
+        node.params.forEach(this::visitParam);
 
         // resolveSymbol
         var paramSymbols = node.params.stream().map(p -> p.resolution).toList();
@@ -68,6 +68,20 @@ public final class AstAnnotator extends AstVisitor {
         currentST = funcST.getParent();
     }
 
+    public void visitParam(Decl.VarDef node) {
+        var isConst = node.isConst;
+
+        node.dimensions.forEach(this::visit);
+
+        resolveType(node, true);
+
+        // resolveSymbol
+        // symbol 对 initExpr 的 comptime value 有数据依赖
+        var varSymbol = new Symbol.Var(node.kind, node.name, node.type, isConst);
+        currentST.declare(varSymbol);
+        node.resolution = varSymbol;
+    }
+
     @Override
     public void visit(Decl.VarDef node) {
         var isConst = node.isConst;
@@ -77,7 +91,7 @@ public final class AstAnnotator extends AstVisitor {
         var initExpr = node.init;
         visit(initExpr);
 
-        resolveType(node);
+        resolveType(node, false);
 
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
@@ -101,7 +115,7 @@ public final class AstAnnotator extends AstVisitor {
         }
     }
 
-    private void resolveType(Decl.VarDef node) {
+    private void resolveType(Decl.VarDef node, boolean isFParam) {
         // type constructing
         var dimExprs = node.dimensions;
         var baseType = Type.Primitive.of(node.baseType);
@@ -111,10 +125,17 @@ public final class AstAnnotator extends AstVisitor {
             int[] dims = dimExprs.stream().mapToInt(it -> {
                 var v = it.getComptimeValue();
                 if (v instanceof Integer intVal) return intVal;
-
                 err(node, "Dimension not comptime constant");
                 return 1; // gcc默认行为似乎是返回1
             }).toArray();
+            for (int i = 0; i < dims.length; i++) {
+                if (isFParam && i == 0)
+                    continue;
+                if (dims[i] < 0) {
+                    err(node, "Dimension is negative");
+                    dims[i] = 1;
+                }
+            }
             varType = new Type.Array(baseType, dims);
         }
         node.type = varType;
@@ -242,8 +263,9 @@ public final class AstAnnotator extends AstVisitor {
         // resolveType & foldComptimeValue
         var lhs = node.lhs;
         var lhsType = lhs.type;
-
-        if(lhsType instanceof Type.Array arrType) node.type = arrType.getIndexElementType(node.indexes.size());
+        if(lhsType instanceof Type.Array arrType) {
+            node.type = arrType.getIndexElementType(node.indexes.size());
+        }
         else err(node, "Index access on non-array type");
     }
 
@@ -321,6 +343,10 @@ public final class AstAnnotator extends AstVisitor {
         var rhsType = node.rhs.type;
         node.type = switch (node.op) {
             case NOT -> {
+                if (rhsType == Type.Primitive.FLOAT) {
+                    node.rhs = new Expr.Cast(node.rhs, Type.Primitive.INT);
+                    rhsType = Type.Primitive.INT;
+                }
                 if (rhsType != Type.Primitive.INT)
                     err(node, "Not operator can only be applied to int (bool)");
                 yield Type.Primitive.INT;
@@ -340,7 +366,7 @@ public final class AstAnnotator extends AstVisitor {
 
         var rhsValue = rhs.getComptimeValue();
         node.setComptimeValue(switch (node.op) {
-            case NOT -> ((Integer) rhsValue) == 0 ? 1 : 0;
+            case NOT -> rhsValue.intValue() == 0 ? 1 : 0;
             case ADD -> rhsValue;
             case SUB -> switch (rhsValue) {
                 case Integer intVal -> -intVal;
@@ -354,7 +380,6 @@ public final class AstAnnotator extends AstVisitor {
     @Override
     public void process(Expr.Binary node) {
         resolveType(node);
-
         foldComptimeValue(node);
     }
 
@@ -365,11 +390,21 @@ public final class AstAnnotator extends AstVisitor {
         var rhsType = rhs.type;
 
         if (lhsType.equals(Type.Primitive.FLOAT) && rhsType.equals(Type.Primitive.INT)) {
-            node.rhs = new Expr.Cast(rhs, Type.Primitive.FLOAT);
-            rhsType = Type.Primitive.FLOAT;
+            if (node.op == Expr.Operator.AND || node.op == Expr.Operator.OR) {
+                node.lhs = new Expr.Cast(lhs, Type.Primitive.INT);
+                lhsType = Type.Primitive.INT;
+            } else {
+                node.rhs = new Expr.Cast(rhs, Type.Primitive.FLOAT);
+                rhsType = Type.Primitive.FLOAT;
+            }
         } else if (lhsType.equals(Type.Primitive.INT) && rhsType.equals(Type.Primitive.FLOAT)) {
-            node.lhs = new Expr.Cast(lhs, Type.Primitive.FLOAT);
-            lhsType = Type.Primitive.FLOAT;
+            if (node.op == Expr.Operator.AND || node.op == Expr.Operator.OR) {
+                node.rhs = new Expr.Cast(rhs, Type.Primitive.INT);
+                rhsType = Type.Primitive.INT;
+            } else {
+                node.lhs = new Expr.Cast(lhs, Type.Primitive.FLOAT);
+                lhsType = Type.Primitive.FLOAT;
+            }
         }
 
         if (!lhsType.equals(rhsType)) err(node, "Binary operator can only be applied to the same type");
@@ -412,9 +447,9 @@ public final class AstAnnotator extends AstVisitor {
         var rhsValue = rhs.getComptimeValue();
 
         if(type.equals(Type.Primitive.INT))
-            node.setComptimeValue(calculate(node.op, (Integer) lhsValue, (Integer) rhsValue));
+            node.setComptimeValue(calculate(node.op, lhsValue.intValue(), rhsValue.intValue()));
         else if(type.equals(Type.Primitive.FLOAT))
-            node.setComptimeValue(calculate(node.op, (Float) lhsValue, (Float) rhsValue));
+            node.setComptimeValue(calculate(node.op, lhsValue.floatValue(), rhsValue.floatValue()));
         else if (type instanceof Type.Array) {
             Placeholder.pass();
             // 在 C 语言中，两个变量具有相同的数组常量值，但是应该不会被分配到同一地址
@@ -458,7 +493,7 @@ public final class AstAnnotator extends AstVisitor {
 
             case EQ -> left == right ? 1 : 0;
             case NE -> left != right ? 1 : 0;
-            default -> unreachable();
+            default -> unreachable(op.toString());
         };
     }
 }

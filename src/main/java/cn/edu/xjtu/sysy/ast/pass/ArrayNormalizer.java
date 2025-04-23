@@ -22,11 +22,6 @@ public final class ArrayNormalizer extends AstVisitor {
     public void visit(Decl.VarDef node) {
         if (node.type instanceof Type.Array type) {
             int[] dimensions = type.dimensions;
-            for (int i : dimensions) {
-                if (i < 0) {
-                    this.err(node, "dimension is negative");
-                }
-            }
             var initExpr = node.init;
             if (initExpr instanceof Expr.RawArray array) {
                 var checker = new ArrayChecker(dimensions);

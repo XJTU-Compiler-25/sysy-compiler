@@ -1,11 +1,19 @@
-import java.io.IOException;
-import java.nio.file.FileVisitOption;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DynamicTest;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
@@ -14,15 +22,6 @@ import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -47,11 +46,12 @@ public final class TestSolution {
         var testCase = new String(testFileStream.readAllBytes());
         testFileStream.close();
 
-        var ast = compileToAst(testCase);
-        AstPassGroups.GROUP.process(ast);
-        app.visit(ast);
+        var em = new ErrManager();
+        var ast = compileToAst(em, testCase);
+        AstPassGroups.makePassGroup(em).process(ast);
+        //app.visit(ast);
 
-        ErrManager.GLOBAL.printErrs();
+        em.printErrs();
     }
 
     private List<DynamicTest> genDynamicTest(String folder) throws Exception {
@@ -66,6 +66,7 @@ public final class TestSolution {
                         var testCase = new String(testFileStream.readAllBytes());
                         testFileStream.close();
                         return dynamicTest(f.getName(), () -> {
+                            System.out.println("testing %s ...".formatted(f.getName()));
                             var em = new ErrManager();
                             var ast = compileToAst(em, testCase);
                             AstPassGroups.makePassGroup(em).process(ast);

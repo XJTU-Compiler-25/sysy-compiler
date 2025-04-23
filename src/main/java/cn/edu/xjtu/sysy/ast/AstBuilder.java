@@ -42,8 +42,10 @@ import cn.edu.xjtu.sysy.parse.SysYParser.VarAccessExpContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.VarDefStmtContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.VarDefsContext;
 import cn.edu.xjtu.sysy.parse.SysYParser.WhileStmtContext;
+import cn.edu.xjtu.sysy.symbol.Symbol;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManaged {
     private final ErrManager errManager;
@@ -229,6 +231,9 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Stmt.Return visitReturnStmt(ReturnStmtContext ctx) {
+        if (ctx.value == null) 
+            return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
+        
         Expr value = visitExp(ctx.value);
         return new Stmt.Return(ctx.getStart(), ctx.getStop(), value);
     }
@@ -406,7 +411,18 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Expr.Literal visitIntConstExp(IntConstExpContext ctx) {
-        return new Expr.Literal(ctx.getStart(), ctx.getStop(), Integer.parseInt(ctx.IntLiteral().getText()));
+        var text = ctx.IntLiteral().getText();
+        int value = 0;
+        if (text.equals("0")) 
+            Placeholder.pass();
+        else if (text.startsWith("0x") || text.startsWith("0X")) 
+            value = Integer.parseInt(text.substring(2), 16);
+        else if (text.startsWith("0")) 
+            value = Integer.parseInt(text.substring(1), 8);
+        else 
+            value = Integer.parseInt(text, 10);
+
+        return new Expr.Literal(ctx.getStart(), ctx.getStop(), value);
     }
 
     @Override
