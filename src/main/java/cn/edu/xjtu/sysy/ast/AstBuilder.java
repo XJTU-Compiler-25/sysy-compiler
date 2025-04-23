@@ -1,47 +1,18 @@
 package cn.edu.xjtu.sysy.ast;
 
+import cn.edu.xjtu.sysy.ast.node.*;
+import cn.edu.xjtu.sysy.error.ErrManaged;
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.parse.SysYBaseVisitor;
+import cn.edu.xjtu.sysy.parse.SysYParser;
+import cn.edu.xjtu.sysy.parse.SysYParser.*;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.util.Placeholder;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.edu.xjtu.sysy.error.ErrManaged;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.symbol.Symbol;
-
-import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.node.Decl;
-import cn.edu.xjtu.sysy.ast.node.Expr;
-import cn.edu.xjtu.sysy.ast.node.Node;
-import cn.edu.xjtu.sysy.ast.node.Stmt;
-import cn.edu.xjtu.sysy.parse.SysYBaseVisitor;
-import cn.edu.xjtu.sysy.parse.SysYParser;
-import cn.edu.xjtu.sysy.parse.SysYParser.AddExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.AndCondContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ArrayVarDefContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.AssignmentStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.BlockStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.BreakStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ContinueStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.EmptyStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.EqCondContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ExpCondContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ExpStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.FloatConstExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.FuncCallExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.FuncDefContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.IfStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.IntConstExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.MulExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.OrCondContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ParenExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.RelCondContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ReturnStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.ScalarVarDefContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.UnaryExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.VarAccessExpContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.VarDefStmtContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.VarDefsContext;
-import cn.edu.xjtu.sysy.parse.SysYParser.WhileStmtContext;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManaged {
@@ -49,6 +20,10 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     public AstBuilder(ErrManager em) {
         errManager = em;
+    }
+
+    public AstBuilder() {
+        this(ErrManager.GLOBAL);
     }
 
     @Override
@@ -206,8 +181,9 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Stmt.Return visitReturnStmt(ReturnStmtContext ctx) {
-        Expr value = visitExp(ctx.value);
-        return new Stmt.Return(ctx.getStart(), ctx.getStop(), value);
+        var valueCtx = ctx.value;
+        if (valueCtx != null) return new Stmt.Return(ctx.getStart(), ctx.getStop(), visitExp(ctx.value));
+        else return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
     }
 
     @Override
@@ -369,7 +345,14 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Expr.Literal visitIntConstExp(IntConstExpContext ctx) {
-        return new Expr.Literal(ctx.getStart(), ctx.getStop(), Integer.parseInt(ctx.IntLiteral().getText()));
+        var text = ctx.IntLiteral().getText();
+        int value = 0;
+        if (text.equals("0")) Placeholder.pass();
+        else if (text.startsWith("0x")) value = Integer.parseInt(text.substring(2), 16);
+        else if (text.startsWith("0")) value = Integer.parseInt(text.substring(1), 8);
+        else value = Integer.parseInt(text, 10);
+
+        return new Expr.Literal(ctx.getStart(), ctx.getStop(), value);
     }
 
     @Override
