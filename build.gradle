@@ -26,11 +26,11 @@ test {
 }
 
 compileJava {
-    sourceCompatibility = targetCompatibility = 17
+    sourceCompatibility = targetCompatibility = 24
 }
 
 compileTestJava {
-    sourceCompatibility = targetCompatibility = 17
+    sourceCompatibility = targetCompatibility = 24
 }
 
 generateGrammarSource {

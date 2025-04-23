@@ -7,6 +7,7 @@ import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 /**
  * 抽象类，用于遍历AST。
@@ -106,6 +107,7 @@ public abstract class AstVisitor extends Pass<CompUnit> {
         else if (node instanceof Expr.Literal it) visit(it);
         else if (node instanceof Expr.Unary it) visit(it);
         else if (node instanceof Expr.Cast it) visit(it);
+        else if (node instanceof Expr.NormalizedArray it) visit(it);
 
         else unreachable();
     }
