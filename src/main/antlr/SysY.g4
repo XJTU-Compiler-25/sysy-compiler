@@ -175,6 +175,6 @@ fragment OctLiteral: OctPrefix OctDigit+;
 IntLiteral: DecLiteral | OctLiteral | HexLiteral;
 
 FloatLiteral
-    : Digit* '.' Digit+ ([eE] [+-]? Digit+)?
+    : Digit* '.' Digit* ([eE] [+-]? Digit+)?
     | Digit+ [eE] [+-]? Digit+
     ;

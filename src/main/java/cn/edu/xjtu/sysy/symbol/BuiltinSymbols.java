@@ -57,4 +57,9 @@ public final class BuiltinSymbols {
 
     // void putf(format, ...) 未实现
 
+    public static final Symbol.Func STARTTIME = new Symbol.Func("starttime",
+            Type.Void.INSTANCE, List.of());
+    public static final Symbol.Func STOPTIME = new Symbol.Func("stoptime",
+            Type.Void.INSTANCE, List.of());
+
 }

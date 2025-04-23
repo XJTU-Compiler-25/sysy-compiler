@@ -8,11 +8,13 @@ public final class AstPassGroups {
 
     private AstPassGroups() { }
 
-    public static final PassGroup<CompUnit> GROUP = new PassGroup<>(ErrManager.GLOBAL,
-            NotOpChecker::new,
-            AstAnnotator::new,
-            ArrayNormalizer::new,
-            PureFunctionChecker::new
-    );
+    public static PassGroup<CompUnit> makePassGroup(ErrManager em) {
+        return new PassGroup<>(em,
+                NotOpChecker::new,
+                AstAnnotator::new,
+                ArrayNormalizer::new,
+                PureFunctionChecker::new
+        );
+    }
 
 }

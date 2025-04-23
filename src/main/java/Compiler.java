@@ -39,12 +39,12 @@ public class Compiler {
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
         SysYParser parser = new SysYParser(tokenStream);
 
-        ErrManager em = ErrManager.GLOBAL;
+        ErrManager em = new ErrManager();
         CompUnitContext cst = parser.compUnit();
         AstBuilder astBuilder = new AstBuilder(em);
         CompUnit compUnit = astBuilder.visitCompUnit(cst);
 
-        AstPassGroups.GROUP.process(compUnit);
+        AstPassGroups.makePassGroup(em).process(compUnit);
         
         var pp = new AstPrettyPrinter();
         pp.visit(compUnit);
