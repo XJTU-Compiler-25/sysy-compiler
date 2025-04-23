@@ -1,11 +1,11 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.node.Decl;
-import cn.edu.xjtu.sysy.ast.node.Expr;
-import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.ast.SemanticError;
+import cn.edu.xjtu.sysy.ast.node.*;
 import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.util.Placeholder;
+
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
@@ -18,52 +18,58 @@ public abstract class AstVisitor extends Pass<CompUnit> {
         super(errManager);
     }
 
+    public void err(Node node, String msg) {
+        this.errManager.err(new SemanticError(node, msg));
+    }
+
     @Override
     public void process(CompUnit obj) {
         visit(obj);
     }
 
     public void visit(CompUnit node) {
-        for (var d : node.decls) visit(d);
+        node.decls.forEach(this::visit);
     }
 
     public void visit(Decl node) {
-        if (node instanceof Decl.FuncDef it) visit(it);
-        else if (node instanceof Decl.VarDef it) visit(it);
-
-        else unreachable();
+        switch (node) {
+            case Decl.FuncDef it -> visit(it);
+            case Decl.VarDef it -> visit(it);
+            case null, default -> unreachable();
+        }
     }
 
     public void visit(Decl.FuncDef node) {
-        for (var p : node.params) visit(p);
+        node.params.forEach(this::visit);
         visit(node.body);
     }
 
     public void visit(Decl.VarDef node) {
-        for(var d : node.dimensions) visit(d);
+        node.dimensions.forEach(this::visit);
         visit(node.init);
     }
 
     public void visit(Stmt node) {
-        if (node == null) Placeholder.pass();
-        else if (node instanceof Stmt.Assign it) visit(it);
-        else if (node instanceof Stmt.Block it) visit(it);
-        else if (node instanceof Stmt.Break it) visit(it);
-        else if (node instanceof Stmt.Continue it) visit(it);
-        else if (node instanceof Stmt.ExprEval it) visit(it);
-        else if (node instanceof Stmt.If it) visit(it);
-        else if (node instanceof Stmt.LocalVarDef it) visit(it);
-        else if (node instanceof Stmt.Return it) visit(it);
-        else if (node instanceof Stmt.While it) visit(it);
-        else if (node instanceof Stmt.Empty it) visit(it);
-
-        else unreachable();
+        switch (node) {
+            case null -> Placeholder.pass();
+            case Stmt.Assign it -> visit(it);
+            case Stmt.Block it -> visit(it);
+            case Stmt.Break it -> visit(it);
+            case Stmt.Continue it -> visit(it);
+            case Stmt.ExprEval it -> visit(it);
+            case Stmt.If it -> visit(it);
+            case Stmt.LocalVarDef it -> visit(it);
+            case Stmt.Return it -> visit(it);
+            case Stmt.While it -> visit(it);
+            case Stmt.Empty it -> visit(it);
+            default -> unreachable();
+        }
     }
 
     public void visit(Stmt.Empty node) { }
 
     public void visit(Stmt.Block node) {
-        for (var s : node.stmts) visit(s);
+        node.stmts.forEach(this::visit);
     }
 
     public void visit(Stmt.Return node) {
@@ -80,7 +86,7 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     }
 
     public void visit(Stmt.LocalVarDef node) {
-        for(var v : node.varDefs) visit(v);
+        node.varDefs.forEach(this::visit);
     }
 
     public void visit(Stmt.If node) {
@@ -99,17 +105,18 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     public void visit(Stmt.Continue node) { }
 
     public void visit(Expr node) {
-        if (node == null) Placeholder.pass();
-        else if (node instanceof Expr.Assignable it) visit(it);
-        else if (node instanceof Expr.Array it) visit(it);
-        else if (node instanceof Expr.Binary it) visit(it);
-        else if (node instanceof Expr.Call it) visit(it);
-        else if (node instanceof Expr.Literal it) visit(it);
-        else if (node instanceof Expr.Unary it) visit(it);
-        else if (node instanceof Expr.Cast it) visit(it);
-        else if (node instanceof Expr.NormalizedArray it) visit(it);
-
-        else unreachable();
+        switch (node) {
+            case null -> Placeholder.pass();
+            case Expr.Assignable it -> visit(it);
+            case Expr.RawArray it -> visit(it);
+            case Expr.Array it -> visit(it);
+            case Expr.Binary it -> visit(it);
+            case Expr.Call it -> visit(it);
+            case Expr.Literal it -> visit(it);
+            case Expr.Unary it -> visit(it);
+            case Expr.Cast it -> visit(it);
+            default -> unreachable();
+        }
     }
 
     public void visit(Expr.Binary node) {
@@ -121,30 +128,31 @@ public abstract class AstVisitor extends Pass<CompUnit> {
         visit(node.rhs);
     }
 
-    public void visit(Expr.Array node) {
-        for (var e : node.elements) visit(e);
+    public void visit(Expr.RawArray node) {
+        node.elements.forEach(this::visit);
     }
 
-    public void visit(Expr.NormalizedArray node) {
-        for (var e : node.elements) visit(e);
+    public void visit(Expr.Array node) {
+        node.elements.forEach(this::visit);
     }
 
     public void visit(Expr.Call node) {
-        for (var a : node.args) visit(a);
+        node.args.forEach(this::visit);
     }
 
     public void visit(Expr.Assignable node) {
-        if (node instanceof Expr.VarAccess it) visit(it);
-        else if (node instanceof Expr.IndexAccess it) visit(it);
-
-        else unreachable();
+        switch (node) {
+            case Expr.VarAccess it -> visit(it);
+            case Expr.IndexAccess it -> visit(it);
+            case null, default -> unreachable();
+        }
     }
 
     public void visit(Expr.VarAccess node) { }
 
     public void visit(Expr.IndexAccess node) {
         visit(node.lhs);
-        for (var i : node.indexes) visit(i);
+        node.indexes.forEach(this::visit);
     }
 
     public void visit(Expr.Literal node) { }

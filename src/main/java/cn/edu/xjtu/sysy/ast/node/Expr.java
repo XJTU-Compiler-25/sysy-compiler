@@ -15,8 +15,8 @@ public abstract sealed class Expr extends Node {
     /** 表达式的类型 */
     @JSONField(serializeFeatures = JSONWriter.Feature.WriteMapNullValue)
     public Type type = null;
-    /** 编译期常量值 */
-    public ComptimeValue comptimeValue = null;
+    private Number comptimeValue = null;
+    public boolean isComptime = false;
 
     public Expr(Token start, Token end) {
         super(start, end);
@@ -26,8 +26,13 @@ public abstract sealed class Expr extends Node {
         super(location);
     }
 
-    public final boolean isComptime() {
-        return comptimeValue != null;
+    public Number getComptimeValue() {
+        return comptimeValue;
+    }
+
+    public void setComptimeValue(Number comptimeValue) {
+        this.comptimeValue = comptimeValue;
+        this.isComptime = true;
     }
 
     public enum Operator {
@@ -192,13 +197,13 @@ public abstract sealed class Expr extends Node {
         public Literal(Token start, Token end, int value) {
             super(start, end);
             this.type = Type.Primitive.INT;
-            this.comptimeValue = new ComptimeValue.Int(value);
+            this.setComptimeValue(value);
         }
 
         public Literal(Token start, Token end, float value) {
             super(start, end);
             this.type = Type.Primitive.FLOAT;
-            this.comptimeValue = new ComptimeValue.Float(value);
+            this.setComptimeValue(value);
         }
     }
 
@@ -213,13 +218,13 @@ public abstract sealed class Expr extends Node {
      * <p>当 VarDef 含有 ‘=’ 和初始值时， ‘=’ 右边的 InitVal 和 CostInitVal 的结构要 求相同，唯一的不同是 ConstInitVal 中的表达式是
      * ConstExp 常量表达式，而 InitVal 中的表达式可以是当前上下文合法的任何 Exp。
      */
-    public static final class Array extends Expr {
+    public static final class RawArray extends Expr {
         /**
          * 数组元素
          */
         public List<Expr> elements;
 
-        public Array(Token start, Token end, List<Expr> elements) {
+        public RawArray(Token start, Token end, List<Expr> elements) {
             super(start, end);
             this.elements = elements;
         }
@@ -229,9 +234,9 @@ public abstract sealed class Expr extends Node {
      *  标准化数组结点，仅储存所有显示初始化的元素及其位置信息
      *  eg. int a[3][3] = {1,2,3,{4,5},6} => {{1,2,3},{4,5,0},{6,0,0}}
      *      标准化之后: elements = [1, 2, 3, 4, 5, 6]
-     *                 indexes = [0, 1, 2, 3, 4, 6] 
+     *                 indexes = [0, 1, 2, 3, 4, 6]
      */
-    public static final class NormalizedArray extends Expr {
+    public static final class Array extends Expr {
         /**
          * 数组元素
          */
@@ -241,18 +246,11 @@ public abstract sealed class Expr extends Node {
          */
         public List<Integer> indexes;
 
-        public NormalizedArray(Array node, List<Expr> elements, List<Integer> indexes) {
+        public Array(RawArray node, List<Expr> elements, List<Integer> indexes) {
             super(node.getLocation());
+            this.type = node.type;
             this.elements = elements;
             this.indexes = indexes;
-            this.type = node.type;
-            if (node.comptimeValue instanceof ComptimeValue.Array it) {
-                var flatten = it.flatValue();
-                this.comptimeValue = new ComptimeValue.Array(flatten.toArray(ComptimeValue[]::new));
-            } else {
-                this.comptimeValue = node.comptimeValue;
-            }
-            
         }
         
         /**
@@ -284,12 +282,13 @@ public abstract sealed class Expr extends Node {
 
         public Cast(Token start, Token end, Expr value, Type toType) {
             super(start, end);
+            this.type = toType;
             this.value = value;
             this.toType = toType;
-
             this.fromType = value.type;
-            this.type = toType;
-            this.comptimeValue = value.comptimeValue.toType(toType);
+
+            if(type == Type.Primitive.INT) this.setComptimeValue(value.comptimeValue.intValue());
+            else if (type == Type.Primitive.FLOAT) this.setComptimeValue(value.comptimeValue.floatValue());
         }
     }
 }

@@ -140,7 +140,7 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     @Override
     public void visit(Expr.Binary node) {
-        printf("[Expr.Binary | type = %s, comptimeValue = %s, op = %s, lhs = \n", node.type, node.comptimeValue, node.op);
+        printf("[Expr.Binary | type = %s, comptimeValue = %s, op = %s, lhs = \n", node.type, node.getComptimeValue(), node.op);
         incIndent();
         visit(node.lhs);
         decIndent();
@@ -153,7 +153,7 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     @Override
     public void visit(Expr.Unary node) {
-        printf("[Expr.Unary | type = %s, comptimeValue = %s, op = %s, rhs = \n", node.type, node.comptimeValue, node.op);
+        printf("[Expr.Unary | type = %s, comptimeValue = %s, op = %s, rhs = \n", node.type, node.getComptimeValue(), node.op);
         incIndent();
         visit(node.rhs);
         decIndent();
@@ -161,8 +161,8 @@ public final class AstPrettyPrinter extends AstVisitor {
     }
 
     @Override
-    public void visit(Expr.Array node) {
-        printf("[Expr.Array | type = %s, comptimeValue = %s, elements = {\n", node.type, node.comptimeValue);
+    public void visit(Expr.RawArray node) {
+        printf("[Expr.RawArray | type = %s, isComptime = %b, elements = {\n", node.type, node.isComptime);
         incIndent();
         for (var element : node.elements) visit(element);
         decIndent();
@@ -170,8 +170,8 @@ public final class AstPrettyPrinter extends AstVisitor {
     }
 
     @Override
-    public void visit(Expr.NormalizedArray node) {
-        printf("[Expr.Array | type = %s, comptimeValue = %s, elements = {\n", node.type, node.comptimeValue);
+    public void visit(Expr.Array node) {
+        printf("[Expr.Array | type = %s, isComptime = %b, elements = {\n", node.type, node.isComptime);
         incIndent();
         for (var element : node.elements) visit(element);
         decIndent();
@@ -181,7 +181,7 @@ public final class AstPrettyPrinter extends AstVisitor {
     @Override
     public void visit(Expr.Call node) {
         var symbol = node.resolution;
-        printf("[Expr.Call | funcName = %s, type = %s, comptimeValue = %s, args = {\n", node.type, node.comptimeValue, symbol.name);
+        printf("[Expr.Call | funcName = %s, type = %s, args = {\n", symbol.name, node.type);
         incIndent();
         for (var arg : node.args) visit(arg);
         decIndent();
@@ -191,12 +191,12 @@ public final class AstPrettyPrinter extends AstVisitor {
     @Override
     public void visit(Expr.VarAccess node) {
         var symbol = node.resolution;
-        printf("[Expr.VarAccess | varName = %s, type = %s, comptimeValue = %s]\n", symbol.name, node.type, node.comptimeValue);
+        printf("[Expr.VarAccess | varName = %s, type = %s, comptimeValue = %s]\n", symbol.name, node.type, node.getComptimeValue());
     }
 
     @Override
     public void visit(Expr.IndexAccess node) {
-        printf("[Expr.IndexAccess | type = %s, comptimeValue = %s, lhs = \n", node.type, node.comptimeValue);
+        printf("[Expr.IndexAccess | type = %s, lhs = \n", node.type);
         incIndent();
         visit(node.lhs);
         decIndent();
@@ -209,12 +209,12 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     @Override
     public void visit(Expr.Literal node) {
-        printf("[Expr.Literal | type = %s, comptimeValue = %s]\n", node.type, node.comptimeValue);
+        printf("[Expr.Literal | type = %s, comptimeValue = %s]\n", node.type, node.getComptimeValue());
     }
 
     @Override
     public void visit(Expr.Cast node) {
-        printf("[Expr.Cast | type = %s, comptimeValue = %s, target = \n", node.type, node.comptimeValue);
+        printf("[Expr.Cast | type = %s, comptimeValue = %s, target = \n", node.type, node.getComptimeValue());
     }
 
     // tool functions
