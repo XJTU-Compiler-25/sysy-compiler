@@ -174,7 +174,12 @@ fragment OctLiteral: OctPrefix OctDigit+;
 // 仅整数可以用其他进制表示
 IntLiteral: DecLiteral | OctLiteral | HexLiteral;
 
-FloatLiteral
-    : Digit* '.' Digit* ([eE] [+-]? Digit+)?
-    | Digit+ [eE] [+-]? Digit+
-    ;
+fragment Fractional: Digit* '.' Digit+ | Digit+ '.';
+fragment ExponentPart: [eE] [+-]? Digit+;
+fragment DecFloat: Fractional ExponentPart? | Digit+ ExponentPart;
+
+fragment HexFractional: HexDigit* '.' HexDigit+ | HexDigit+ '.';
+fragment BinExponentPart: [pP] [+-]? Digit+;
+fragment HexFloat: HexPrefix HexFractional BinExponentPart? | HexPrefix HexDigit+ BinExponentPart;
+
+FloatLiteral: DecFloat | HexFloat;

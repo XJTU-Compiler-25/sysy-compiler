@@ -1,19 +1,51 @@
 package cn.edu.xjtu.sysy.ast;
 
-import cn.edu.xjtu.sysy.ast.node.*;
-import cn.edu.xjtu.sysy.error.ErrManaged;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.parse.SysYBaseVisitor;
-import cn.edu.xjtu.sysy.parse.SysYParser;
-import cn.edu.xjtu.sysy.parse.SysYParser.*;
-import cn.edu.xjtu.sysy.symbol.Symbol;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.antlr.v4.runtime.Token;
+
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import cn.edu.xjtu.sysy.ast.node.Decl;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Node;
+import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.error.ErrManaged;
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.parse.SysYBaseVisitor;
+import cn.edu.xjtu.sysy.parse.SysYParser;
+import cn.edu.xjtu.sysy.parse.SysYParser.AddExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.AndCondContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ArrayVarDefContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.AssignmentStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.BlockStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.BreakStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ContinueStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.EmptyStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.EqCondContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ExpCondContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ExpStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.FloatConstExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.FuncCallExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.FuncDefContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.IfStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.IntConstExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.MulExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.OrCondContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ParenExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.RelCondContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ReturnStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.ScalarVarDefContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.UnaryExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.VarAccessExpContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.VarDefStmtContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.VarDefsContext;
+import cn.edu.xjtu.sysy.parse.SysYParser.WhileStmtContext;
+import cn.edu.xjtu.sysy.symbol.Symbol;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManaged {
     private final ErrManager errManager;
@@ -52,15 +84,20 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     public List<Decl.VarDef> visitVarDefs(VarDefsContext ctx, Symbol.Var.Kind kind) {
         return switch (ctx) {
-            case SysYParser.ConstVarDefsContext cv -> cv.varDef().stream().map(it ->
-                visitVarDef(it, kind, cv.type.getText(), true)).collect(Collectors.toList());
-            case SysYParser.NormalVarDefsContext nv -> nv.varDef().stream().map(it ->
-                visitVarDef(it, kind, nv.type.getText(), false)).collect(Collectors.toList());
+            case SysYParser.ConstVarDefsContext cv ->
+                    cv.varDef().stream()
+                            .map(it -> visitVarDef(it, kind, cv.type.getText(), true))
+                            .collect(Collectors.toList());
+            case SysYParser.NormalVarDefsContext nv ->
+                    nv.varDef().stream()
+                            .map(it -> visitVarDef(it, kind, nv.type.getText(), false))
+                            .collect(Collectors.toList());
             default -> throw new IllegalStateException("Unexpected value: " + ctx);
         };
     }
 
-    public Decl.VarDef visitVarDef(SysYParser.VarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+    public Decl.VarDef visitVarDef(
+            SysYParser.VarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
         if (ctx instanceof ScalarVarDefContext scalarVar) {
             return visitScalarVarDef(scalarVar, kind, baseType, isConst);
         } else if (ctx instanceof ArrayVarDefContext arrayVar) {
@@ -69,7 +106,8 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         return unreachable();
     }
 
-    public Decl.VarDef visitScalarVarDef(ScalarVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+    public Decl.VarDef visitScalarVarDef(
+            ScalarVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
         String name = ctx.name.getText();
 
         Expr exp = null;
@@ -79,29 +117,33 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         return new Decl.VarDef(ctx.getStart(), ctx.getStop(), kind, name, baseType, isConst, exp);
     }
 
-    public Decl.VarDef visitArrayVarDef(ArrayVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+    public Decl.VarDef visitArrayVarDef(
+            ArrayVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
         String name = ctx.name.getText();
         List<Expr> dimensions = ctx.exp().stream().map(this::visitExp).collect(Collectors.toList());
 
         Expr exp = null;
         var assignableInit = ctx.assignableExp();
-        if(assignableInit != null) exp = visitAssignable(assignableInit);
+        if (assignableInit != null) exp = visitAssignable(assignableInit);
         else {
             var literalInit = ctx.arrayLiteralExp();
-            if(literalInit != null) exp = visitArrayLiteralExp(literalInit);
+            if (literalInit != null) exp = visitArrayLiteralExp(literalInit);
         }
 
-        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), kind, name, baseType, dimensions, isConst, exp);
+        return new Decl.VarDef(
+                ctx.getStart(), ctx.getStop(), kind, name, baseType, dimensions, isConst, exp);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>The default implementation returns the result of calling {@link #visitChildren} on {@code ctx}.
+     * <p>The default implementation returns the result of calling {@link #visitChildren} on {@code
+     * ctx}.
      */
     @Override
     public Decl.FuncDef visitFuncDef(FuncDefContext ctx) {
-        List<Decl.VarDef> params = ctx.param().stream().map(this::visitParam).collect(Collectors.toList());
+        List<Decl.VarDef> params =
+                ctx.param().stream().map(this::visitParam).collect(Collectors.toList());
         String name = ctx.name.getText();
         String retType = ctx.retType.getText();
         Stmt.Block body = visitBlock(ctx.body);
@@ -114,8 +156,16 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         String type = ctx.type.getText();
         List<Expr> dimensions = ctx.exp().stream().map(this::visitExp).collect(Collectors.toList());
         // 有空第一维，在最前加上 -1 项
-        if(ctx.emptyDim != null) dimensions.addFirst(new Expr.Literal(null, null, -1));
-        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), Symbol.Var.Kind.LOCAL,  name, type, dimensions, false, null);
+        if (ctx.emptyDim != null) dimensions.addFirst(new Expr.Literal(null, null, -1));
+        return new Decl.VarDef(
+                ctx.getStart(),
+                ctx.getStop(),
+                Symbol.Var.Kind.LOCAL,
+                name,
+                type,
+                dimensions,
+                false,
+                null);
     }
 
     @Override
@@ -181,9 +231,11 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Stmt.Return visitReturnStmt(ReturnStmtContext ctx) {
-        var valueCtx = ctx.value;
-        if (valueCtx != null) return new Stmt.Return(ctx.getStart(), ctx.getStop(), visitExp(ctx.value));
-        else return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
+        if (ctx.value == null) 
+            return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
+        
+        Expr value = visitExp(ctx.value);
+        return new Stmt.Return(ctx.getStart(), ctx.getStop(), value);
     }
 
     @Override
@@ -253,35 +305,30 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     public Expr.Binary visitRelCond(RelCondContext ctx) {
         Expr left = visitCond(ctx.lhs);
         Expr right = visitCond(ctx.rhs);
-        return new Expr.Binary(ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
+        return new Expr.Binary(
+                ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
     }
 
     @Override
     public Expr.Binary visitEqCond(EqCondContext ctx) {
         Expr left = visitCond(ctx.lhs);
         Expr right = visitCond(ctx.rhs);
-        return new Expr.Binary(ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
+        return new Expr.Binary(
+                ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
     }
 
     public Expr visitExp(SysYParser.ExpContext ctx) {
-        if (ctx instanceof ParenExpContext it) {
-            return visitParenExp(it);
-        } else if (ctx instanceof IntConstExpContext it) {
-            return visitIntConstExp(it);
-        } else if (ctx instanceof FloatConstExpContext it) {
-            return visitFloatConstExp(it);
-        } else if (ctx instanceof VarAccessExpContext it) {
-            return visitVarAccessExp(it);
-        } else if (ctx instanceof UnaryExpContext it) {
-            return visitUnaryExp(it);
-        } else if (ctx instanceof FuncCallExpContext it) {
-            return visitFuncCallExp(it);
-        } else if (ctx instanceof MulExpContext it) {
-            return visitMulExp(it);
-        } else if (ctx instanceof AddExpContext it) {
-            return visitAddExp(it);
-        }
-        return unreachable();
+        return switch (ctx) {
+            case ParenExpContext it -> visitParenExp(it);
+            case IntConstExpContext it -> visitIntConstExp(it);
+            case FloatConstExpContext it -> visitFloatConstExp(it);
+            case VarAccessExpContext it -> visitVarAccessExp(it);
+            case UnaryExpContext it -> visitUnaryExp(it);
+            case FuncCallExpContext it -> visitFuncCallExp(it);
+            case MulExpContext it -> visitMulExp(it);
+            case AddExpContext it -> visitAddExp(it);
+            default -> unsupported(ctx);
+        };
     }
 
     @Override
@@ -292,21 +339,41 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     @Override
     public Expr.Unary visitUnaryExp(UnaryExpContext ctx) {
         Expr operand = visitExp(ctx.rhs);
-        return new Expr.Unary(ctx.getStart(), ctx.getStop(), Expr.Operator.of(ctx.op.getText()), operand);
+        return new Expr.Unary(
+                ctx.getStart(), ctx.getStop(), Expr.Operator.of(ctx.op.getText()), operand);
     }
 
     @Override
     public Expr.Binary visitAddExp(AddExpContext ctx) {
-        Expr left = visitExp(ctx.lhs);
-        Expr right = visitExp(ctx.rhs);
-        return new Expr.Binary(ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
+        List<Expr> elems = new ArrayList<>();
+        List<Expr.Operator> ops = new ArrayList<>();
+        List<Token> ends = new ArrayList<>();
+
+        SysYParser.ExpContext context = ctx;
+        while (context instanceof AddExpContext it) {
+            elems.add(visitExp(it.rhs));
+            ops.add(Expr.Operator.of(it.op.getText()));
+            ends.add(context.getStop());
+            context = it.lhs;
+        }
+        Expr left = visitExp(context);
+        
+        for (int i = 0; i < elems.size(); i++) {
+            var elem = elems.get(i);
+            var op = ops.get(i);
+            var end = ends.get(i);
+
+            left = new Expr.Binary(ctx.getStart(), end, left, op, elem);
+        }
+        return (Expr.Binary) left;
     }
 
     @Override
     public Expr.Binary visitMulExp(MulExpContext ctx) {
         Expr left = visitExp(ctx.lhs);
         Expr right = visitExp(ctx.rhs);
-        return new Expr.Binary(ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
+        return new Expr.Binary(
+                ctx.getStart(), ctx.getStop(), left, Expr.Operator.of(ctx.op.getText()), right);
     }
 
     @Override
@@ -322,12 +389,11 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     }
 
     public Expr.Assignable visitAssignable(SysYParser.AssignableExpContext ctx) {
-        if (ctx instanceof SysYParser.ScalarAssignableContext it) {
-            return visitScalarAssignable(it);
-        } else if (ctx instanceof SysYParser.ArrayAssignableContext it) {
-            return visitArrayAssignable(it);
-        }
-        return unreachable();
+        return switch (ctx) {
+            case SysYParser.ScalarAssignableContext it -> visitScalarAssignable(it);
+            case SysYParser.ArrayAssignableContext it -> visitArrayAssignable(it);
+            default -> unsupported(ctx);
+        };
     }
 
     @Override
@@ -347,29 +413,39 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     public Expr.Literal visitIntConstExp(IntConstExpContext ctx) {
         var text = ctx.IntLiteral().getText();
         int value = 0;
-        if (text.equals("0")) Placeholder.pass();
-        else if (text.startsWith("0x")) value = Integer.parseInt(text.substring(2), 16);
-        else if (text.startsWith("0")) value = Integer.parseInt(text.substring(1), 8);
-        else value = Integer.parseInt(text, 10);
+        if (text.equals("0")) 
+            Placeholder.pass();
+        else if (text.startsWith("0x") || text.startsWith("0X")) 
+            value = Integer.parseInt(text.substring(2), 16);
+        else if (text.startsWith("0")) 
+            value = Integer.parseInt(text.substring(1), 8);
+        else 
+            value = Integer.parseInt(text, 10);
 
         return new Expr.Literal(ctx.getStart(), ctx.getStop(), value);
     }
 
     @Override
     public Expr.Literal visitFloatConstExp(FloatConstExpContext ctx) {
-        return new Expr.Literal(ctx.getStart(), ctx.getStop(), Float.parseFloat(ctx.FloatLiteral().getText()));
+        return new Expr.Literal(
+                ctx.getStart(), ctx.getStop(), Float.parseFloat(ctx.FloatLiteral().getText()));
     }
 
     public Expr.RawArray visitArrayLiteralExp(SysYParser.ArrayLiteralExpContext ctx) {
-        if (ctx instanceof SysYParser.ArrayExpContext it) {
-            return visitArrayExp(it);
-        } else if (ctx instanceof SysYParser.ElementExpContext it) {
-            // 第一次进入 ArrayLiteralExp 只可能是 Array，不可能是单值
-            Expr expr = visitElementExp(it);
-            err(expr, "invalid initializer");
-            return null;
+        switch (ctx) {
+            case SysYParser.ArrayExpContext it -> {
+                return visitArrayExp(it);
+            }
+            case SysYParser.ElementExpContext it -> {
+                // 第一次进入 ArrayLiteralExp 只可能是 Array，不可能是单值
+                Expr expr = visitElementExp(it);
+                err(expr, "invalid initializer");
+                return null;
+            }
+            default -> {
+                return unsupported(ctx);
+            }
         }
-        return unreachable();
     }
 
     public Expr visitArrayLiteralExpRecursive(SysYParser.ArrayLiteralExpContext ctx) {

@@ -54,9 +54,22 @@ public abstract sealed class Type {
         }
 
         public boolean equals(Object obj) {
-            return this == obj || (obj instanceof Array other
-                    && elementType == other.elementType
-                    && Arrays.equals(dimensions, other.dimensions));
+            if (this == obj)
+                return true;
+            
+            if (obj instanceof Array other) {
+                if (elementType != other.elementType)
+                    return false;
+                
+                if (!isWildcard()) {
+                    return Arrays.equals(dimensions, other.dimensions);
+                } else {
+                    var thisDim = Arrays.copyOfRange(dimensions, 1, dimensions.length);
+                    var otherDim = Arrays.copyOfRange(other.dimensions, 1, other.dimensions.length);
+                    return Arrays.equals(thisDim, otherDim);
+                }
+            }
+            return false;
         }
 
         public boolean isWildcard() {
@@ -74,7 +87,7 @@ public abstract sealed class Type {
         }
 
         public Array getSubArrayType(int depth) {
-            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length - depth + 1));
+            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length - depth));
         }
     }
 

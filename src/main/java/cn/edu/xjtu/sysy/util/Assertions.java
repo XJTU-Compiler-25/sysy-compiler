@@ -19,4 +19,12 @@ public final class Assertions {
         throw new AssertionError("Unreachable code");
     }
 
+    public static <T> T unreachable(String msg) {
+        throw new AssertionError("Unreachable code: " + msg);
+    }
+
+    public static <T> T unsupported(Object obj) {
+        throw new AssertionError("Unsupported Type" + obj.getClass().getSimpleName());
+    }
+
 }
