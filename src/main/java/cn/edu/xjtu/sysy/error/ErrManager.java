@@ -28,7 +28,7 @@ public final class ErrManager {
     }
 
     public void printErrs() {
-        errs.forEach(System.out::println);
+        errs.forEach(System.err::println);
     }
 
     public void terminate(String msg) {

@@ -287,8 +287,10 @@ public abstract sealed class Expr extends Node {
             this.toType = toType;
             this.fromType = value.type;
 
-            if(type == Type.Primitive.INT) this.setComptimeValue(value.comptimeValue.intValue());
-            else if (type == Type.Primitive.FLOAT) this.setComptimeValue(value.comptimeValue.floatValue());
+            if (type == Type.Primitive.INT && value.comptimeValue != null) 
+                this.setComptimeValue(value.comptimeValue.intValue());
+            else if (type == Type.Primitive.FLOAT && value.comptimeValue != null) 
+                this.setComptimeValue(value.comptimeValue.floatValue());
         }
     }
 }

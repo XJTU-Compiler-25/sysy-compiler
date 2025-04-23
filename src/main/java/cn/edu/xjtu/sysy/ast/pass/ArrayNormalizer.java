@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import cn.edu.xjtu.sysy.ast.SemanticError;
@@ -23,13 +24,14 @@ public final class ArrayNormalizer extends AstVisitor {
             int[] dimensions = type.dimensions;
             for (int i : dimensions) {
                 if (i < 0) {
-                    throw new RuntimeException("dimension is negative");
+                    this.err(node, "dimension is negative");
                 }
             }
             var initExpr = node.init;
             if (initExpr instanceof Expr.RawArray array) {
                 var checker = new ArrayChecker(dimensions);
                 node.init = checker.normalize(array);
+                this.errManager.errs.addAll(checker.errors);
             }
         }
     }
@@ -46,7 +48,7 @@ public final class ArrayNormalizer extends AstVisitor {
         private final int[] dimensions;
 
         /** 数组总长度 */
-        private int length;
+        private final int length;
 
         /** 当前填写到的元素 */
         private int index = 0;
@@ -69,19 +71,12 @@ public final class ArrayNormalizer extends AstVisitor {
 
         public ArrayChecker(int[] dimensions) {
             this.dimensions = dimensions;
-            length = 1;
-            for (int i : dimensions) {
-                length *= i;
-            }
+            length = Arrays.stream(dimensions).reduce(1, (a, b) -> a * b);
         }
 
         /** 获取子维度 如[2][3][4] 在depth = 1的情况下-> [3][4] */
         private int[] getDimFromDepth(int depth) {
-            int[] dim = new int[dimensions.length - depth];
-            for (int i = depth; i < dimensions.length; i++) {
-                dim[i - depth] = dimensions[i];
-            }
-            return dim;
+            return Arrays.copyOfRange(dimensions, depth, dimensions.length);
         }
 
         /** 获取当前数组表达式中第一个非数组表达式 */
@@ -90,20 +85,15 @@ public final class ArrayNormalizer extends AstVisitor {
                 err(array, "excess elements in scalar initializer");
             }
             var el = array.elements.get(0);
-            if (el instanceof Expr.RawArray arr) {
-                return getNonArrayExpr(arr);
-            } else {
-                return el;
-            }
+            return switch (el) {
+                case Expr.RawArray arr -> getNonArrayExpr(arr);
+                default -> el;
+            };
         }
 
         /** 获取当前深度的子数组总长度。 */
         private int depToLen(int depth) {
-            int ret = 1;
-            for (int i : getDimFromDepth(depth)) {
-                ret *= i;
-            }
-            return ret;
+            return Arrays.stream(getDimFromDepth(depth)).reduce(1, (a, b) -> a * b);
         }
 
         /**
@@ -126,37 +116,41 @@ public final class ArrayNormalizer extends AstVisitor {
                     err(array, "excess elements in array initializer");
                     return;
                 }
-                /** 如果是子数组 */
-                if (el instanceof Expr.RawArray arr) {
-                    int depth = getDepth();
-                    /** 如果已经到达最大深度 i.e. 目前位置应该填的是标量 */
-                    if (depth == dimensions.length) {
-                        err(arr, "braces around scalar initializer");
-                        /** 目前C标准似乎只是报警告，将array的第一个标量元素取出，剩下忽略。 */
-                        /** 若是空数组，则这个位置当作是隐式初始化的0 */
-                        if (!arr.elements.isEmpty()) {
-                            var expr = getNonArrayExpr(arr);
-                            elements.add(expr);
-                            indexes.add(index);
+                switch (el) {
+                    /** 如果是子数组 */
+                    case Expr.RawArray arr -> {
+                        int depth = getDepth();
+                        /** 如果已经到达最大深度 i.e. 目前位置应该填的是标量 */
+                        if (depth == dimensions.length) {
+                            err(arr, "braces around scalar initializer");
+                            /** 目前C标准似乎只是报警告，将array的第一个标量元素取出，剩下忽略。 */
+                            /** 若是空数组，则这个位置当作是隐式初始化的0 */
+                            if (!arr.elements.isEmpty()) {
+                                var expr = getNonArrayExpr(arr);
+                                elements.add(expr);
+                                indexes.add(index);
+                            }
+                            index++;
+                            continue;
                         }
-                        index++;
-                        continue;
+                        /** 没到达最大深度，可以填数组。 截取当前深度的子维度构造checker，递归进行检查 */
+                        var checker = new ArrayChecker(getDimFromDepth(depth));
+                        checker.visit(arr);
+                        /** 将检查结果的所有元素插入列表 */
+                        elements.addAll(checker.getElements());
+                        errors.addAll(checker.errors);
+                        /** 将检查结果的元素位置+index = 在大数组里的位置插入indexes */
+                        for (var i : checker.getIndexes()) {
+                            indexes.add(i + index);
+                        }
+                        /** 为目前的index += length。 也就是将子数组在展平后的父数组的位置区间填满。 */
+                        index += checker.length();
                     }
-                    /** 没到达最大深度，可以填数组。 截取当前深度的子维度构造checker，递归进行检查 */
-                    var checker = new ArrayChecker(getDimFromDepth(depth));
-                    checker.visit(arr);
-                    /** 将检查结果的所有元素插入列表 */
-                    elements.addAll(checker.getElements());
-                    /** 将检查结果的元素位置+index = 在大数组里的位置插入indexes */
-                    for (var i : checker.getIndexes()) {
-                        indexes.add(i + index);
-                    }
-                    /** 为目前的index += length。 也就是将子数组在展平后的父数组的位置区间填满。 */
-                    index += checker.length();
-                } else {
                     /** 标量元素。 */
-                    elements.add(el);
-                    indexes.add(index++);
+                    default -> {
+                        elements.add(el);
+                        indexes.add(index++);
+                    }
                 }
             }
         }

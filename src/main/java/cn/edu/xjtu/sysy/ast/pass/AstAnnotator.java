@@ -32,10 +32,11 @@ public final class AstAnnotator extends AstVisitor {
 
     @Override
     public void visit(CompUnit node) {
-        var globalST = new SymbolTable.Global();
-        currentST = globalST;
-        this.globalST = globalST;
-        node.globalST = globalST;
+        var _globalST = new SymbolTable.Global();
+        
+        currentST = _globalST;
+        globalST = _globalST;
+        node.globalST = _globalST;
 
         super.visit(node);
     }
@@ -203,7 +204,13 @@ public final class AstAnnotator extends AstVisitor {
         super.visit(node);
 
         // resolveSymbol
-        node.resolution = globalST.resolveFunc(node.funcName);
+        try {
+            node.resolution = globalST.resolveFunc(node.funcName);
+        } catch (Exception e) {
+            err(node, e.getMessage());
+            return;
+        }
+        
 
         // resolveType
         resolveType(node);
@@ -343,8 +350,7 @@ public final class AstAnnotator extends AstVisitor {
     }
 
     @Override
-    public void visit(Expr.Binary node) {
-        super.visit(node);
+    public void process(Expr.Binary node) {
         resolveType(node);
         foldComptimeValue(node);
     }

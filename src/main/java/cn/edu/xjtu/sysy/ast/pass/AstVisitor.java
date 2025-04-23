@@ -1,13 +1,18 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
+import java.util.Stack;
+
 import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.ast.SemanticError;
-import cn.edu.xjtu.sysy.ast.node.*;
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import cn.edu.xjtu.sysy.ast.node.Decl;
+import cn.edu.xjtu.sysy.ast.node.Expr;
+import cn.edu.xjtu.sysy.ast.node.Node;
+import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 import cn.edu.xjtu.sysy.util.Placeholder;
+
 
 /**
  * 抽象类，用于遍历AST。
@@ -120,8 +125,24 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     }
 
     public void visit(Expr.Binary node) {
-        visit(node.lhs);
-        visit(node.rhs);
+        Stack<Expr.Binary> binaries = new Stack<>();
+        Expr expr = node;
+        while (expr instanceof Expr.Binary it) {
+            binaries.push(it);
+            expr = it.lhs;
+        }
+        visit(expr);
+        while (!binaries.isEmpty()) {
+            var bin = binaries.pop();
+            visit(bin.rhs);
+            process(bin);
+        }
+        visit(expr);
+    }
+
+    /* 由于递归改迭代，visit(Binary)只会调用一次，后续操作请通过这个函数进行。 */
+    public void process(Expr.Binary node) {
+        // pass
     }
 
     public void visit(Expr.Unary node) {

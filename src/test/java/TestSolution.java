@@ -1,4 +1,8 @@
-import cn.edu.xjtu.sysy.error.ErrManager;
+import java.io.IOException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.MethodOrderer;
@@ -10,13 +14,9 @@ import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
+import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.Arrays;
-import java.util.Comparator;
 
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -37,15 +37,21 @@ public final class TestSolution {
     @Test
     @Order(0)
     public void test() throws Exception {
-        var testFileStream = this.getClass().getResourceAsStream("test.sy");
-        var testCase = new String(testFileStream.readAllBytes());
-        testFileStream.close();
-
-        var ast = compileToAst(testCase);
-        AstPassGroups.GROUP.process(ast);
-        app.visit(ast);
-
-        ErrManager.GLOBAL.printErrs();
+        Files.walk(Paths.get("src/test/resources", new String[0]), new FileVisitOption[0]).filter(path -> {
+            return path.toString().endsWith(".sy");
+        }).forEach((var path2) -> {
+            System.err.println("testing %s...".formatted(path2.toString()));
+            try {
+                var testCase = new String(Files.readAllBytes(path2));
+                var ast = compileToAst(testCase);
+                AstPassGroups.GROUP.process(ast);
+                //app.visit(ast);
+        
+                ErrManager.GLOBAL.printErrs(); 
+            } catch (IOException e) {
+                System.err.println(e);
+            }
+        });
     }
 
     /*
