@@ -126,9 +126,7 @@ public final class AstAnnotator extends AstVisitor {
 
     private Expr matchVarValueType(Type varType, Expr valueExpr) {
         var valueType = valueExpr.type;
-        if (varType.equals(valueExpr.type)) {
-            return valueExpr;
-        }
+        if (varType.equals(valueType)) return valueExpr;
 
         if (!(valueExpr instanceof Expr.RawArray valueArrExpr)) {
             // int/float 互相可以隐式转换
@@ -179,8 +177,12 @@ public final class AstAnnotator extends AstVisitor {
 
     @Override
     public void visit(Stmt.Return node) {
+        super.visit(node);
+
+        var retVal = node.value;
         var retType = currentFunc.retType;
-        matchVarValueType(retType, node.value);
+        if (retType != Type.Void.INSTANCE) node.value = matchVarValueType(retType, node.value);
+        else if (retVal != null) err(node, "Void function should not return value");
     }
 
     @Override
@@ -345,7 +347,9 @@ public final class AstAnnotator extends AstVisitor {
     @Override
     public void visit(Expr.Binary node) {
         super.visit(node);
+
         resolveType(node);
+
         foldComptimeValue(node);
     }
 
@@ -405,7 +409,7 @@ public final class AstAnnotator extends AstVisitor {
         if(type.equals(Type.Primitive.INT))
             node.setComptimeValue(calculate(node.op, (Integer) lhsValue, (Integer) rhsValue));
         else if(type.equals(Type.Primitive.FLOAT))
-            node.setComptimeValue(calculate(node.op, (Integer) lhsValue, (Integer) rhsValue));
+            node.setComptimeValue(calculate(node.op, (Float) lhsValue, (Float) rhsValue));
         else if (type instanceof Type.Array) {
             Placeholder.pass();
             // 在 C 语言中，两个变量具有相同的数组常量值，但是应该不会被分配到同一地址

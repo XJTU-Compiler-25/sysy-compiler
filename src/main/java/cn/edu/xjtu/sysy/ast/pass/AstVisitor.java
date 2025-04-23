@@ -72,7 +72,8 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     }
 
     public void visit(Stmt.Return node) {
-        visit(node.value);
+        var value = node.value;
+        if (value != null) visit(node.value);
     }
 
     public void visit(Stmt.Assign node) {

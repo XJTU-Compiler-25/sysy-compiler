@@ -27,6 +27,9 @@ public abstract sealed class SymbolTable {
                 declareFunc(BuiltinSymbols.PUTFLOAT);
                 declareFunc(BuiltinSymbols.PUTARRAY);
                 declareFunc(BuiltinSymbols.PUTFARRAY);
+
+                declareFunc(BuiltinSymbols.STARTTIME);
+                declareFunc(BuiltinSymbols.STOPTIME);
             }
         }
 
