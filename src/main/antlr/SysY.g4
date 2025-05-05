@@ -180,6 +180,6 @@ fragment DecFloat: Fractional ExponentPart? | Digit+ ExponentPart;
 
 fragment HexFractional: HexDigit* '.' HexDigit+ | HexDigit+ '.';
 fragment BinExponentPart: [pP] [+-]? Digit+;
-fragment HexFloat: HexPrefix HexFractional BinExponentPart? | HexPrefix HexDigit+ BinExponentPart;
+fragment HexFloat: HexPrefix HexFractional BinExponentPart | HexPrefix HexDigit+ BinExponentPart;
 
 FloatLiteral: DecFloat | HexFloat;
