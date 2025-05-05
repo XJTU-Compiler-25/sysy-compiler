@@ -24,14 +24,14 @@ public abstract sealed class Symbol {
 
     public static final class Func extends Symbol {
         public String name;
-        public Type retType;
+        public Type.Function funcType;
         public List<Symbol.Var> params;
 
         public boolean isPure = false;
 
-        public Func(String name, Type retType, List<Symbol.Var> params) {
+        public Func(String name, Type.Function funcType, List<Symbol.Var> params) {
             this.name = name;
-            this.retType = retType;
+            this.funcType = funcType;
             this.params = params;
         }
     }

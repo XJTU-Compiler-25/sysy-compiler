@@ -7,13 +7,9 @@ import java.util.Objects;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.*;
+
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.TestMethodOrder;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
@@ -39,21 +35,6 @@ public final class TestSolution {
         return ast;
     }
 
-    @Test
-    @Order(0)
-    public void test() throws Exception {
-        var testFileStream = this.getClass().getResourceAsStream("test.sy");
-        var testCase = new String(testFileStream.readAllBytes());
-        testFileStream.close();
-
-        var em = new ErrManager();
-        var ast = compileToAst(em, testCase);
-        AstPassGroups.makePassGroup(em).process(ast);
-        //app.visit(ast);
-
-        em.printErrs();
-    }
-
     private List<DynamicTest> genDynamicTest(String folder) throws Exception {
         var testFileFolder = new File(this.getClass().getResource(folder).toURI());
         var testFiles = testFileFolder.listFiles();
@@ -66,12 +47,13 @@ public final class TestSolution {
                         var testCase = new String(testFileStream.readAllBytes());
                         testFileStream.close();
                         return dynamicTest(f.getName(), () -> {
-                            System.out.println("testing %s ...".formatted(f.getName()));
+                            System.out.printf("testing %s ...\n", f.getName());
                             var em = new ErrManager();
                             var ast = compileToAst(em, testCase);
                             AstPassGroups.makePassGroup(em).process(ast);
                             // app.visit(ast);
                             em.printErrs();
+                            if (em.hasErr()) Assertions.fail();
                         });
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -80,6 +62,13 @@ public final class TestSolution {
                 })
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    // 除了官方测例以外自己加的一些额外测例
+    @TestFactory
+    @Order(0)
+    public List<DynamicTest> testCustom() throws Exception {
+        return genDynamicTest("custom");
     }
 
     @TestFactory
