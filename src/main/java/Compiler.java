@@ -1,5 +1,7 @@
 import java.io.IOException;
 
+import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -48,5 +50,10 @@ public class Compiler {
         
         var pp = new AstPrettyPrinter();
         pp.visit(compUnit);
+
+        MirBuilder mirBuilder = new MirBuilder(em);
+        Module mir = mirBuilder.build(compUnit);
+
+        em.printErrs();
     }
 }
