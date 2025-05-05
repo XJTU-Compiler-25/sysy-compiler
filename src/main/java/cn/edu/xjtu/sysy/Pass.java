@@ -10,6 +10,10 @@ public abstract class Pass<T> implements ErrManaged {
         this.errManager = errManager;
     }
 
+    public Pass() {
+        this.errManager = ErrManager.GLOBAL;
+    }
+
     @Override
     public ErrManager getErrManager() {
         return errManager;

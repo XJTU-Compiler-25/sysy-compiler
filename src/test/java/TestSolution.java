@@ -7,13 +7,9 @@ import java.util.Objects;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.*;
+
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.TestMethodOrder;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
@@ -57,6 +53,7 @@ public final class TestSolution {
                             AstPassGroups.makePassGroup(em).process(ast);
                             // app.visit(ast);
                             em.printErrs();
+                            if (em.hasErr()) Assertions.fail();
                         });
                     } catch (Exception e) {
                         e.printStackTrace();
