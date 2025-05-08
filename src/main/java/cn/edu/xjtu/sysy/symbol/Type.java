@@ -2,12 +2,16 @@ package cn.edu.xjtu.sysy.symbol;
 
 import java.util.Arrays;
 
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+
 public abstract sealed class Type {
     @Override
     public abstract String toString();
 
     @Override
     public abstract boolean equals(Object obj);
+
+    public abstract int size();
 
     public static final class Primitive extends Type {
         public static final Primitive INT = new Primitive("int");
@@ -32,6 +36,11 @@ public abstract sealed class Type {
             return name;
         }
 
+        @Override
+        public int size() {
+            return 4;
+        }
+
         public boolean equals(Object obj) {
             return this == obj || (obj instanceof Primitive other && name.equals(other.name));
         }
@@ -51,6 +60,11 @@ public abstract sealed class Type {
             var sb = new StringBuilder(elementType.name);
             for (var dim : dimensions) sb.append('[').append(dim).append(']');
             return sb.toString();
+        }
+
+        @Override
+        public int size() {
+            return 4 * Arrays.stream(dimensions).reduce(1, (a, b) -> a * b);
         }
 
         public boolean equals(Object obj) {
@@ -106,6 +120,11 @@ public abstract sealed class Type {
         }
 
         @Override
+        public int size() {
+            return unreachable();
+        }
+
+        @Override
         public boolean equals(Object obj) {
             return obj == this;
         }
@@ -122,6 +141,11 @@ public abstract sealed class Type {
         @Override
         public String toString() {
             return "void";
+        }
+
+        @Override
+        public int size() {
+            return unreachable();
         }
 
         @Override

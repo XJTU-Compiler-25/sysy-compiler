@@ -28,8 +28,8 @@ public abstract sealed class SymbolTable {
                 declareFunc(BuiltinSymbols.PUTARRAY);
                 declareFunc(BuiltinSymbols.PUTFARRAY);
 
-                declareFunc(BuiltinSymbols.STARTTIME);
-                declareFunc(BuiltinSymbols.STOPTIME);
+                declareFunc("starttime", BuiltinSymbols.STARTTIME);
+                declareFunc("stoptime", BuiltinSymbols.STOPTIME);
             }
         }
 
@@ -62,6 +62,11 @@ public abstract sealed class SymbolTable {
 
         public void declareFunc(Symbol.Func func) {
             var key = func.name;
+            if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
+            else table.put(key, func);
+        }
+
+        public void declareFunc(String key, Symbol.Func func) {
             if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
             else table.put(key, func);
         }

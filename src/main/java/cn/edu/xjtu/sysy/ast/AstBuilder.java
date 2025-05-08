@@ -2,9 +2,8 @@ package cn.edu.xjtu.sysy.ast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 import java.util.stream.Collectors;
-
-import org.antlr.v4.runtime.Token;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
@@ -345,25 +344,21 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Expr.Binary visitAddExp(AddExpContext ctx) {
-        List<Expr> elems = new ArrayList<>();
-        List<Expr.Operator> ops = new ArrayList<>();
-        List<Token> ends = new ArrayList<>();
+        Stack<AddExpContext> binaries = new Stack<>();
 
         SysYParser.ExpContext context = ctx;
         while (context instanceof AddExpContext it) {
-            elems.add(visitExp(it.rhs));
-            ops.add(Expr.Operator.of(it.op.getText()));
-            ends.add(context.getStop());
+            binaries.push(it);
             context = it.lhs;
         }
         Expr left = visitExp(context);
         
-        for (int i = 0; i < elems.size(); i++) {
-            var elem = elems.get(i);
-            var op = ops.get(i);
-            var end = ends.get(i);
+        while (!binaries.isEmpty()) {
+            var bin = binaries.pop();
+            var op = Expr.Operator.of(bin.op.getText());
 
-            left = new Expr.Binary(ctx.getStart(), end, left, op, elem);
+            Expr right = visitExp(bin.rhs);
+            left = new Expr.Binary(bin.getStart(), bin.getStop(), left, op, right);
         }
         return (Expr.Binary) left;
     }

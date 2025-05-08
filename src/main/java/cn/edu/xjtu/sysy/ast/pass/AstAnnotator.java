@@ -95,6 +95,14 @@ public final class AstAnnotator extends AstVisitor {
 
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
+
+        // 全局变量必须是常量表达式
+        if (currentST instanceof SymbolTable.Global) {
+            if (initExpr != null && !initExpr.isComptime) {
+                err(node, "Global variable must be initialized with a const expression");
+            }
+        }
+
         var varSymbol = new Symbol.Var(node.kind, node.name, node.type, isConst);
         currentST.declare(varSymbol);
         node.resolution = varSymbol;
@@ -183,7 +191,8 @@ public final class AstAnnotator extends AstVisitor {
     @Override
     public void visit(Stmt.Assign node) {
         super.visit(node);
-        matchVarValueType(node.target.type, node.value);
+        var value = matchVarValueType(node.target.type, node.value);
+        node.value = value;
     }
 
     @Override
@@ -343,12 +352,6 @@ public final class AstAnnotator extends AstVisitor {
         var rhsType = node.rhs.type;
         node.type = switch (node.op) {
             case NOT -> {
-                if (rhsType == Type.Primitive.FLOAT) {
-                    node.rhs = new Expr.Cast(node.rhs, Type.Primitive.INT);
-                    rhsType = Type.Primitive.INT;
-                }
-                if (rhsType != Type.Primitive.INT)
-                    err(node, "Not operator can only be applied to int (bool)");
                 yield Type.Primitive.INT;
             }
             case ADD, SUB -> {
@@ -362,11 +365,16 @@ public final class AstAnnotator extends AstVisitor {
 
     private void foldComptimeValue(Expr.Unary node) {
         var rhs = node.rhs;
+        if (node.op == Expr.Operator.NOT) {
+            Integer value = computeLogical(rhs);
+            if (value != null)
+                node.setComptimeValue(value);
+            return;
+        }
         if (!rhs.isComptime) return;
 
         var rhsValue = rhs.getComptimeValue();
         node.setComptimeValue(switch (node.op) {
-            case NOT -> rhsValue.intValue() == 0 ? 1 : 0;
             case ADD -> rhsValue;
             case SUB -> switch (rhsValue) {
                 case Integer intVal -> -intVal;
@@ -389,22 +397,17 @@ public final class AstAnnotator extends AstVisitor {
         var lhsType = lhs.type;
         var rhsType = rhs.type;
 
+        if (node.isLogical()) {
+            node.type = Type.Primitive.INT;
+            return;
+        }
+
         if (lhsType.equals(Type.Primitive.FLOAT) && rhsType.equals(Type.Primitive.INT)) {
-            if (node.op == Expr.Operator.AND || node.op == Expr.Operator.OR) {
-                node.lhs = new Expr.Cast(lhs, Type.Primitive.INT);
-                lhsType = Type.Primitive.INT;
-            } else {
-                node.rhs = new Expr.Cast(rhs, Type.Primitive.FLOAT);
-                rhsType = Type.Primitive.FLOAT;
-            }
+            node.rhs = new Expr.Cast(rhs, Type.Primitive.FLOAT);
+            rhsType = Type.Primitive.FLOAT;
         } else if (lhsType.equals(Type.Primitive.INT) && rhsType.equals(Type.Primitive.FLOAT)) {
-            if (node.op == Expr.Operator.AND || node.op == Expr.Operator.OR) {
-                node.rhs = new Expr.Cast(rhs, Type.Primitive.INT);
-                rhsType = Type.Primitive.INT;
-            } else {
-                node.lhs = new Expr.Cast(lhs, Type.Primitive.FLOAT);
-                lhsType = Type.Primitive.FLOAT;
-            }
+            node.lhs = new Expr.Cast(lhs, Type.Primitive.FLOAT);
+            lhsType = Type.Primitive.FLOAT;
         }
 
         if (!lhsType.equals(rhsType)) err(node, "Binary operator can only be applied to the same type");
@@ -427,11 +430,6 @@ public final class AstAnnotator extends AstVisitor {
                 yield Type.Primitive.INT;
             }
             case EQ, NE -> Type.Primitive.INT;
-            case AND, OR -> {
-                if (type != Type.Primitive.INT)
-                    err(node, "Binary operator can only be applied to int (bool)");
-                yield Type.Primitive.INT;
-            }
             default -> unreachable();
         };
     }
@@ -439,6 +437,14 @@ public final class AstAnnotator extends AstVisitor {
     private void foldComptimeValue(Expr.Binary node) {
         var lhs = node.lhs;
         var rhs = node.rhs;
+
+        if (node.isLogical()) {
+            Integer value = computeLogical(node.op, lhs, rhs);
+            if (value != null)
+                node.setComptimeValue(value);
+            return;
+        }
+
         if (!(lhs.isComptime && rhs.isComptime)) return;
 
         // 由于在 resolveType 中已经保证了两侧类型一致，不用检查 lhs.type == rhs.type
@@ -493,7 +499,35 @@ public final class AstAnnotator extends AstVisitor {
 
             case EQ -> left == right ? 1 : 0;
             case NE -> left != right ? 1 : 0;
+            case AND -> left != 0 && right != 0 ? 1 : 0;
+            case OR -> left != 0 || right != 0 ? 1 : 0;
             default -> unreachable(op.toString());
         };
+    }
+
+    private static Integer computeLogical(Expr.Operator op, Expr left, Expr right) {
+        if (left.type instanceof Type.Array) {
+            left.setComptimeValue(1);
+        }
+        if (right.type instanceof Type.Array) {
+            right.setComptimeValue(1);
+        }
+        var lhsValue = left.getComptimeValue();
+        if (lhsValue == null) return null;
+        var rhsValue = right.getComptimeValue();
+        return switch (op) {
+            case AND -> lhsValue.floatValue() != 0 && rhsValue != null && rhsValue.floatValue() != 0 ? 1 : 0;
+            case OR -> lhsValue.floatValue() != 0 || rhsValue != null && rhsValue.floatValue() != 0 ? 1 : 0;
+            default -> unreachable(op.toString());
+        };
+    }
+
+    private static Integer computeLogical(Expr operand) {
+        if (operand.type instanceof Type.Array) {
+            operand.setComptimeValue(1);
+        }
+        var value = operand.getComptimeValue();
+        if (value == null) return null;
+        return value.floatValue() != 0 ? 1 : 0;
     }
 }

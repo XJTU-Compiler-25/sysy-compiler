@@ -112,6 +112,10 @@ public abstract sealed class Expr extends Node {
             this.op = op;
             this.rhs = rhs;
         }
+
+        public boolean isLogical() {
+            return op == Operator.AND || op == Operator.OR;
+        }
     }
 
     /** Unary Expressions */

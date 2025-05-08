@@ -215,6 +215,10 @@ public final class AstPrettyPrinter extends AstVisitor {
     @Override
     public void visit(Expr.Cast node) {
         printf("[Expr.Cast | type = %s, comptimeValue = %s, target = \n", node.type, node.getComptimeValue());
+        incIndent();
+        visit(node.value);
+        decIndent();
+        println("]");
     }
 
     // tool functions

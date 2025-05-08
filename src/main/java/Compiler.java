@@ -8,10 +8,13 @@ import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
+import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
+import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
+import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 /**
@@ -45,8 +48,18 @@ public class Compiler {
         CompUnit compUnit = astBuilder.visitCompUnit(cst);
 
         AstPassGroups.makePassGroup(em).process(compUnit);
-        
+        if (em.hasErr()) {
+            em.printErrs();
+            return;
+        }
         var pp = new AstPrettyPrinter();
         pp.visit(compUnit);
+        var calc = new StackCalculator();
+        calc.visit(compUnit);
+        var asm = new RiscVWriter();
+        var riscv = new RiscVCGen(asm);
+        riscv.visit(compUnit);
+        
+        System.out.println(asm.toString());
     }
 }

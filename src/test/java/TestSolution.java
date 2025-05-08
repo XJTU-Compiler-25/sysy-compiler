@@ -1,9 +1,11 @@
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -19,10 +21,12 @@ import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
+import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
+import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
-
+import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public final class TestSolution {
@@ -49,7 +53,7 @@ public final class TestSolution {
         var em = new ErrManager();
         var ast = compileToAst(em, testCase);
         AstPassGroups.makePassGroup(em).process(ast);
-        //app.visit(ast);
+        // app.visit(ast);
 
         em.printErrs();
     }
@@ -60,24 +64,58 @@ public final class TestSolution {
         return Arrays.stream(testFiles)
                 .filter(f -> f.getName().endsWith(".sy"))
                 .sorted(Comparator.comparing(File::getName))
-                .map(f -> {
-                    try {
-                        var testFileStream = new FileInputStream(f);
-                        var testCase = new String(testFileStream.readAllBytes());
-                        testFileStream.close();
-                        return dynamicTest(f.getName(), () -> {
-                            System.out.println("testing %s ...".formatted(f.getName()));
-                            var em = new ErrManager();
-                            var ast = compileToAst(em, testCase);
-                            AstPassGroups.makePassGroup(em).process(ast);
-                            // app.visit(ast);
-                            em.printErrs();
-                        });
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                })
+                .map(
+                        new Function<File, DynamicTest>() {
+                            @Override
+                            public DynamicTest apply(File f) {
+                                try {
+                                    var testFileStream = new FileInputStream(f);
+                                    var testCase = new String(testFileStream.readAllBytes());
+                                    testFileStream.close();
+                                    return dynamicTest(
+                                            f.getName(),
+                                            () -> {
+                                                var em = new ErrManager();
+                                                var ast = compileToAst(em, testCase);
+                                                AstPassGroups.makePassGroup(em).process(ast);
+                                                // app.visit(ast);
+                                                if (em.hasErr()) {
+                                                    System.err.println(
+                                                            "Testing %s ..."
+                                                                    .formatted(f.getName()));
+                                                    em.printErrs();
+                                                    throw new RuntimeException("Compile Error");
+                                                } else {
+                                                    System.err.println(
+                                                            "Testing %s ...\n Semantic Analysis Passed!"
+                                                                    .formatted(f.getName()));
+                                                }
+                                                var calc = new StackCalculator();
+                                                var writer = new RiscVWriter();
+                                                var cgen = new RiscVCGen(writer);
+                                                calc.visit(ast);
+                                                cgen.visit(ast);
+
+                                                File out =
+                                                        new File(
+                                                                String.format(
+                                                                        "%s/%s.s",
+                                                                        f.getParent(),
+                                                                        f.getName()));
+                                                if (out.exists()) {
+                                                    out.delete();
+                                                }
+                                                try (var output = new FileOutputStream(out)) {
+                                                    output.write(writer.toString().getBytes());
+                                                    output.close();
+                                                }
+                                            });
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    return null;
+                                }
+                            }
+                        })
                 .filter(Objects::nonNull)
                 .toList();
     }
@@ -105,5 +143,4 @@ public final class TestSolution {
     public List<DynamicTest> testFinalPerformance() throws Exception {
         return genDynamicTest("final_performance");
     }
-
 }
