@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.ast.node;
 
 import java.util.List;
 
+import cn.edu.xjtu.sysy.symbol.Types;
 import org.antlr.v4.runtime.Token;
 
 import com.alibaba.fastjson2.JSONWriter;
@@ -200,13 +201,13 @@ public abstract sealed class Expr extends Node {
     public static final class Literal extends Expr {
         public Literal(Token start, Token end, int value) {
             super(start, end);
-            this.type = Type.Primitive.INT;
+            this.type = Types.Int;
             this.setComptimeValue(value);
         }
 
         public Literal(Token start, Token end, float value) {
             super(start, end);
-            this.type = Type.Primitive.FLOAT;
+            this.type = Types.Float;
             this.setComptimeValue(value);
         }
     }
@@ -292,8 +293,8 @@ public abstract sealed class Expr extends Node {
             this.fromType = value.type;
 
             if (value.isComptime) {
-                if (toType == Type.Primitive.INT) this.setComptimeValue(value.comptimeValue.intValue());
-                else if (toType == Type.Primitive.FLOAT) this.setComptimeValue(value.comptimeValue.floatValue());
+                if (toType == Types.Int) this.setComptimeValue(value.comptimeValue.intValue());
+                else if (toType == Types.Float) this.setComptimeValue(value.comptimeValue.floatValue());
                 else throw new RuntimeException("Invalid comptime value type: " + type);
             }
         }

@@ -33,8 +33,7 @@ public class StackCalculator extends AstVisitor {
         currentST = node.symbolTable;
         currentFunc = node.resolution;
         visit(node.body, 8);
-        System.out.println(String.format("%s:%d", node.name, currentMx));
-        node.resolution.size = currentMx;
+        node.resolution.localSize = currentMx;
         currentST = currentST.getParent(); 
     }
 
@@ -47,9 +46,9 @@ public class StackCalculator extends AstVisitor {
 
     public int visit(Decl.VarDef node, int nt) {
         updateMax(nt);
-        node.resolution.index = nt + node.resolution.type.size() - 4;
-        if (node.init != null) visit(node.init, nt + node.resolution.type.size() - 4);
-        return node.resolution.type.size(); 
+        node.resolution.addr = nt + node.resolution.type.size - 4;
+        if (node.init != null) visit(node.init, nt + node.resolution.type.size - 4);
+        return node.resolution.type.size; 
     }
 
     public int visit(Stmt node, int nt) {
@@ -174,11 +173,11 @@ public class StackCalculator extends AstVisitor {
         updateMax(nt);
         var resolution = node.resolution;
         currentFunc.raSave = true;
-        currentFunc.argSize = max(currentFunc.argSize, resolution.paramSize);
+        currentFunc.outSize = max(currentFunc.outSize, resolution.inSize);
         int m = nt;
         for (var arg : node.args) {
             visit(arg, m);
-            if (arg.type instanceof Type.Primitive) m += 4;
+            if (arg.type instanceof Type.Int || arg.type instanceof Type.Float) m += 4;
             else m = alignNext(m);
         }
         return nt;

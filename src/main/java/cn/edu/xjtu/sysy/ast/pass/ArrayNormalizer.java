@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.ast.pass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import cn.edu.xjtu.sysy.ast.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.Decl;
@@ -21,7 +22,9 @@ public final class ArrayNormalizer extends AstVisitor {
     @Override
     public void visit(Decl.VarDef node) {
         if (node.type instanceof Type.Array type) {
-            int[] dimensions = type.dimensions;
+            int[] dimensions =  IntStream.range(0, type.dimensions.length)
+                .map(i -> type.dimensions[type.dimensions.length - 1 - i])
+                .toArray();
             var initExpr = node.init;
             if (initExpr instanceof Expr.RawArray array) {
                 var checker = new ArrayChecker(dimensions);

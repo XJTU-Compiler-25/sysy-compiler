@@ -71,10 +71,11 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         List<Decl> decls = new ArrayList<>();
 
         for (var node : ctx.children) {
-            if (node instanceof VarDefsContext decl) {
-                decls.addAll(this.visitVarDefs(decl, Symbol.Var.Kind.GLOBAL));
-            } else if (node instanceof FuncDefContext funcDef) {
-                decls.add(visitFuncDef(funcDef));
+            switch (node) {
+                case VarDefsContext decl ->
+                        decls.addAll(this.visitVarDefs(decl, Symbol.Var.Kind.GLOBAL));
+                case FuncDefContext funcDef -> decls.add(visitFuncDef(funcDef));
+                default -> Placeholder.pass();
             }
         }
 
@@ -97,12 +98,12 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     public Decl.VarDef visitVarDef(
             SysYParser.VarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
-        if (ctx instanceof ScalarVarDefContext scalarVar) {
-            return visitScalarVarDef(scalarVar, kind, baseType, isConst);
-        } else if (ctx instanceof ArrayVarDefContext arrayVar) {
-            return visitArrayVarDef(arrayVar, kind, baseType, isConst);
-        }
-        return unreachable();
+        return switch (ctx) {
+            case ScalarVarDefContext scalarVar ->
+                    visitScalarVarDef(scalarVar, kind, baseType, isConst);
+            case ArrayVarDefContext arrayVar -> visitArrayVarDef(arrayVar, kind, baseType, isConst);
+            default -> unreachable();
+        };
     }
 
     public Decl.VarDef visitScalarVarDef(
@@ -174,29 +175,19 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     }
 
     public Stmt visitStmt(SysYParser.StmtContext ctx) {
-        if (ctx instanceof EmptyStmtContext it) {
-            return visitEmptyStmt(it);
-        } else if (ctx instanceof VarDefStmtContext it) {
-            return visitVarDefStmt(it);
-        } else if (ctx instanceof AssignmentStmtContext it) {
-            return visitAssignmentStmt(it);
-        } else if (ctx instanceof ExpStmtContext it) {
-            return visitExpStmt(it);
-        } else if (ctx instanceof BlockStmtContext it) {
-            return visitBlockStmt(it);
-        } else if (ctx instanceof IfStmtContext it) {
-            return visitIfStmt(it);
-        } else if (ctx instanceof WhileStmtContext it) {
-            return visitWhileStmt(it);
-        } else if (ctx instanceof BreakStmtContext it) {
-            return visitBreakStmt(it);
-        } else if (ctx instanceof ContinueStmtContext it) {
-            return visitContinueStmt(it);
-        } else if (ctx instanceof ReturnStmtContext it) {
-            return visitReturnStmt(it);
-        }
-
-        return unreachable();
+        return switch (ctx) {
+            case EmptyStmtContext it -> visitEmptyStmt(it);
+            case VarDefStmtContext it -> visitVarDefStmt(it);
+            case AssignmentStmtContext it -> visitAssignmentStmt(it);
+            case ExpStmtContext it -> visitExpStmt(it);
+            case BlockStmtContext it -> visitBlockStmt(it);
+            case IfStmtContext it -> visitIfStmt(it);
+            case WhileStmtContext it -> visitWhileStmt(it);
+            case BreakStmtContext it -> visitBreakStmt(it);
+            case ContinueStmtContext it -> visitContinueStmt(it);
+            case ReturnStmtContext it -> visitReturnStmt(it);
+            default -> unreachable();
+        };
     }
 
     @Override
@@ -230,9 +221,8 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Stmt.Return visitReturnStmt(ReturnStmtContext ctx) {
-        if (ctx.value == null) 
-            return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
-        
+        if (ctx.value == null) return new Stmt.Return(ctx.getStart(), ctx.getStop(), null);
+
         Expr value = visitExp(ctx.value);
         return new Stmt.Return(ctx.getStart(), ctx.getStop(), value);
     }
@@ -264,21 +254,14 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     }
 
     public Expr visitCond(SysYParser.CondContext ctx) {
-        if (ctx instanceof ExpCondContext it) {
-            return visitExpCond(it);
-        } else if (ctx instanceof OrCondContext it) {
-            return visitOrCond(it);
-        } else if (ctx instanceof RelCondContext it) {
-            return visitRelCond(it);
-        } else if (ctx instanceof AndCondContext it) {
-            return visitAndCond(it);
-        } else if (ctx instanceof EqCondContext it) {
-            return visitEqCond(it);
-        }
-
-        // java 17 没法用 switch 模式匹配，检查不了穷尽性...
-        // 确实（悲
-        return unreachable();
+        return switch (ctx) {
+            case ExpCondContext it -> visitExpCond(it);
+            case OrCondContext it -> visitOrCond(it);
+            case RelCondContext it -> visitRelCond(it);
+            case AndCondContext it -> visitAndCond(it);
+            case EqCondContext it -> visitEqCond(it);
+            default -> unreachable();
+        };
     }
 
     @Override
@@ -352,7 +335,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
             context = it.lhs;
         }
         Expr left = visitExp(context);
-        
+
         while (!binaries.isEmpty()) {
             var bin = binaries.pop();
             var op = Expr.Operator.of(bin.op.getText());
@@ -408,14 +391,11 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     public Expr.Literal visitIntConstExp(IntConstExpContext ctx) {
         var text = ctx.IntLiteral().getText();
         int value = 0;
-        if (text.equals("0")) 
-            Placeholder.pass();
-        else if (text.startsWith("0x") || text.startsWith("0X")) 
+        if (text.equals("0")) Placeholder.pass();
+        else if (text.startsWith("0x") || text.startsWith("0X"))
             value = Integer.parseInt(text.substring(2), 16);
-        else if (text.startsWith("0")) 
-            value = Integer.parseInt(text.substring(1), 8);
-        else 
-            value = Integer.parseInt(text, 10);
+        else if (text.startsWith("0")) value = Integer.parseInt(text.substring(1), 8);
+        else value = Integer.parseInt(text, 10);
 
         return new Expr.Literal(ctx.getStart(), ctx.getStop(), value);
     }
@@ -444,12 +424,11 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
     }
 
     public Expr visitArrayLiteralExpRecursive(SysYParser.ArrayLiteralExpContext ctx) {
-        if (ctx instanceof SysYParser.ElementExpContext it) {
-            return visitElementExp(it);
-        } else if (ctx instanceof SysYParser.ArrayExpContext it) {
-            return visitArrayExp(it);
-        }
-        return unreachable();
+        return switch (ctx) {
+            case SysYParser.ElementExpContext it -> visitElementExp(it);
+            case SysYParser.ArrayExpContext it -> visitArrayExp(it);
+            default -> unreachable();
+        };
     }
 
     @Override

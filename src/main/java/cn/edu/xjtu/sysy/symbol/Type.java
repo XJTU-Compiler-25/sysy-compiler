@@ -2,92 +2,120 @@ package cn.edu.xjtu.sysy.symbol;
 
 import java.util.Arrays;
 
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-
 public abstract sealed class Type {
+    public final int size;
+
     @Override
     public abstract String toString();
 
-    @Override
-    public abstract boolean equals(Object obj);
+    public Type(int size) {
+        this.size = size;
+    }
 
-    public abstract int size();
-
-    public static final class Primitive extends Type {
-        public static final Primitive INT = new Primitive("int");
-        public static final Primitive FLOAT = new Primitive("float");
-
-        public static Primitive of(String name) {
-            return switch (name) {
-                case "int" -> INT;
-                case "float" -> FLOAT;
-                default -> throw new IllegalArgumentException("Unknown primitive type: " + name);
-            };
-        }
-
-        public final String name;
-
-        private Primitive(String name) {
-            this.name = name;
+    /**
+     * void 类型，只能出现在函数返回值处
+     * EmptyArray 这一临时类型现在可以用 void 代替标注
+     */
+    public static final class Void extends Type {
+        Void() {
+            super(0);
         }
 
         @Override
         public String toString() {
-            return name;
-        }
-
-        @Override
-        public int size() {
-            return 4;
-        }
-
-        public boolean equals(Object obj) {
-            return this == obj || (obj instanceof Primitive other && name.equals(other.name));
+            return "void";
         }
     }
 
+    public static abstract sealed class Scalar extends Type {
+        public Scalar(int size) {
+            super(size);
+        }
+    }
+
+    public static final class Int extends Scalar {
+        Int() {
+            super(4);
+        }
+
+        @Override
+        public String toString() {
+            return "i32";
+        }
+    }
+
+    public static final class Float extends Scalar {
+        Float() {
+            super(4);
+        }
+
+        @Override
+        public String toString() {
+            return "f32";
+        }
+    }
+
+    /**
+     * 按照比赛技术方案，target 均为 64 位，指针的大小为 8
+     */
+    public static final class Pointer extends Type {
+        public final Type baseType;
+
+        Pointer(Type baseType) {
+            super(8);
+            this.baseType = baseType;
+        }
+
+        @Override
+        public String toString() {
+            return "[Any x " + baseType.toString() + "]";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Pointer ptrType && baseType.equals(ptrType.baseType);
+        }
+    }
+
+
+    // 从实现来看更像 matrix
     public static final class Array extends Type {
-        public final Primitive elementType;
+        public final Scalar elementType;
+
+        /**
+         * 各维度的长度反序存放，如 int[4][2] = Array(int, [2, 4])
+         * 以便从数组构造减维度或加维度的数组（尾插/尾删更方便）
+         */
         public final int[] dimensions;
 
-        public Array(Primitive elementType, int[] dimensions) {
+        Array(Scalar elementType, int[] dimensions) {
+            super(calcSize(elementType.size, dimensions));
             this.elementType = elementType;
             this.dimensions = dimensions;
         }
 
+        private static int calcSize(int baseSize, int[] dimensionLens) {
+            var size = baseSize;
+            for (int dim : dimensionLens) size *= dim;
+            return size;
+        }
+
         @Override
         public String toString() {
-            var sb = new StringBuilder(elementType.name);
-            for (var dim : dimensions) sb.append('[').append(dim).append(']');
+            var dimLen = dimensions.length;
+            var sb = new StringBuilder();
+
+            for (int i = dimLen - 1; i >= 0; --i)
+                sb.append('[').append(dimensions[i]).append(" x ");
+            sb.append(elementType.toString());
+            sb.append("]".repeat(dimLen));
+
             return sb.toString();
         }
 
-        @Override
-        public int size() {
-            return 4 * Arrays.stream(dimensions).reduce(1, (a, b) -> a * b);
-        }
-
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            
-            if (obj instanceof Array other) {
-                if (elementType != other.elementType)
-                    return false;
-                
-                if (!isWildcard()) {
-                    return Arrays.equals(dimensions, other.dimensions);
-                } else {
-                    var thisDim = Arrays.copyOfRange(dimensions, 1, dimensions.length);
-                    var otherDim = Arrays.copyOfRange(other.dimensions, 1, other.dimensions.length);
-                    return Arrays.equals(thisDim, otherDim);
-                }
-            }
-            return false;
-        }
-
-        public boolean isWildcard() {
-            return dimensions[0] == -1;
+            return obj instanceof Array arrType && this.elementType.equals(arrType.elementType)
+                    && Arrays.equals(this.dimensions, arrType.dimensions);
         }
 
         /**
@@ -101,56 +129,40 @@ public abstract sealed class Type {
         }
 
         public Array getSubArrayType(int depth) {
-            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length - depth));
+            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length-depth));
+        }
+
+        public int getDimension(int depth) {
+            return dimensions[dimensions.length - depth - 1];
         }
     }
 
-    /**
-     * 空数组表达式类型，可以被任意 baseType 的 Array 接收
-     * 只会出现在 Assign 的右端，而且最终要被消除掉
-     */
-    public static final class EmptyArray extends Type {
-        public static final EmptyArray INSTANCE = new EmptyArray();
+    public static final class Function extends Type {
+        public final Type returnType;
+        public final Type[] paramTypes;
 
-        private EmptyArray() {}
-
-        @Override
-        public String toString() {
-            return "<EmptyArray>";
+        Function(Type returnType, Type[] paramTypes) {
+            super(0);
+            this.returnType = returnType;
+            this.paramTypes = paramTypes;
         }
 
         @Override
-        public int size() {
-            return unreachable();
+        public String toString() {
+            var sb = new StringBuilder();
+            sb.append('(');
+            for (int i = 0; i < paramTypes.length; i++) {
+                sb.append(paramTypes[i]);
+                if (i != paramTypes.length - 1) sb.append(", ");
+            }
+            sb.append(") -> ").append(returnType);
+            return sb.toString();
         }
 
         @Override
         public boolean equals(Object obj) {
-            return obj == this;
-        }
-    }
-
-    /**
-     * void 类型，只能出现在函数返回值处
-     */
-    public static final class Void extends Type {
-        public static final Void INSTANCE = new Void();
-
-        private Void() {}
-
-        @Override
-        public String toString() {
-            return "void";
-        }
-
-        @Override
-        public int size() {
-            return unreachable();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj == this;
+            return obj instanceof Function funcType && this.returnType.equals(funcType.returnType)
+                    && Arrays.equals(this.paramTypes, funcType.paramTypes);
         }
     }
 }

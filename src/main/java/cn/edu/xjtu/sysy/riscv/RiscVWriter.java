@@ -75,25 +75,8 @@ public class RiscVWriter {
         defineSym(name, Integer.toString(value));
     }
 
-    /**
-     * Returns the word size in bytes.
-     *
-     * This method is used instead of directly accessing the
-     * static field {@link #WORD_SIZE}, so that this class
-     * may be extended with alternate word sizes.
-     */
-    public int getWordSize() { return WORD_SIZE; }
-
-    /**
-     * Emit the text STR to the output stream verbatim. STR should have no
-     * trailing newline.
-     */
     public void emit(String str) { out.println(str); }
 
-    /**
-     * Emit instruction or directive INSN along with COMMENT as a one-line
-     * comment, if non-null.
-     */
     public void emitInsn(String insn, String comment) {
         if (comment != null) {
             emit(String.format("  %-40s # %s", insn, comment));
@@ -102,9 +85,6 @@ public class RiscVWriter {
         }
     }
 
-    /**
-     * Emit instruction or directive INSN without a comment.
-     */
     protected void emitInsn(String insn) { emit(String.format("  %s", insn)); }
 
     protected void emitInsn(Instr insn) { 
@@ -115,16 +95,12 @@ public class RiscVWriter {
         }
     }
 
-    /**
-     * Emit a global label marker for LABEL. Invoke only once per
-     * unique label.
-     */
     public void emitGlobal(Label label) {
         emitInsn(String.format(".globl %s", label));
     }
 
     public void emitWeak(Symbol.Var global) {
-        int size = global.type.size();
+        int size = global.type.size;
         emitInsn(".comm %s,%d,%d".formatted(global.label, size, 4));
     }
 
@@ -137,7 +113,7 @@ public class RiscVWriter {
 
     public void emitSize(Symbol sym) {
         switch (sym) {
-            case Symbol.Var var -> emitInsn(".size %s,%d".formatted(var.label, var.type.size()));
+            case Symbol.Var var -> emitInsn(".size %s,%d".formatted(var.label, var.type.size));
             case Symbol.Func func -> emitInsn(".size %s, .-%s".formatted(func.label, func.label));
         }
     }
@@ -146,10 +122,6 @@ public class RiscVWriter {
         emit(String.format("%s:", label));
     }
 
-    /**
-     * Emit a data word containing VALUE as an integer value. COMMENT is
-     * a emitted as a one-line comment, if non-null.
-     */
     public void emitWordLiteral(Number value) {
         if (value instanceof Integer i) emitWordLiteral(i.intValue());
         if (value instanceof Float i) emitWordLiteral(i.floatValue());
@@ -167,10 +139,6 @@ public class RiscVWriter {
         emitInsn(String.format(".zero %s", size));
     }
 
-    /**
-     * Emit a data word containing the address ADDR, or 0 if LABEL is null.
-     * COMMENT is a emitted as a one-line comment, if non-null.
-     */
     public void emitWordAddress(Label addr) {
         if (addr == null) {
             emitWordLiteral(0);
@@ -180,34 +148,15 @@ public class RiscVWriter {
     }
 
     /**
-     * Emit VALUE as an ASCII null-terminated string constant, with
-     * COMMENT as its one-line comment, if non-null.
-     */
-    public void emitString(String value, String comment) {
-        String quoted = value.replace("\\", "\\\\")
-                            .replace("\n", "\\n")
-                            .replace("\t", "\\t")
-                            .replace("\"", "\\\"");
-        emitInsn(String.format(".string \"%s\"", quoted), comment);
-    }
-
-    /**
-     * Mark the start of a data section.
+     * 标识数据段
      */
     public void data() { emitInsn(".data"); }
     public void sdata() { emitInsn(".section .sdata,\"aw\""); }
     public void bss() { emitInsn(".bss"); }
     public void sbss() { emitInsn(".section .sbss,\"aw\",@nobits"); }
+    public void text() { emitInsn(".text"); }
 
-    /**
-     * Mark the start of a code/text section.
-     */
-    public void startCode() { emit("\n.text"); }
 
-    /**
-     * Align the next instruction/word in memory to
-     * a multiple of 2**POW bytes.
-     */
     public void alignNext(int pow) {
         emitInsn(String.format(".align %d", pow));
     }
