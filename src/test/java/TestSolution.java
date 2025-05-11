@@ -48,7 +48,7 @@ public final class TestSolution {
         var cgen = new RiscVCGen(writer);
         calc.visit(ast);
         cgen.visit(ast);
-
+        writer.emitAll();
         return writer.toString();
     }
 

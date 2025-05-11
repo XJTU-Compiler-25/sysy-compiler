@@ -65,6 +65,8 @@ public class Compiler {
         var asm = new RiscVWriter();
         var cgen = new RiscVCGen(asm);
         cgen.visit(compUnit);
+        
+        asm.emitAll();
         var riscVCode = asm.toString();
         System.out.println(riscVCode);
         File out = new File(output);

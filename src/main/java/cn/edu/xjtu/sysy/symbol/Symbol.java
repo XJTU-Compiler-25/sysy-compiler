@@ -56,11 +56,11 @@ public abstract sealed class Symbol {
                 if (param.type instanceof Type.Int || param.type instanceof Type.Float) {
                     inSize += param.type.size;
                 } else {
-                    inSize = align(inSize, 8) + 16;
+                    inSize = alignExc(inSize, 8) + 16;
                 }
                 param.addr = inSize;
             }
-            inSize = align(inSize, 8) + 8;
+            inSize = alignExc(inSize, 8) + 8;
             for (var param : params) {
                 param.addr -= inSize;
             }
@@ -70,10 +70,15 @@ public abstract sealed class Symbol {
             return num / alignment * alignment;
         }
 
+        public static int alignExc(int num, int alignment) {
+            return num % alignment == 0 ? num - alignment : num / alignment * alignment;
+        }
+
+
         public int getSize() {
             return raSave
-                    ? align(16 + localSize + outSize, 16) + 16
-                    : align(8 + localSize + outSize, 16) + 16;
+                    ? alignExc(16 + localSize + outSize, 16) + 16
+                    : alignExc(8 + localSize + outSize, 16) + 16;
         }
 
         public int getIndex(Var var) {

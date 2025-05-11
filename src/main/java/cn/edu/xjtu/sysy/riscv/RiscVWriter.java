@@ -1,10 +1,12 @@
 package cn.edu.xjtu.sysy.riscv;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
+import cn.edu.xjtu.sysy.riscv.Directives.FuncSize;
+import cn.edu.xjtu.sysy.riscv.Directives.Word;
+import cn.edu.xjtu.sysy.riscv.Directives.Zero;
+import cn.edu.xjtu.sysy.riscv.Global.Func;
+import cn.edu.xjtu.sysy.riscv.Global.Obj;
 import cn.edu.xjtu.sysy.riscv.Instr.Auipc;
 import cn.edu.xjtu.sysy.riscv.Instr.Branch;
 import cn.edu.xjtu.sysy.riscv.Instr.BranchZ;
@@ -36,7 +38,13 @@ import cn.edu.xjtu.sysy.riscv.Instr.Ret;
 import cn.edu.xjtu.sysy.riscv.Instr.Store;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
 import cn.edu.xjtu.sysy.symbol.Symbol;
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import cn.edu.xjtu.sysy.symbol.Type;
 
 public class RiscVWriter {
 
@@ -44,121 +52,158 @@ public class RiscVWriter {
 
     private final PrintWriter out = new PrintWriter(asm);
 
-    private final List<Instr> instrs = new ArrayList<>();
+    private List<Directives> directives = new ArrayList<>();
 
-    protected static final int WORD_SIZE = 8;
+    private List<Directives> values = new ArrayList<>();
+
+    private List<Instr> instrs = new ArrayList<>();
+
+    private final List<Global.Obj> objDefs = new ArrayList<>();
+
+    private final List<Global.Func> funcDefs = new ArrayList<>();
 
     @Override
     public String toString() {
         return asm.toString();
     }
 
-    /**
-     * Define @NAME to have the value VALUE. Here, NAME is assumed to be
-     * an identifier consisting of letters, digits, underscores, and any of
-     * the charcters '$' or '.', and that does not start with a digit. Value
-     * may be a numeral or another symbol.
-     */
-    public void defineSym(String name, String value) {
-        if (name.startsWith("@")) {
-            emitInsn(String.format(".equiv %s, %s", name, value), null);
-        } else {
-            emitInsn(String.format(".equiv @%s, %s", name, value), null);
-        }
+    public void emit(String str) {
+        out.println(str);
     }
 
-    /**
-     * Define @NAME to have the value VALUE, where value is converted to
-     * a string. See {@link #defineSym(java.lang.String, java.lang.String)}.
-     */
-    public void defineSym(String name, int value) {
-        defineSym(name, Integer.toString(value));
-    }
-
-    public void emit(String str) { out.println(str); }
-
-    public void emitInsn(String insn, String comment) {
-        if (comment != null) {
-            emit(String.format("  %-40s # %s", insn, comment));
-        } else {
-            emitInsn(insn);
-        }
-    }
-
-    protected void emitInsn(String insn) { emit(String.format("  %s", insn)); }
-
-    protected void emitInsn(Instr insn) { 
-        if (insn instanceof LocalLabel label) {
-            emit(String.format("%s:", label));
-        } else {
-            emit(String.format("  %s", insn)); 
-        }
-    }
-
-    public void emitGlobal(Label label) {
-        emitInsn(String.format(".globl %s", label));
-    }
-
-    public void emitWeak(Symbol.Var global) {
-        int size = global.type.size;
-        emitInsn(".comm %s,%d,%d".formatted(global.label, size, 4));
-    }
-
-    public void emitType(Symbol sym) {
-        switch (sym) {
-            case Symbol.Var var -> emitInsn(".type %s, @object".formatted(var.label));
-            case Symbol.Func func -> emitInsn(".type %s, @function".formatted(func.label));
-        }
-    }
-
-    public void emitSize(Symbol sym) {
-        switch (sym) {
-            case Symbol.Var var -> emitInsn(".size %s,%d".formatted(var.label, var.type.size));
-            case Symbol.Func func -> emitInsn(".size %s, .-%s".formatted(func.label, func.label));
-        }
-    }
-
-    public void emitGlobalLabel(Label label) {
+    protected void emit(Label label) {
         emit(String.format("%s:", label));
     }
 
-    public void emitWordLiteral(Number value) {
-        if (value instanceof Integer i) emitWordLiteral(i.intValue());
-        if (value instanceof Float i) emitWordLiteral(i.floatValue());
-    }
-     
-    public void emitWordLiteral(int value) {
-        emitInsn(String.format(".word %d", value));
+    protected void emit(Directives dir) {
+        emit(String.format("  %s", dir));
     }
 
-    public void emitWordLiteral(float value) {
-        emitInsn(String.format(".word %d", Float.floatToRawIntBits(value)));
-    }
-
-    public void emitZeroLiteral(int size) {
-        emitInsn(String.format(".zero %s", size));
-    }
-
-    public void emitWordAddress(Label addr) {
-        if (addr == null) {
-            emitWordLiteral(0);
+    protected void emit(Instr insn) {
+        if (insn instanceof LocalLabel label) {
+            emit(String.format("%s:", label));
         } else {
-            emitInsn(String.format(".word %s", addr));
+            emit(String.format("  %s", insn));
         }
     }
 
-    /**
-     * 标识数据段
-     */
-    public void data() { emitInsn(".data"); }
-    public void sdata() { emitInsn(".section .sdata,\"aw\""); }
-    public void bss() { emitInsn(".bss"); }
-    public void sbss() { emitInsn(".section .sbss,\"aw\",@nobits"); }
-    public void text() { emitInsn(".text"); }
+    public void emitAll() {
+        for (var obj : objDefs) {
+            obj.directives.forEach(this::emit);
+            emit(obj.label);
+            obj.value.forEach(this::emit);
+        }
+        for (var func : funcDefs) {
+            func.directives.forEach(this::emit);
+            emit(func.label);
+            func.instrs.forEach(this::emit);
+            emit(func.size);
+        }
+    }
 
+    private RiscVWriter global(Label label) {
+        directives.add(new Directives.Global(label));
+        return this;
+    }
 
-    public void alignNext(int pow) {
-        emitInsn(String.format(".align %d", pow));
+    private RiscVWriter bss() {
+        directives.add(new Directives.Bss());
+        return this;
+    }
+
+    private RiscVWriter data() {
+        directives.add(new Directives.Data());
+        return this;
+    }
+
+    private RiscVWriter text() {
+        directives.add(new Directives.Text());
+        return this;
+    }
+
+    private RiscVWriter align(Type type) {
+        int pow = switch (type) {
+            case Type.Int _, Type.Float _ -> 2;
+            default -> 3;
+        };
+        directives.add(new Directives.Align(pow));
+        return this;
+    }
+
+    private RiscVWriter align(int pow) {
+        directives.add(new Directives.Align(pow));
+        return this;
+    }
+
+    private RiscVWriter type(Symbol sym) {
+        switch (sym) {
+            case Symbol.Var it ->
+                    directives.add(new Directives.Type(it.label, Directives.Type.SymType.Object));
+            case Symbol.Func it ->
+                    directives.add(new Directives.Type(it.label, Directives.Type.SymType.Function));
+        }
+        return this;
+    }
+
+    private RiscVWriter size(Label label, int size) {
+        directives.add(new Directives.VarSize(label, size));
+        return this;
+    }
+
+    public void defVarData(Symbol.Var sym) {
+        this.global(sym.label)
+            .data()
+            .align(sym.type)
+            .type(sym)
+            .size(sym.label, sym.type.size);
+        objDefs.add(new Obj(sym.label, directives, values));
+        directives = new ArrayList<>();
+        values = new ArrayList<>();
+    }
+
+    public void defVarBss(Symbol.Var sym) {
+        this.global(sym.label)
+            .bss()
+            .align(sym.type)
+            .type(sym)
+            .size(sym.label, sym.type.size);
+        objDefs.add(new Obj(sym.label, directives, values));
+        directives = new ArrayList<>();
+        values = new ArrayList<>();
+    }
+
+    public void defFunc(Symbol.Func sym) {
+        this.align(1)
+            .global(sym.label)
+            .text()
+            .type(sym);
+        var size = new FuncSize(sym.label);
+        funcDefs.add(new Func(sym.label, directives, instrs, size));
+        directives = new ArrayList<>();
+        instrs = new ArrayList<>();
+    }
+
+    public RiscVWriter word(int val) {
+        values.add(new Word(val));
+        return this;
+    }
+
+    public RiscVWriter word(float val) {
+        values.add(new Word(Float.floatToRawIntBits(val)));
+        return this;
+    }
+
+    public RiscVWriter word(Number val) {
+        return switch (val) {
+            case Integer i -> word(i.intValue());
+            case Float f -> word(f.floatValue());
+            default -> unreachable();
+        };
+    }
+
+    public RiscVWriter zero(int size) {
+        values.add(new Zero(size));
+        return this;
     }
 
     private RiscVWriter reg(Reg.Op op, Register.Int rd, Register.Int rs1, Register.Int rs2) {
@@ -173,107 +218,107 @@ public class RiscVWriter {
     public RiscVWriter addw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.ADDW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sub(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SUB, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter subw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SUBW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter and(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.AND, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter or(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.OR, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter xor(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.XOR, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sll(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SLL, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sllw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SLLW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter srl(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SRL, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter srlw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SRLW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sra(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SRA, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sraw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SRAW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter slt(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SLT, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter sltu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.SLTU, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter mul(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.MUL, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter mulw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.MULW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter mulh(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.MULH, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter mulhu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.MULHU, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter mulhsu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.MULHSU, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter div(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.DIV, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter divu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.DIVU, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter divw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.DIVW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter divuw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.DIVUW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter rem(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.REM, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter remu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.REMU, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter remw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.REMW, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter remuw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
         return reg(Reg.Op.REMUW, rd, rs1, rs2);
     }
@@ -286,27 +331,27 @@ public class RiscVWriter {
     public RiscVWriter mv(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.MV, rd, rs1);
     }
-    
+
     public RiscVWriter seqz(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.SEQZ, rd, rs1);
     }
-    
+
     public RiscVWriter snez(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.SNEZ, rd, rs1);
     }
-    
+
     public RiscVWriter sltz(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.SLTZ, rd, rs1);
     }
-    
+
     public RiscVWriter sgtz(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.SGTZ, rd, rs1);
     }
-    
+
     public RiscVWriter neg(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.NEG, rd, rs1);
     }
-    
+
     public RiscVWriter negw(Register.Int rd, Register.Int rs1) {
         return regz(RegZ.Op.NEGW, rd, rs1);
     }
@@ -319,7 +364,7 @@ public class RiscVWriter {
     public RiscVWriter fmv(Register.Float rd, Register.Float rs1) {
         return funary(FUnary.Op.FMV, rd, rs1);
     }
-    
+
     public RiscVWriter fneg(Register.Float rd, Register.Float rs1) {
         return funary(FUnary.Op.FNEG, rd, rs1);
     }
@@ -337,7 +382,8 @@ public class RiscVWriter {
         return this;
     }
 
-    private RiscVWriter fbinary(FBinary.Op op, Register.Float rd, Register.Float rs1, Register.Float rs2) {
+    private RiscVWriter fbinary(
+            FBinary.Op op, Register.Float rd, Register.Float rs1, Register.Float rs2) {
         instrs.add(new FBinary(op, rd, rs1, rs2));
         return this;
     }
@@ -345,40 +391,41 @@ public class RiscVWriter {
     public RiscVWriter fadd(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FADD, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fsub(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FSUB, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fmul(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FMUL, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fdiv(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FDIV, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fmin(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FMIN, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fmax(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FMAX, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fsgnj(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FSGNJ, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fsgnjn(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FSGNJN, rd, rs1, rs2);
     }
-    
+
     public RiscVWriter fsgnjx(Register.Float rd, Register.Float rs1, Register.Float rs2) {
         return fbinary(FBinary.Op.FSGNJX, rd, rs1, rs2);
     }
 
-    private RiscVWriter fcomp(FComp.Op op, Register.Int rd, Register.Float rs1, Register.Float rs2) {
+    private RiscVWriter fcomp(
+            FComp.Op op, Register.Int rd, Register.Float rs1, Register.Float rs2) {
         instrs.add(new FComp(op, rd, rs1, rs2));
         return this;
     }
@@ -395,24 +442,33 @@ public class RiscVWriter {
         return fcomp(FComp.Op.FLE, rd, rs1, rs2);
     }
 
-    private RiscVWriter fma(FMulAdd.Op op, Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
+    private RiscVWriter fma(
+            FMulAdd.Op op,
+            Register.Float rd,
+            Register.Float rs1,
+            Register.Float rs2,
+            Register.Float rs3) {
         instrs.add(new FMulAdd(op, rd, rs1, rs2, rs3));
         return this;
     }
 
-    public RiscVWriter fmadd(Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
+    public RiscVWriter fmadd(
+            Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
         return fma(FMulAdd.Op.FMADD, rd, rs1, rs2, rs3);
     }
 
-    public RiscVWriter fnmadd(Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
+    public RiscVWriter fnmadd(
+            Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
         return fma(FMulAdd.Op.FNMADD, rd, rs1, rs2, rs3);
     }
 
-    public RiscVWriter fmsub(Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
+    public RiscVWriter fmsub(
+            Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
         return fma(FMulAdd.Op.FMSUB, rd, rs1, rs2, rs3);
     }
 
-    public RiscVWriter fnmsub(Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
+    public RiscVWriter fnmsub(
+            Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3) {
         return fma(FMulAdd.Op.FNMSUB, rd, rs1, rs2, rs3);
     }
 
@@ -483,51 +539,51 @@ public class RiscVWriter {
         }
         return imm(Imm.Op.ADDI, rd, rs, imm);
     }
-    
+
     public RiscVWriter addiw(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.ADDIW, rd, rs, imm);
     }
-    
+
     public RiscVWriter andi(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.ANDI, rd, rs, imm);
     }
-    
+
     public RiscVWriter ori(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.ORI, rd, rs, imm);
     }
-    
+
     public RiscVWriter xori(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.XORI, rd, rs, imm);
     }
-    
+
     public RiscVWriter slli(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SLLI, rd, rs, imm);
     }
-    
+
     public RiscVWriter srli(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SRLI, rd, rs, imm);
     }
-    
+
     public RiscVWriter srai(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SRAI, rd, rs, imm);
     }
-    
+
     public RiscVWriter slliw(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SLLIW, rd, rs, imm);
     }
-    
+
     public RiscVWriter srliw(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SRLIW, rd, rs, imm);
     }
-    
+
     public RiscVWriter sraiw(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SRAIW, rd, rs, imm);
     }
-    
+
     public RiscVWriter slti(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SLTI, rd, rs, imm);
     }
-    
+
     public RiscVWriter sltiu(Register.Int rd, Register.Int rs, int imm) {
         return imm(Imm.Op.SLTIU, rd, rs, imm);
     }
@@ -537,7 +593,8 @@ public class RiscVWriter {
         return this;
     }
 
-    private RiscVWriter load(Load.Op op, Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
+    private RiscVWriter load(
+            Load.Op op, Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         if (imm < -2048 || imm >= 2048) {
             li(tmp, imm).add(tmp, rs, tmp);
             instrs.add(new Load(op, rd, tmp, 0));
@@ -550,27 +607,27 @@ public class RiscVWriter {
     public RiscVWriter lb(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LB, rd, rs, imm);
     }
-    
+
     public RiscVWriter lbu(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LBU, rd, rs, imm);
     }
-    
+
     public RiscVWriter lh(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LH, rd, rs, imm);
     }
-    
+
     public RiscVWriter lhu(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LHU, rd, rs, imm);
     }
-    
+
     public RiscVWriter lw(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LW, rd, rs, imm);
     }
-    
+
     public RiscVWriter lwu(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LWU, rd, rs, imm);
     }
-    
+
     public RiscVWriter ld(Register.Int rd, Register.Int rs, int imm) {
         return load(Load.Op.LD, rd, rs, imm);
     }
@@ -578,27 +635,27 @@ public class RiscVWriter {
     public RiscVWriter lb(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LB, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter lbu(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LBU, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter lh(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LH, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter lhu(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LHU, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter lw(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LW, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter lwu(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LWU, rd, rs, imm, tmp);
     }
-    
+
     public RiscVWriter ld(Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         return load(Load.Op.LD, rd, rs, imm, tmp);
     }
@@ -621,7 +678,8 @@ public class RiscVWriter {
         return this;
     }
 
-    private RiscVWriter store(Store.Op op, Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
+    private RiscVWriter store(
+            Store.Op op, Register.Int rd, Register.Int rs, int imm, Register.Int tmp) {
         if (imm < -2048 || imm >= 2048) {
             li(tmp, imm).add(tmp, rs, tmp);
             instrs.add(new Store(op, rd, tmp, 0));
@@ -678,7 +736,7 @@ public class RiscVWriter {
             return li(tmp, imm).add(tmp, rs, tmp).fsw(rd, tmp, 0);
         } else {
             return fsw(rd, rs, imm);
-        }  
+        }
     }
 
     public RiscVWriter fsw(Register.Float rd, Label label, Register.Int tmp) {
@@ -800,12 +858,12 @@ public class RiscVWriter {
         return this;
     }
 
-    public RiscVWriter ret() { 
+    public RiscVWriter ret() {
         instrs.add(new Ret());
         return this;
     }
 
-    public RiscVWriter ecall() { 
+    public RiscVWriter ecall() {
         instrs.add(new Ecall());
         return this;
     }
@@ -840,19 +898,9 @@ public class RiscVWriter {
 
     public RiscVWriter setzero(int start, int size, Register.Int tmp) {
         while (size > 0) {
-            sw(Int.ZERO, Int.FP, -(start-size+4), tmp);
+            sw(Int.ZERO, Int.FP, -(start - size + 4), tmp);
             size -= 4;
         }
         return this;
-    }
-
-
-    public List<Instr> getInstrs() {
-        return instrs;
-    }
-
-    public void emitAll() {
-        instrs.forEach(instr -> emitInsn(instr));
-        instrs.clear();
     }
 }

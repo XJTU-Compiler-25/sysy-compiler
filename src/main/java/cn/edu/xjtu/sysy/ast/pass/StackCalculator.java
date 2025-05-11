@@ -12,6 +12,7 @@ import cn.edu.xjtu.sysy.symbol.SymbolTable;
 import cn.edu.xjtu.sysy.symbol.Type;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
+/** 计算栈帧大小以及每个变量在栈帧的相对位置 */
 public class StackCalculator extends AstVisitor {
     SymbolTable currentST = null;
     Symbol.Func currentFunc = null;
@@ -68,10 +69,6 @@ public class StackCalculator extends AstVisitor {
         };
     }
 
-    private int alignNext(int nt) {
-        return nt / 8 * 8 + 16;
-    }
-
     public int visit(Stmt.Block node, int nt) {
         updateMax(nt);
         currentST = node.symbolTable;
@@ -86,7 +83,7 @@ public class StackCalculator extends AstVisitor {
     public int visit(Stmt.Assign node, int nt) {
         updateMax(nt);
         visit(node.target, nt);
-        visit(node.value, alignNext(nt));
+        visit(node.value, Symbol.Func.align(nt, 8) + 16);
         return nt;
     }
 
@@ -178,7 +175,7 @@ public class StackCalculator extends AstVisitor {
         for (var arg : node.args) {
             visit(arg, m);
             if (arg.type instanceof Type.Int || arg.type instanceof Type.Float) m += 4;
-            else m = alignNext(m);
+            else m = Symbol.Func.align(m, 8) + 16;
         }
         return nt;
     }
@@ -198,7 +195,7 @@ public class StackCalculator extends AstVisitor {
         visit(node.indexes.get(0), nt+4);
         if (node.indexes.size() > 1) {
             for (int i = 1; i < node.indexes.size(); i++) {
-                visit(node.indexes.get(i), alignNext(nt+4));
+                visit(node.indexes.get(i), Symbol.Func.align(nt+4, 8) + 16);
             }
         }
         return nt;

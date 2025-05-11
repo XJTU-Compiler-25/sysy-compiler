@@ -6,6 +6,7 @@ import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
+import cn.edu.xjtu.sysy.riscv.Global;
 import cn.edu.xjtu.sysy.riscv.Label;
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FA0;
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FT0;
@@ -68,11 +69,6 @@ public class RiscVCGen extends AstVisitor {
     @Override
     public void visit(Decl.FuncDef node) {
         var sym = globalST.resolveFunc(node.name);
-        asm.alignNext(1);
-        asm.emitGlobal(sym.label);
-        asm.text();
-        asm.emitType(sym);
-        asm.emitGlobalLabel(sym.label);
 
         currentST = node.symbolTable;
         funcEpilogue = genLocalLabel();
@@ -81,29 +77,32 @@ public class RiscVCGen extends AstVisitor {
         if (funcSize > 2048) {
             asm .addi(SP, SP, -16);
             
-            if (node.resolution.raSave)
-                asm.sd(RA, SP, 8)
-                .sd(FP, SP, 0);
-            else 
-                asm.sd(FP, SP, 8);
+            if (node.resolution.raSave) {
+                asm .sd(RA, SP, 8)
+                    .sd(FP, SP, 0);
+            } else {
+                asm .sd(FP, SP, 8);
+            }
 
-            asm.addi(FP, SP, 16);
-            asm .li(T0, -funcSize+16)
+            asm .addi(FP, SP, 16)
+                .li(T0, -funcSize+16)
                 .add(SP, SP, T0);
         } else {
             asm .addi(SP, SP, -funcSize);
-            if (node.resolution.raSave)
-                asm.sd(RA, SP, funcSize-8)
-                .sd(FP, SP, funcSize-16);
-            else 
-                asm.sd(FP, SP, funcSize-8);
-            
-            asm.addi(FP, SP, funcSize);
+            if (node.resolution.raSave) {
+                asm .sd(RA, SP, funcSize-8)
+                    .sd(FP, SP, funcSize-16);
+            }
+            else {
+                asm .sd(FP, SP, funcSize-8);
+            }            
+            asm .addi(FP, SP, funcSize);
         }
 
         for (var param : sym.params) {
             param.declared = true;
         }
+
         if (node.resolution.raSave)
             visit(node.body, 24);
         else
@@ -111,97 +110,89 @@ public class RiscVCGen extends AstVisitor {
 
         asm .mv(A0, ZERO);
 
-        asm.label(funcEpilogue);
+        asm .label(funcEpilogue);
         if (funcSize > 2048) {
             asm .li(T0, funcSize-16)
                 .add(SP, SP, T0);
-            if (node.resolution.raSave)
+            if (node.resolution.raSave) {
                 asm .ld(RA, SP, 8)
                     .ld(FP, SP, 0);
-            else 
+            } else {
                 asm .ld(FP, SP, 8);
-            
+            } 
             asm .addi(SP, SP, 16)
                 .ret();
         } else {
-            if (node.resolution.raSave)
+            if (node.resolution.raSave) {
                 asm .ld(RA, SP, funcSize-8)
                     .ld(FP, SP, funcSize-16);
-            else 
+            } else {
                 asm .ld(FP, SP, funcSize-8);
+            }
             
             asm .addi(SP, SP, funcSize)
                 .ret();
         }
-        asm.emitAll();
-        asm.emitSize(sym);
+        asm.defFunc(sym);
         currentST = currentST.getParent();
         currentFunc = null;
     }
 
+    /** 全局变量 */
     @Override
     public void visit(Decl.VarDef node) {
         var sym = node.resolution;
         sym.declared = true;
         if (node.init == null) {
-            asm.emitWeak(sym);
+            asm .zero(sym.type.size)
+                .defVarBss(sym);
             return;
         }
         switch (sym.type) {
             case Type.Int _, Type.Float _ -> {
                 if (node.init.getComptimeValue().floatValue() == 0) {
-                    asm.emitGlobal(sym.label);
-                    asm.sbss();
-                    asm.alignNext(2);
-                    asm.emitType(sym);
-                    asm.emitSize(sym);
-                    asm.emitGlobalLabel(sym.label);
-                    asm.emitZeroLiteral(sym.type.size);
+                    asm.zero(sym.type.size);
+                    asm.defVarBss(sym);
                 } else {
-                    asm.emitGlobal(sym.label);
-                    asm.sdata();
-                    asm.alignNext(2);
-                    asm.emitType(sym);
-                    asm.emitSize(sym);
-                    asm.emitGlobalLabel(sym.label);
-                    asm.emitWordLiteral(node.init.getComptimeValue());
+                    asm.word(node.init.getComptimeValue());
+                    asm.defVarData(sym);
                 }
             }
             case Type.Array _ -> {
-                asm.emitGlobal(sym.label);
                 var arr = (Expr.Array) node.init;
-                if (arr.elements.isEmpty()) asm.bss();
-                else asm.data();
-                asm.alignNext(3);
-                asm.emitType(sym);
-                asm.emitSize(sym);
-                asm.emitGlobalLabel(sym.label);
                 int lasti = -1;
+                boolean allZero = true;
                 for (int i = 0; i < arr.indexes.size(); i++) {
                     int index = arr.indexes.get(i);
                     Expr exp = arr.elements.get(i);
-                    if (index - lasti > 1) {
-                        asm.emitZeroLiteral(4* (index-lasti-1));
+                    if (exp.getComptimeValue().floatValue() == 0) {
+                        asm.zero(4* (index-lasti));
+                    } else {
+                        if (index - lasti > 1) {
+                            asm.zero(4* (index-lasti-1));
+                        }
+                        asm.word(exp.getComptimeValue());
+                        allZero = false;
                     }
-                    asm.emitWordLiteral(exp.getComptimeValue());
                     lasti = index;
                 }
                 int tailSize = sym.type.size - 4*(lasti+1);
                 if (tailSize > 0)
-                    asm.emitZeroLiteral(tailSize);
+                    asm.zero(tailSize);
+                if (allZero) asm.defVarBss(sym);
+                else asm.defVarData(sym);
             }
             default -> unreachable();
         }
     }
 
-    // LocalVarDef
+    /** 局部变量 */
     public int visit(Decl.VarDef node, int nt) {
         var sym = node.resolution;
         sym.declared = true;
         if (node.init == null) {
             return sym.type.size;
         }
-        assert (nt + sym.type.size - 4 == currentFunc.getIndex(sym));
         switch (sym.type) {
             case Type.Int _, Type.Float _ -> {
                 if (sym.comptimeValue != null) {
@@ -329,7 +320,7 @@ public class RiscVCGen extends AstVisitor {
                 var i0 = it.indexes.get(0);
                 visit(i0, nt+4);
                 if (it.indexes.size() > 1 && type instanceof Type.Array t) {
-                    int addr = align(nt+4);
+                    int addr = Symbol.Func.align(nt+4, 8) + 8;
                     for (int i = 1; i < it.indexes.size(); i++) {
                         asm .li(T0, t.getDimension(i-1))
                             .mul(A0, T0, A0)
@@ -640,10 +631,6 @@ public class RiscVCGen extends AstVisitor {
         };
     }
 
-    private int align(int nt) {
-        return nt / 8 * 8 + 8;
-    }
-
     public int visit(Expr.Call node, int nt) {
         var func = node.resolution;
         int m = nt;
@@ -662,7 +649,7 @@ public class RiscVCGen extends AstVisitor {
                     m += 4;
                 }
                 case Type.Array _, Type.Pointer _ -> {
-                    m = align(m);
+                    m = Symbol.Func.align(m, 8) + 8;
                     ms[i] = m;
                     asm.sd(A0, FP, -m, T0);
                     m += 8;
@@ -756,7 +743,7 @@ public class RiscVCGen extends AstVisitor {
             default -> unreachable();
         };
         if (node.indexes.size() > 1 && type instanceof Type.Array t) {
-            int addr = align(nt);
+            int addr = Symbol.Func.align(nt, 8) + 8;
             for (int i = 1; i < node.indexes.size(); i++) {
                 asm .li(T0, t.getDimension(i-1))
                     .mul(A0, T0, A0)
