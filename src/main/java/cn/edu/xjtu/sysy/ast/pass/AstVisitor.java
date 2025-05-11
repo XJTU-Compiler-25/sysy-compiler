@@ -138,7 +138,6 @@ public abstract class AstVisitor extends Pass<CompUnit> {
             visit(bin.rhs);
             process(bin);
         }
-        visit(expr);
     }
 
     /* 由于递归改迭代，visit(Binary)只会调用一次，后续操作请通过这个函数进行。 */

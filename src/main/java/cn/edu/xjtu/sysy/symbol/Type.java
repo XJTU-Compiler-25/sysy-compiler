@@ -129,7 +129,11 @@ public abstract sealed class Type {
         }
 
         public Array getSubArrayType(int depth) {
-            return new Array(elementType, Arrays.copyOfRange(dimensions, depth, dimensions.length));
+            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length-depth));
+        }
+
+        public int getDimension(int depth) {
+            return dimensions[dimensions.length - depth - 1];
         }
     }
 

@@ -80,9 +80,9 @@ public final class BuiltinSymbols {
 
     // void putf(format, ...) 未实现
 
-    public static final Symbol.Func STARTTIME = new Symbol.Func("starttime",
+    public static final Symbol.Func STARTTIME = new Symbol.Func("_sysy_starttime",
             FTY_V, List.of());
-    public static final Symbol.Func STOPTIME = new Symbol.Func("stoptime",
+    public static final Symbol.Func STOPTIME = new Symbol.Func("_sysy_stoptime",
             FTY_V, List.of());
 
 }

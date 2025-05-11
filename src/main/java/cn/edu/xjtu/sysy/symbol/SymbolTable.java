@@ -28,8 +28,8 @@ public abstract sealed class SymbolTable {
                 declareFunc(BuiltinSymbols.PUTARRAY);
                 declareFunc(BuiltinSymbols.PUTFARRAY);
 
-                declareFunc(BuiltinSymbols.STARTTIME);
-                declareFunc(BuiltinSymbols.STOPTIME);
+                declareFunc("starttime", BuiltinSymbols.STARTTIME);
+                declareFunc("stoptime", BuiltinSymbols.STOPTIME);
             }
         }
 
@@ -65,6 +65,11 @@ public abstract sealed class SymbolTable {
             if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
             else table.put(key, func);
         }
+
+        public void declareFunc(String key, Symbol.Func func) {
+            if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
+            else table.put(key, func);
+        }
     }
 
     public static final class Local extends SymbolTable {
@@ -92,6 +97,15 @@ public abstract sealed class SymbolTable {
             var key = var.name;
             if (table.containsKey(key)) throw new IllegalArgumentException("Local variable redefinition: " + key);
             else table.put(key, var);
+        }
+
+        /** 清除当前作用域的符号表的所有变量的声明状态
+         *  需要在每次进入作用域的时候调用，否则无法正确处理变量作用域
+         */
+        public void clear() {
+            for (var key : table.keySet()) {
+                table.get(key).declared = false;
+            }
         }
     }
 }
