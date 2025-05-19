@@ -36,6 +36,22 @@ public final class InstructionHelper {
         return new Instruction.Call(newLabel(), func, args);
     }
 
+    public Instruction.Alloca alloca(Type type) {
+        return new Instruction.Alloca(newLabel(), type);
+    }
+
+    public Instruction.Load load(Value ptr) {
+        return new Instruction.Load(newLabel(), ptr);
+    }
+
+    public Instruction.Store store(Value value, Value ptr) {
+        return new Instruction.Store(value, ptr);
+    }
+
+    public Instruction.GetElemPtr getElementPtr(Type type, Value ptr, Value... indices) {
+        return new Instruction.GetElemPtr(newLabel(), type, ptr, indices);
+    }
+
     public Instruction.I2F i2f(Value value) {
         Assertions.requires(value.type == Types.Int);
         return new Instruction.I2F(newLabel(), value);
@@ -108,7 +124,7 @@ public final class InstructionHelper {
 
     public Instruction neg(Value lhs) {
         return switch (lhs.type) {
-            case Type.Int _ -> new Instruction.ISub(newLabel(), Constants.INT_ZERO, lhs);
+            case Type.Int _ -> sub(Constants.iZero, lhs);
             case Type.Float _ -> new Instruction.FNeg(newLabel(), lhs);
             default -> Assertions.unsupported(lhs.type);
         };
@@ -153,7 +169,19 @@ public final class InstructionHelper {
     // ~value = -1 ^ value
     public Instruction not(Value lhs) {
         Assertions.requires(lhs.type == Types.Int);
-        return new Instruction.Xor(newLabel(), Constants.INT_NEG_ONE, lhs);
+        return new Instruction.Xor(newLabel(), Constants.iNegOne, lhs);
+    }
+
+    public Instruction icmp(Value lhs, Value rhs) {
+        var lType = lhs.type;
+        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        return new Instruction.ICmp(newLabel(), lhs, rhs);
+    }
+
+    public Instruction fcmp(Value lhs, Value rhs) {
+        var lType = lhs.type;
+        Assertions.requires(lType == rhs.type && lType == Types.Float);
+        return new Instruction.FCmp(newLabel(), lhs, rhs);
     }
 
     // intrinsics
@@ -161,6 +189,11 @@ public final class InstructionHelper {
     public Instruction fsqrt(Value lhs) {
         Assertions.requires(lhs.type == Types.Float);
         return new Instruction.FSqrt(newLabel(), lhs);
+    }
+
+    public Instruction fabs(Value lhs) {
+        Assertions.requires(lhs.type == Types.Float);
+        return new Instruction.FAbs(newLabel(), lhs);
     }
 
     public Instruction fmin(Value lhs, Value rhs) {

@@ -1,11 +1,9 @@
 package cn.edu.xjtu.sysy.mir;
 
-import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
-import cn.edu.xjtu.sysy.ast.pass.AstVisitor;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
@@ -115,9 +113,6 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Expr.Unary node) {
-    }
-
-    public void visit(Expr.RawArray node) {
     }
 
     public void visit(Expr.Array node) {
