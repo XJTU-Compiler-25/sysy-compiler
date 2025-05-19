@@ -5,16 +5,12 @@ import java.util.List;
 import cn.edu.xjtu.sysy.symbol.Types;
 import org.antlr.v4.runtime.Token;
 
-import com.alibaba.fastjson2.JSONWriter;
-import com.alibaba.fastjson2.annotation.JSONField;
-
 import cn.edu.xjtu.sysy.symbol.Symbol;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 /** Expressions */
 public abstract sealed class Expr extends Node {
     /** 表达式的类型 */
-    @JSONField(serializeFeatures = JSONWriter.Feature.WriteMapNullValue)
     public Type type = null;
     private Number comptimeValue = null;
     public boolean isComptime = false;
