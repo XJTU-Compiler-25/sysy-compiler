@@ -4,9 +4,9 @@ import cn.edu.xjtu.sysy.symbol.Type;
 
 import java.util.HashSet;
 
-public abstract sealed class Value permits Constant, GlobalVar, Instruction {
+public abstract sealed class Value permits BlockArgument, ImmediateValue, GlobalVar, Instruction {
     public Type type;
-    public final HashSet<Value> usedBy = new HashSet<>();
+    public final HashSet<Use> usedBy = new HashSet<>();
 
     public Value(Type type) {
         this.type = type;

@@ -8,8 +8,8 @@ import java.util.HashMap;
 /**
  * 立即的值
  */
-public abstract sealed class Constant extends Value {
-    Constant(Type type) {
+public abstract sealed class ImmediateValue extends Value {
+    ImmediateValue(Type type) {
         super(type);
     }
 
@@ -28,7 +28,7 @@ public abstract sealed class Constant extends Value {
     private String stringRepresent;
     abstract String buildStringRepresent();
 
-    public static final class IntConst extends Constant {
+    public static final class IntConst extends ImmediateValue {
         public int value;
 
         IntConst(int value) {
@@ -42,7 +42,7 @@ public abstract sealed class Constant extends Value {
         }
     }
 
-    public static final class FloatConst extends Constant {
+    public static final class FloatConst extends ImmediateValue {
         public float value;
 
         FloatConst(float value) {
@@ -56,7 +56,7 @@ public abstract sealed class Constant extends Value {
         }
     }
 
-    public static final class ZeroInit extends Constant {
+    public static final class ZeroInit extends ImmediateValue {
         ZeroInit() {
             super(Types.Void);
         }
@@ -67,10 +67,10 @@ public abstract sealed class Constant extends Value {
         }
     }
 
-    public static final class DenseArrayInit extends Constant {
-        public Constant[] values;
+    public static final class DenseArrayInit extends ImmediateValue {
+        public ImmediateValue[] values;
 
-        DenseArrayInit(Constant[] values, Type type) {
+        DenseArrayInit(ImmediateValue[] values, Type type) {
             super(Types.ptrOf(type));
             this.values = values;
         }
@@ -88,10 +88,10 @@ public abstract sealed class Constant extends Value {
         }
     }
 
-    public static final class SparseArrayInit extends Constant {
-        public HashMap<Integer, Constant> values = new HashMap<>();
+    public static final class SparseArrayInit extends ImmediateValue {
+        public HashMap<Integer, Value> values = new HashMap<>();
 
-        SparseArrayInit(Constant[] values, int[] indexes, Type type) {
+        SparseArrayInit(Type type, int[] indexes, Value[] values) {
             super(Types.ptrOf(type));
             for (int i = 0, maxLen = indexes.length; i < maxLen; i++) this.values.put(indexes[i], values[i]);
         }
@@ -103,8 +103,8 @@ public abstract sealed class Constant extends Value {
             var entries = values.entrySet().stream().toList();
             for (int i = 0, maxLen = entries.size(); i < maxLen; i++) {
                 var entry = entries.get(i);
-                sb.append(entry.getKey().intValue())
-                        .append(" : ").append(entry.getValue().shallowToString());
+                sb.append('[').append(entry.getKey().intValue())
+                        .append("] = ").append(entry.getValue().shallowToString());
                 if (i != maxLen - 1) sb.append(", ");
             }
             sb.append(" ]");

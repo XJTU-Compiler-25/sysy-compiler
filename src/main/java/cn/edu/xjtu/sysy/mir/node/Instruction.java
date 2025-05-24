@@ -57,14 +57,16 @@ public abstract sealed class Instruction extends Value  {
      * stack allocate
      */
     public static final class Alloca extends Instruction {
+        public Type allocatedType;
+
         Alloca(int label, Type type) {
-            super(label, type);
-            this.type = type;
+            super(label, Types.ptrOf(type));
+            this.allocatedType = type;
         }
 
         @Override
         public String toString() {
-            return String.format("%s = alloca %s", this.shallowToString(), type.toString());
+            return String.format("%s = alloca %s", this.shallowToString(), allocatedType.toString());
         }
     }
 
@@ -78,7 +80,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = load %s", this.shallowToString(), address.toString());
+            return String.format("%s = load ptr %s", this.shallowToString(), address.shallowToString());
         }
     }
 
@@ -94,7 +96,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = store %s", address.shallowToString(), value.toString());
+            return String.format("store ptr %s, value %s", address.shallowToString(), value.shallowToString());
         }
     }
 
@@ -106,16 +108,15 @@ public abstract sealed class Instruction extends Value  {
         public Value[] indices;
 
         GetElemPtr(int label, Type type, Value basePtr, Value[] indices) {
-            super(label, Types.ptrOf(type));
+            super(label, type);
             this.basePtr = basePtr;
             this.indices = indices;
         }
 
         @Override
         public String toString() {
-            var sb = new StringBuilder(String.format("%s = getelemptr %s, ptr %s", this.shallowToString(),
-                    type.toString(), basePtr.toString()));
-            for (var index : indices) sb.append(", ").append(index.toString());
+            var sb = new StringBuilder(String.format("%s = getelemptr base %s", this.shallowToString(), basePtr.shallowToString()));
+            for (var index : indices) sb.append(", ").append(index.shallowToString());
             return sb.toString();
         }
     }

@@ -24,7 +24,7 @@ public final class Assertions {
     }
 
     public static <T> T unsupported(Object obj) {
-        throw new AssertionError("Unsupported Type" + obj.getClass().getSimpleName());
+        throw new AssertionError("Unsupported Type " + obj.getClass().getSimpleName());
     }
 
     public static <T> T todo() {

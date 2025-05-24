@@ -11,6 +11,10 @@ public final class InstructionHelper {
         return labelCounter++;
     }
 
+    public BlockArgument newBlockArgument(Type type, BasicBlock owner) {
+        return new BlockArgument(type, owner, newLabel());
+    }
+
     // terminator instructions
 
     public Terminator.Ret ret(Value value) {
@@ -40,15 +44,17 @@ public final class InstructionHelper {
         return new Instruction.Alloca(newLabel(), type);
     }
 
-    public Instruction.Load load(Value ptr) {
-        return new Instruction.Load(newLabel(), ptr);
+    public Instruction.Load load(Value from) {
+        return new Instruction.Load(newLabel(), from);
     }
 
-    public Instruction.Store store(Value value, Value ptr) {
-        return new Instruction.Store(value, ptr);
+    public static Instruction.Store store(Value target, Value value) {
+        return new Instruction.Store(target, value);
     }
 
-    public Instruction.GetElemPtr getElementPtr(Type type, Value ptr, Value... indices) {
+    public Instruction.GetElemPtr getElementPtr(Value ptr, Value... indices) {
+        var type = ptr.type;
+        if (type instanceof Type.Array aType) type = Types.decay(aType);
         return new Instruction.GetElemPtr(newLabel(), type, ptr, indices);
     }
 
@@ -124,7 +130,7 @@ public final class InstructionHelper {
 
     public Instruction neg(Value lhs) {
         return switch (lhs.type) {
-            case Type.Int _ -> sub(Constants.iZero, lhs);
+            case Type.Int _ -> sub(ImmediateValues.iZero, lhs);
             case Type.Float _ -> new Instruction.FNeg(newLabel(), lhs);
             default -> Assertions.unsupported(lhs.type);
         };
@@ -169,19 +175,17 @@ public final class InstructionHelper {
     // ~value = -1 ^ value
     public Instruction not(Value lhs) {
         Assertions.requires(lhs.type == Types.Int);
-        return new Instruction.Xor(newLabel(), Constants.iNegOne, lhs);
+        return new Instruction.Xor(newLabel(), ImmediateValues.iNegOne, lhs);
     }
 
-    public Instruction icmp(Value lhs, Value rhs) {
+    public Instruction cmp(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
-        return new Instruction.ICmp(newLabel(), lhs, rhs);
-    }
-
-    public Instruction fcmp(Value lhs, Value rhs) {
-        var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Float);
-        return new Instruction.FCmp(newLabel(), lhs, rhs);
+        Assertions.requires(lType == rhs.type);
+        return switch (lType) {
+            case Type.Int _ -> new Instruction.ICmp(newLabel(), lhs, rhs);
+            case Type.Float _ -> new Instruction.FCmp(newLabel(), lhs, rhs);
+            default -> Assertions.unsupported(lType);
+        };
     }
 
     // intrinsics

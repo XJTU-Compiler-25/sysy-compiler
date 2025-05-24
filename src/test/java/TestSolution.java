@@ -7,14 +7,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import cn.edu.xjtu.sysy.mir.MirBuilder;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.*;
+
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.TestMethodOrder;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
@@ -58,7 +56,7 @@ public final class TestSolution {
         return Arrays.stream(testFiles)
                 .filter(f -> f.getName().endsWith(".sy"))
                 .sorted(Comparator.comparing(File::getName))
-                .map(f -> {    
+                .map(f -> {
                     try {
                         var testFileStream = new FileInputStream(f);
                         var testCase = new String(testFileStream.readAllBytes());
@@ -67,30 +65,30 @@ public final class TestSolution {
                             var em = new ErrManager();
                             var ast = compileToAst(em, testCase);
                             AstPassGroups.makePassGroup(em).process(ast);
-                            // app.visit(ast);
+                            //app.visit(ast);
                             if (em.hasErr()) {
-                                System.err.println(
+                                System.out.println(
                                         "Testing %s ..."
                                                 .formatted(f.getName()));
                                 em.printErrs();
-                                throw new AssertionError("Semantic Error");
+                                Assertions.fail("Semantic Error");
                             } else {
-                                System.err.println(
+                                System.out.println(
                                         "Testing %s ...\n Semantic Analysis Passed!"
                                                 .formatted(f.getName()));
                             }
+
+                            var mirBuilder = new MirBuilder();
+                            var module = mirBuilder.build(ast);
+                            System.out.println(module.toString());
+
                             String riscVCode = CompileToRiscV(ast);
-                            File out = new File(
-                                        String.format(
-                                                "%s/%s.s",
-                                                f.getParent(),
-                                                f.getName()));
+                            File out = new File(f.getParent(), f.getName() + ".s");
                             if (out.exists()) {
                                 out.delete();
                             }
                             try (var output = new FileOutputStream(out)) {
                                 output.write(riscVCode.getBytes());
-                                output.close();
                             }
                         });
                     } catch (Exception e) {
@@ -102,6 +100,11 @@ public final class TestSolution {
                 .toList();
     }
 
+    @TestFactory
+    @Order(0)
+    public List<DynamicTest> testCustom() throws Exception {
+        return genDynamicTest("custom");
+    }
 
     @TestFactory
     @Order(1)
