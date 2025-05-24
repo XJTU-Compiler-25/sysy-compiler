@@ -51,6 +51,75 @@ public abstract sealed class Instruction extends Value  {
             return sb.toString();
         }
     }
+    // 内存操作
+
+    /**
+     * stack allocate
+     */
+    public static final class Alloca extends Instruction {
+        public Type allocatedType;
+
+        Alloca(int label, Type type) {
+            super(label, Types.ptrOf(type));
+            this.allocatedType = type;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = alloca %s", this.shallowToString(), allocatedType.toString());
+        }
+    }
+
+    public static final class Load extends Instruction {
+        public Value address;
+
+        Load(int label, Value address) {
+            super(label, ((Type.Pointer) address.type).baseType);
+            this.address = address;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = load ptr %s", this.shallowToString(), address.shallowToString());
+        }
+    }
+
+    public static final class Store extends Instruction {
+        public Value address;
+        public Value value;
+
+        Store(Value address, Value value) {
+            super(0, Types.Void);
+            this.address = address;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("store ptr %s, value %s", address.shallowToString(), value.shallowToString());
+        }
+    }
+
+    /**
+     * 仅计算元素的指针而不访问
+     */
+    public static final class GetElemPtr extends Instruction {
+        public Value basePtr;
+        public Value[] indices;
+
+        GetElemPtr(int label, Type type, Value basePtr, Value[] indices) {
+            super(label, type);
+            this.basePtr = basePtr;
+            this.indices = indices;
+        }
+
+        @Override
+        public String toString() {
+            var sb = new StringBuilder(String.format("%s = getelemptr base %s", this.shallowToString(), basePtr.shallowToString()));
+            for (var index : indices) sb.append(", ").append(index.shallowToString());
+            return sb.toString();
+        }
+    }
 
     // cast
 
@@ -60,14 +129,14 @@ public abstract sealed class Instruction extends Value  {
     public static final class I2F extends Instruction {
         public Value value;
 
-        public I2F(int label, Value value) {
+        I2F(int label, Value value) {
             super(label, Types.Float);
             this.value = value;
         }
 
         @Override
         public String toString() {
-            return String.format("%s = cast %s to %s", this.shallowToString(), value.shallowToString(), Types.Float);
+            return String.format("%s = i2f %s", this.shallowToString(), value.shallowToString());
         }
     }
 
@@ -77,14 +146,14 @@ public abstract sealed class Instruction extends Value  {
     public static final class F2I extends Instruction {
         public Value value;
 
-        public F2I(int label, Value value) {
+        F2I(int label, Value value) {
             super(label, Types.Int);
             this.value = value;
         }
 
         @Override
         public String toString() {
-            return String.format("%s = cast %s to %s", this.shallowToString(), value.shallowToString(), Types.Int);
+            return String.format("%s = f2i %s", this.shallowToString(), value.shallowToString());
         }
     }
 
@@ -94,14 +163,14 @@ public abstract sealed class Instruction extends Value  {
     public static final class BitCastI2F extends Instruction {
         public Value value;
 
-        public BitCastI2F(int label, Value value) {
+        BitCastI2F(int label, Value value) {
             super(label, Types.Float);
             this.value = value;
         }
 
         @Override
         public String toString() {
-            return String.format("%s = bitcast %s to %s", this.shallowToString(), value.shallowToString(), Types.Float);
+            return String.format("%s = i2f bitcast %s", this.shallowToString(), value.shallowToString());
         }
     }
 
@@ -111,14 +180,14 @@ public abstract sealed class Instruction extends Value  {
     public static final class BitCastF2I extends Instruction {
         public Value value;
 
-        public BitCastF2I(int label, Value value) {
+        BitCastF2I(int label, Value value) {
             super(label, Types.Int);
             this.value = value;
         }
 
         @Override
         public String toString() {
-            return String.format("%s = bitcast %s to %s", this.shallowToString(), value.shallowToString(), Types.Int);
+            return String.format("%s = f2i bitcast %s", this.shallowToString(), value.shallowToString());
         }
     }
 
@@ -128,7 +197,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public IAdd(int label, Value lhs, Value rhs) {
+        IAdd(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -144,7 +213,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public ISub(int label, Value lhs, Value rhs) {
+        ISub(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -160,7 +229,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public IMul(int label, Value lhs, Value rhs) {
+        IMul(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -176,7 +245,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public IDiv(int label, Value lhs, Value rhs) {
+        IDiv(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -192,7 +261,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public IMod(int label, Value lhs, Value rhs) {
+        IMod(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -208,7 +277,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FAdd(int label, Value lhs, Value rhs) {
+        FAdd(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -224,7 +293,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FSub(int label, Value lhs, Value rhs) {
+        FSub(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -240,7 +309,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FMul(int label, Value lhs, Value rhs) {
+        FMul(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -256,7 +325,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FDiv(int label, Value lhs, Value rhs) {
+        FDiv(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -272,7 +341,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FMod(int label, Value lhs, Value rhs) {
+        FMod(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -287,7 +356,7 @@ public abstract sealed class Instruction extends Value  {
     public static final class FNeg extends Instruction {
         public Value lhs;
 
-        public FNeg(int label, Value lhs) {
+        FNeg(int label, Value lhs) {
             super(label, Types.Float);
             this.lhs = lhs;
         }
@@ -307,7 +376,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public Shl(int label, Value lhs, Value rhs) {
+        Shl(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -327,7 +396,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public Shr(int label, Value lhs, Value rhs) {
+        Shr(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -346,7 +415,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public AShr(int label, Value lhs, Value rhs) {
+        AShr(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -362,7 +431,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public And(int label, Value lhs, Value rhs) {
+        And(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -378,7 +447,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public Or(int label, Value lhs, Value rhs) {
+        Or(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -394,7 +463,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public Xor(int label, Value lhs, Value rhs) {
+        Xor(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -406,12 +475,46 @@ public abstract sealed class Instruction extends Value  {
         }
     }
 
+    // 比较指令
+
+    public static final class ICmp extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        ICmp(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icmp %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+        }
+    }
+
+    public static final class FCmp extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FCmp(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+        }
+    }
+
     // intrinsic 指令
 
     public static final class FSqrt extends Instruction {
         public Value lhs;
 
-        public FSqrt(int label, Value lhs) {
+        FSqrt(int label, Value lhs) {
             super(label, Types.Float);
             this.lhs = lhs;
         }
@@ -422,11 +525,25 @@ public abstract sealed class Instruction extends Value  {
         }
     }
 
+    public static final class FAbs extends Instruction {
+        public Value lhs;
+
+        FAbs(int label, Value lhs) {
+            super(label, Types.Float);
+            this.lhs = lhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fabs %s", this.shallowToString(), lhs.shallowToString());
+        }
+    }
+
     public static final class FMin extends Instruction {
         public Value lhs;
         public Value rhs;
 
-        public FMin(int label, Value lhs, Value rhs) {
+        FMin(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -442,7 +559,7 @@ public abstract sealed class Instruction extends Value  {
         public Value lhs;
         public Value rhs;
 
-        public FMax(int label, Value lhs, Value rhs) {
+        FMax(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
             this.lhs = lhs;
             this.rhs = rhs;

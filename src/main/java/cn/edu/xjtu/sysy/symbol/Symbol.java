@@ -2,6 +2,10 @@ package cn.edu.xjtu.sysy.symbol;
 
 import java.util.List;
 
+import cn.edu.xjtu.sysy.mir.node.BlockArgument;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.GlobalVar;
+import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.Label;
 
 public abstract sealed class Symbol {
@@ -15,7 +19,10 @@ public abstract sealed class Symbol {
         public String name;
         public Type type;
         public boolean isConst;
+
         public Number comptimeValue;
+
+        public Value address;
 
         public Label label;
 
@@ -39,6 +46,8 @@ public abstract sealed class Symbol {
         public List<Symbol.Var> params;
 
         public boolean isPure = false;
+
+        public Function address;
 
         public final Label label;
         public int localSize;
