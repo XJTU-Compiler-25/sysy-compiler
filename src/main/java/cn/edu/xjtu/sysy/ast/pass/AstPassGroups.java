@@ -10,10 +10,9 @@ public final class AstPassGroups {
 
     public static PassGroup<CompUnit> makePassGroup(ErrManager em) {
         return new PassGroup<>(em,
-                NotOpChecker::new,
                 AstAnnotator::new,
                 ArrayNormalizer::new,
-                PureFunctionChecker::new
+                VarCollector::new
         );
     }
 
