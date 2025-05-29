@@ -1,15 +1,17 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.Type;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class BasicBlock {
+public final class BasicBlock extends User {
     public String label;
 
-    public List<BlockArgument> arguments;
-    public List<Instruction> instructions;
-    public Terminator terminator;
+    public List<Use<BasicBlock, BlockArgument>> arguments;
+    public List<Use<BasicBlock, Instruction>> instructions;
+    public Use<BasicBlock, Instruction.Terminator> terminator;
 
     public BasicBlock(String label) {
         this.label = label;
@@ -17,25 +19,33 @@ public final class BasicBlock {
         this.instructions = new ArrayList<>();
     }
 
-    public void addArgument(BlockArgument argument) {
-        arguments.add(argument);
+    public BlockArgument newBlockArgument(Type type) {
+        var arg = new BlockArgument(type, this, arguments.size());
+        arguments.add(use(arg));
+        return arg;
     }
 
     public void addInstruction(Instruction instruction) {
-        instructions.add(instruction);
+        instructions.add(use(instruction));
     }
 
-    public void setTerminator(Terminator terminator) {
-        this.terminator = terminator;
+    public void setTerminator(Instruction.Terminator terminator) {
+        this.terminator = use(terminator);
+    }
+
+    @Override
+    public String shortName() {
+        return label;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(label).append('(')
-                .append(arguments.stream().map(BlockArgument::shallowToString).collect(Collectors.joining(", ")))
-                .append("):\n")
-                .append(instructions.stream().map(it -> it.toString() + "\n").collect(Collectors.joining()));
-        if (terminator != null) sb.append(terminator);
+                .append(arguments.stream().map(it -> it.value.toString())
+                        .collect(Collectors.joining(", "))).append("):\n")
+                .append(instructions.stream().map(it -> it.value.toString() + "\n")
+                        .collect(Collectors.joining()));
+        if (terminator != null) sb.append(terminator.value.toString());
         return sb.toString();
     }
 

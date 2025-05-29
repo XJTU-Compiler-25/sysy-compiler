@@ -2,14 +2,17 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
+
+import java.util.List;
+
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
- * 非终结指令
  * 建议通过 {@link InstructionHelper} 构造指令
- *
  * 请注意整数运算指令都是 signed 的
  */
-public abstract sealed class Instruction extends Value  {
+public abstract sealed class Instruction extends User {
     // local label
     public final int label;
 
@@ -20,31 +23,99 @@ public abstract sealed class Instruction extends Value  {
 
     // 计算中间值应该都为 local value
     @Override
-    public String shallowToString() {
+    public String shortName() {
         return "%" + label;
     }
 
     @Override
     public abstract String toString();
 
+    // 基本块结束指令
+    public abstract sealed static class Terminator extends Instruction {
+        Terminator() {
+            super(-1, Types.Void);
+        }
+    }
+
+    // 带值返回 return
+    public static final class Ret extends Terminator {
+        public Use retVal;
+
+        Ret(Value retVal) {
+            this.retVal = use(retVal);
+        }
+
+        @Override
+        public String toString() {
+            return "ret " + retVal.value.shortName();
+        }
+    }
+
+    /**
+     * 无值返回 return void
+     */
+    public static final class RetV extends Terminator {
+        @Override
+        public String toString() {
+            return "ret void";
+        }
+    }
+
+    // 无条件跳转 jump
+    public static final class Jmp extends Terminator {
+        public BasicBlock target;
+        public List<Use> params;
+
+        Jmp(BasicBlock target) {
+            this.target = target;
+        }
+
+        @Override
+        public String toString() {
+            return "jmp " + target.label;
+        }
+    }
+
+    // 分支 branch
+    public static final class Br extends Terminator {
+        public Use condition;
+        public BasicBlock trueTarget;
+        public BasicBlock falseTarget;
+        public List<Use> trueParams;
+        public List<Use> falseParams;
+
+        Br(Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
+            this.condition = use(condition);
+            this.trueTarget = trueTarget;
+            this.falseTarget = falseTarget;
+        }
+
+        @Override
+        public String toString() {
+            return "br " + condition.value.shortName() + ", " + trueTarget.label + ", " + falseTarget.label;
+        }
+    }
+
     // 函数调用
 
     public static final class Call extends Instruction {
         public Function function;
-        public Value[] args;
+        public Use[] args;
 
         Call(int label, Function function, Value... args) {
             super(label, function.returnType);
             this.function = function;
-            this.args = args;
+            var argLen = args.length;
+            this.args = new Use[argLen];
+            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
         }
 
         @Override
         public String toString() {
             var sb = new StringBuilder();
-            sb.append(this.label).append(" = call ").append(function.name).append("(");
+            sb.append('%').append(this.label).append(" = call ").append(function.name).append("(");
             for (int i = 0; i < args.length; i++) {
-                sb.append(args[i].shallowToString());
+                sb.append(args[i].value.shortName());
                 if (i != args.length - 1) sb.append(", ");
             }
             sb.append(')');
@@ -66,57 +137,60 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = alloca %s", this.shallowToString(), allocatedType.toString());
+            return String.format("%s = alloca %s", this.shortName(), allocatedType.toString());
         }
     }
 
     public static final class Load extends Instruction {
-        public Value address;
+        public Use address;
 
         Load(int label, Value address) {
             super(label, ((Type.Pointer) address.type).baseType);
-            this.address = address;
+            this.address = use(address);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = load ptr %s", this.shallowToString(), address.shallowToString());
+            return String.format("%s = load ptr %s", this.shortName(), address.value.shortName());
         }
     }
 
     public static final class Store extends Instruction {
-        public Value address;
-        public Value value;
+        public Use address;
+        public Use storeVal;
 
         Store(Value address, Value value) {
-            super(0, Types.Void);
-            this.address = address;
-            this.value = value;
+            super(-1, Types.Void);
+            this.address = use(address);
+            this.storeVal = use(value);
         }
 
         @Override
         public String toString() {
-            return String.format("store ptr %s, value %s", address.shallowToString(), value.shallowToString());
+            return String.format("store ptr %s, value %s", address.value.shortName(), storeVal.value.shortName());
         }
     }
 
     /**
      * 仅计算元素的指针而不访问
+     * 举例：getelemptr [Any x 20 x i32], n = [20 x i32]
      */
     public static final class GetElemPtr extends Instruction {
-        public Value basePtr;
-        public Value[] indices;
+        public Use basePtr;
+        public Use[] indices;
 
-        GetElemPtr(int label, Type type, Value basePtr, Value[] indices) {
-            super(label, type);
-            this.basePtr = basePtr;
-            this.indices = indices;
+        GetElemPtr(int label, Value basePtr, Value[] indices) {
+            super(label, ((Type.Pointer) basePtr.type).baseType);
+            this.basePtr = use(basePtr);
+            var indexCount = indices.length;
+            this.indices = new Use[indexCount];
+            for (int i = 0; i < indexCount; i++) this.indices[i] = use(indices[i]);
         }
 
         @Override
         public String toString() {
-            var sb = new StringBuilder(String.format("%s = getelemptr base %s", this.shallowToString(), basePtr.shallowToString()));
-            for (var index : indices) sb.append(", ").append(index.shallowToString());
+            var sb = new StringBuilder(String.format("%s = getelemptr base %s", this.shortName(), basePtr.value.shortName()));
+            for (var index : indices) sb.append(", ").append(index.value.shortName());
             return sb.toString();
         }
     }
@@ -136,7 +210,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = i2f %s", this.shallowToString(), value.shallowToString());
+            return String.format("%s = i2f %s", this.shortName(), value.shortName());
         }
     }
 
@@ -153,7 +227,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = f2i %s", this.shallowToString(), value.shallowToString());
+            return String.format("%s = f2i %s", this.shortName(), value.shortName());
         }
     }
 
@@ -170,7 +244,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = i2f bitcast %s", this.shallowToString(), value.shallowToString());
+            return String.format("%s = i2f bitcast %s", this.shortName(), value.shortName());
         }
     }
 
@@ -187,7 +261,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = f2i bitcast %s", this.shallowToString(), value.shallowToString());
+            return String.format("%s = f2i bitcast %s", this.shortName(), value.shortName());
         }
     }
 
@@ -205,7 +279,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = iadd %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = iadd %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -221,7 +295,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = isub %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = isub %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -237,7 +311,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = imul %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = imul %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -253,7 +327,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = idiv %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = idiv %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -269,7 +343,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = imod %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = imod %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -285,7 +359,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fadd %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fadd %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -301,7 +375,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fsub %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fsub %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -317,7 +391,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fmul %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fmul %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -333,7 +407,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fdiv %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fdiv %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -349,7 +423,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fmod %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fmod %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -363,7 +437,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fneg %s", this.shallowToString(), lhs.shallowToString());
+            return String.format("%s = fneg %s", this.shortName(), lhs.shortName());
         }
     }
 
@@ -384,7 +458,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = shl %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = shl %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -404,7 +478,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = shr %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = shr %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -423,7 +497,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = ashr %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = ashr %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -439,7 +513,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = and %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = and %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -455,7 +529,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = or %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = or %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -471,17 +545,17 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = xor %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = xor %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
     // 比较指令
 
-    public static final class ICmp extends Instruction {
+    public static final class IEq extends Instruction {
         public Value lhs;
         public Value rhs;
 
-        ICmp(int label, Value lhs, Value rhs) {
+        IEq(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -489,15 +563,15 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = icmp %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = icmp eq %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
-    public static final class FCmp extends Instruction {
+    public static final class INe extends Instruction {
         public Value lhs;
         public Value rhs;
 
-        FCmp(int label, Value lhs, Value rhs) {
+        INe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
             this.lhs = lhs;
             this.rhs = rhs;
@@ -505,7 +579,167 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = icmp ne %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class IGt extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        IGt(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icmp gt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class ILt extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        ILt(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icmp lt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class IGe extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        IGe(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icmp ge %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class ILe extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        ILe(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icmp le %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FEq extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FEq(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp eq %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FNe extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FNe(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp ne %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FGt extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FGt(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp gt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FLt extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FLt(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp lt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FGe extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FGe(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp ge %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+        }
+    }
+
+    public static final class FLe extends Instruction {
+        public Value lhs;
+        public Value rhs;
+
+        FLe(int label, Value lhs, Value rhs) {
+            super(label, Types.Int);
+            this.lhs = lhs;
+            this.rhs = rhs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcmp le %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -521,7 +755,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fsqrt %s", this.shallowToString(), lhs.shallowToString());
+            return String.format("%s = fsqrt %s", this.shortName(), lhs.shortName());
         }
     }
 
@@ -535,7 +769,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fabs %s", this.shallowToString(), lhs.shallowToString());
+            return String.format("%s = fabs %s", this.shortName(), lhs.shortName());
         }
     }
 
@@ -551,7 +785,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fmin %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fmin %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 
@@ -567,7 +801,7 @@ public abstract sealed class Instruction extends Value  {
 
         @Override
         public String toString() {
-            return String.format("%s = fmax %s, %s", this.shallowToString(), lhs.shallowToString(), rhs.shallowToString());
+            return String.format("%s = fmax %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
         }
     }
 

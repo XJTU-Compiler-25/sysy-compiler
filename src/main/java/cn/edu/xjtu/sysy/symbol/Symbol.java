@@ -2,9 +2,7 @@ package cn.edu.xjtu.sysy.symbol;
 
 import java.util.List;
 
-import cn.edu.xjtu.sysy.mir.node.BlockArgument;
 import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.Label;
 
