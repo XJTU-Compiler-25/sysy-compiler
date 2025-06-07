@@ -1,11 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 // User 引用的 Value 都应该以 Use 间接引用，以便 replaceAllUsesWith
-public final class Use<U extends User, V extends Value> {
-    public U user;
+public final class Use<V extends Value> {
+    public User user;
     public V value;
 
-    Use(U user, V value) {
+    Use(User user, V value) {
         this.user = user;
         this.value = value;
     }

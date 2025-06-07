@@ -12,7 +12,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
  * 建议通过 {@link InstructionHelper} 构造指令
  * 请注意整数运算指令都是 signed 的
  */
-public abstract sealed class Instruction extends User {
+public abstract sealed class Instruction extends Value implements  User {
     // local label
     public final int label;
 
@@ -102,6 +102,14 @@ public abstract sealed class Instruction extends User {
         public Function function;
         public Use[] args;
 
+        // for external
+        Call(int label, Type retType, Value... args) {
+            super(label, retType);
+            var argLen = args.length;
+            this.args = new Use[argLen];
+            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
+        }
+
         Call(int label, Function function, Value... args) {
             super(label, function.returnType);
             this.function = function;
@@ -113,7 +121,8 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             var sb = new StringBuilder();
-            sb.append('%').append(this.label).append(" = call ").append(function.name).append("(");
+            sb.append('%').append(this.label).append(" = call ")
+                    .append(function == null ? "external" : function.name).append("(");
             for (int i = 0; i < args.length; i++) {
                 sb.append(args[i].value.shortName());
                 if (i != args.length - 1) sb.append(", ");
@@ -180,7 +189,11 @@ public abstract sealed class Instruction extends User {
         public Use[] indices;
 
         GetElemPtr(int label, Value basePtr, Value[] indices) {
-            super(label, ((Type.Pointer) basePtr.type).baseType);
+            super(label, switch (basePtr.type) {
+                case Type.Pointer ptr -> ptr;
+                case Type.Array array -> Types.decay(array);
+                default -> unsupported(basePtr.type);
+            });
             this.basePtr = use(basePtr);
             var indexCount = indices.length;
             this.indices = new Use[indexCount];

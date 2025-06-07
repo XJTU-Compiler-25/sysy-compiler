@@ -26,7 +26,7 @@ public abstract class ModuleVisitor extends Pass<Module> {
 
     public void visit(BasicBlock block) {
         block.instructions.forEach(it -> visit(it.value));
-        visit(block.terminator.value);
+        visit(block.terminator);
     }
 
     public void visit(Instruction instruction) {

@@ -5,7 +5,7 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import java.util.HashSet;
 import java.util.function.Predicate;
 
-public abstract sealed class Value permits User, ImmediateValue, BlockArgument, Var {
+public abstract sealed class Value permits BlockArgument, ImmediateValue, Instruction, Var {
 
     public Type type;
     public final HashSet<Use> usedBy = new HashSet<>();
@@ -32,7 +32,7 @@ public abstract sealed class Value permits User, ImmediateValue, BlockArgument, 
         usedBy.remove(use);
     }
 
-    public final <A> void replaceAllUsesWith(Value newValue) {
+    public final void replaceAllUsesWith(Value newValue) {
         usedBy.forEach(use -> {
             var value = use.value;
             use.value = newValue;

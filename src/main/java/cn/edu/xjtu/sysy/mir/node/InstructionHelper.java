@@ -33,6 +33,10 @@ public final class InstructionHelper {
         return new Instruction.Call(index, func, args);
     }
 
+    public static Instruction.Call callExternal(int index, Type retType, Value... args) {
+        return new Instruction.Call(index, retType, args);
+    }
+
     public static Instruction.Alloca alloca(int index, Type type) {
         return new Instruction.Alloca(index, type);
     }

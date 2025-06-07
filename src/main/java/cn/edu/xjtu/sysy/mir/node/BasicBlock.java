@@ -3,17 +3,36 @@ package cn.edu.xjtu.sysy.mir.node;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class BasicBlock extends User {
+import static cn.edu.xjtu.sysy.util.Assertions.todo;
+
+public final class BasicBlock implements User {
     public String label;
 
-    public List<Use<BasicBlock, BlockArgument>> arguments;
-    public List<Use<BasicBlock, Instruction>> instructions;
-    public Use<BasicBlock, Instruction.Terminator> terminator;
+    public Function owner;
+    public ArrayList<Use<BlockArgument>> arguments;
+    public ArrayList<Use<Instruction>> instructions;
+    public Instruction.Terminator terminator;
 
-    public BasicBlock(String label) {
+    // 以下都为分析用的字段
+
+    // 前导块
+    public HashSet<BasicBlock> pred;
+    // 后继块
+    public HashSet<BasicBlock> succ;
+
+    // 该块被哪些块直接支配
+    public HashSet<BasicBlock> idom;
+    // 该块被哪些块支配
+    public HashSet<BasicBlock> doms;
+    // 支配边界
+    public HashSet<BasicBlock> df;
+
+    public BasicBlock(Function owner, String label) {
+        this.owner = owner;
         this.label = label;
         this.arguments = new ArrayList<>();
         this.instructions = new ArrayList<>();
@@ -30,22 +49,21 @@ public final class BasicBlock extends User {
     }
 
     public void setTerminator(Instruction.Terminator terminator) {
-        this.terminator = use(terminator);
+        this.terminator = terminator;
     }
 
-    @Override
-    public String shortName() {
-        return label;
+    public List<BasicBlock> getPredBlocks() {
+        return todo();
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(label).append('(')
+        sb.append('$').append(label).append('(')
                 .append(arguments.stream().map(it -> it.value.toString())
                         .collect(Collectors.joining(", "))).append("):\n")
                 .append(instructions.stream().map(it -> it.value.toString() + "\n")
                         .collect(Collectors.joining()));
-        if (terminator != null) sb.append(terminator.value.toString());
+        if (terminator != null) sb.append(terminator.toString());
         return sb.toString();
     }
 
