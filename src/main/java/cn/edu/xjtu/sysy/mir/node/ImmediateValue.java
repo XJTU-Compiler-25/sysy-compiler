@@ -20,7 +20,7 @@ public abstract sealed class ImmediateValue extends Value {
     }
 
     @Override
-    public final String shallowToString() {
+    public final String shortName() {
         if (stringRepresent == null) stringRepresent = buildStringRepresent();
         return stringRepresent;
     }
@@ -80,7 +80,7 @@ public abstract sealed class ImmediateValue extends Value {
             var sb = new StringBuilder();
             sb.append("[ ");
             for (int i = 0, maxLen = values.length; i < maxLen; i++) {
-                sb.append(values[i].shallowToString());
+                sb.append(values[i].shortName());
                 if (i != maxLen - 1) sb.append(", ");
             }
             sb.append(" ]");
@@ -104,7 +104,7 @@ public abstract sealed class ImmediateValue extends Value {
             for (int i = 0, maxLen = entries.size(); i < maxLen; i++) {
                 var entry = entries.get(i);
                 sb.append('[').append(entry.getKey().intValue())
-                        .append("] = ").append(entry.getValue().shallowToString());
+                        .append("] = ").append(entry.getValue().shortName());
                 if (i != maxLen - 1) sb.append(", ");
             }
             sb.append(" ]");

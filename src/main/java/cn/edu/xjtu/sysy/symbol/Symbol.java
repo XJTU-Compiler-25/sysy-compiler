@@ -2,9 +2,7 @@ package cn.edu.xjtu.sysy.symbol;
 
 import java.util.List;
 
-import cn.edu.xjtu.sysy.mir.node.BlockArgument;
 import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.Label;
 
@@ -45,7 +43,7 @@ public abstract sealed class Symbol {
         public Type.Function funcType;
         public List<Symbol.Var> params;
 
-        public boolean isPure = false;
+        public boolean isExternal = false;
 
         public Function address;
 
@@ -56,9 +54,14 @@ public abstract sealed class Symbol {
         public boolean raSave = false;
 
         public Func(String name, Type.Function funcType, List<Symbol.Var> params) {
+            this(name, funcType, params, false);
+        }
+
+        public Func(String name, Type.Function funcType, List<Symbol.Var> params, boolean isExternal) {
             this.name = name;
             this.funcType = funcType;
             this.params = params;
+            this.isExternal = isExternal;
             this.label = new Label(name);
             inSize = 0;
             for (var param : params) {

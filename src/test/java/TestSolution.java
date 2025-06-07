@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.*;
@@ -80,6 +81,7 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
+                            MirPassGroups.makePassGroup(em).process(module);
                             System.out.println(module.toString());
 
                             String riscVCode = CompileToRiscV(ast);
