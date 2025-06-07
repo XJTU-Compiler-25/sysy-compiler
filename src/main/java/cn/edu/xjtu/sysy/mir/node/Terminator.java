@@ -1,5 +1,7 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import java.util.List;
+
 /**
  * 基本块结束指令
  */
@@ -36,6 +38,7 @@ public abstract sealed class Terminator {
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
         public BasicBlock target;
+        public List<Value> params;
 
         Jmp(BasicBlock target) {
             this.target = target;
@@ -52,6 +55,8 @@ public abstract sealed class Terminator {
         public Value condition;
         public BasicBlock trueTarget;
         public BasicBlock falseTarget;
+        public List<Value> trueParams;
+        public List<Value> falseParams;
 
         Br(Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
             this.condition = condition;
@@ -61,7 +66,7 @@ public abstract sealed class Terminator {
 
         @Override
         public String toString() {
-            return "br " + condition + ", " + trueTarget.label + ", " + falseTarget.label;
+            return "br " + condition.shallowToString() + ", " + trueTarget.label + ", " + falseTarget.label;
         }
     }
 }
