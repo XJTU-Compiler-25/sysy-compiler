@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 
 public final class Module {
-    public final HashMap<String, GlobalVar> globalVars = new HashMap<>();
+    public final HashMap<String, Var> globalVars = new HashMap<>();
     public final HashMap<String, Function> functions = new HashMap<>();
 
     public Function main;
@@ -17,8 +17,8 @@ public final class Module {
         return function;
     }
 
-    public GlobalVar newGlobalVar(String name, Type type) {
-        var globalVar = new GlobalVar(name, type);
+    public Var newGlobalVar(String name, Type type) {
+        var globalVar = new Var(name, type, true);
         globalVars.put(name, globalVar);
         return globalVar;
     }
@@ -27,8 +27,7 @@ public final class Module {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("Global Variables:\n")
-                .append(globalVars.values().stream().map(it -> "@" + it.name + " : " + it.type)
-                        .collect(Collectors.joining(", ")))
+                .append(globalVars.values().stream().map(Var::shortName).collect(Collectors.joining(", ")))
                 .append("\nFunctions:\n")
                 .append(functions.values().stream().map(Function::toString).collect(Collectors.joining("\n")));
         return sb.toString();

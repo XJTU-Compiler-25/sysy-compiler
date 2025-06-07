@@ -10,19 +10,9 @@ import java.util.List;
 
 /** 声明基类 */
 public abstract sealed class Decl extends Node {
-    
-    private boolean isDead = false;
 
     public Decl(Token start, Token end) {
         super(start, end);
-    }
-
-    public void dead() {
-        isDead = true;
-    }
-
-    public boolean isDead() {
-        return isDead;
     }
 
     /** Function Definition
@@ -43,6 +33,7 @@ public abstract sealed class Decl extends Node {
         public Type retType;
         public Symbol.Func resolution;
         public SymbolTable.Local symbolTable;
+        public List<Symbol.Var> allVars;
 
         public FuncDef(Token start, Token end, String name, String retTypeName, List<VarDef> params, Stmt.Block body) {
             super(start, end);

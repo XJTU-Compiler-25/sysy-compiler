@@ -2,11 +2,8 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Terminator;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
 public abstract class ModuleVisitor extends Pass<Module> {
@@ -28,7 +25,7 @@ public abstract class ModuleVisitor extends Pass<Module> {
     }
 
     public void visit(BasicBlock block) {
-        block.instructions.forEach(this::visit);
+        block.instructions.forEach(it -> visit(it.value));
         visit(block.terminator);
     }
 
@@ -36,7 +33,7 @@ public abstract class ModuleVisitor extends Pass<Module> {
         Placeholder.pass();
     }
 
-    private void visit(Terminator terminator) {
+    private void visit(Instruction.Terminator terminator) {
         Placeholder.pass();
     }
 
