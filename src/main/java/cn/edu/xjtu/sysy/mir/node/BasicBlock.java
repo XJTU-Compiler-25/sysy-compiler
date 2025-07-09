@@ -22,7 +22,7 @@ public final class BasicBlock extends User {
     // 以下都为分析用的字段
 
     // 该块的直接支配者（支配者树上的父节点）
-    public BasicBlock dom;
+    public BasicBlock idom;
     // 支配边界
     public HashSet<BasicBlock> df;
 
