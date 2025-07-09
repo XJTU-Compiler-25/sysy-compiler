@@ -1,23 +1,36 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 
-public final class Function implements User {
+public final class Function extends User {
+    public Module module;
+
     public String name;
     public Type returnType;
     public ArrayList<BasicBlock> blocks = new ArrayList<>();
     public BasicBlock entry;
+    private int tempValueCounter = 0;
 
     // 下面都是用于分析的信息
-    public ArrayList<Use<Var>> localVars = new ArrayList<>();
+    public ArrayList<Var> localVars = new ArrayList<>();
 
-    public Function(String name, Type returnType) {
+    public Function(Module module, String name, Type returnType) {
+        super(Types.Void);
+        this.module = module;
         this.name = name;
         this.returnType = returnType;
+    }
+
+    public Module getModule() {
+        return module;
+    }
+
+    public int incTempValueCounter() {
+        return tempValueCounter++;
     }
 
     public BasicBlock addNewBlock(String label) {
@@ -40,8 +53,13 @@ public final class Function implements User {
 
     public Var addNewLocalVar(String name, Type type) {
         var localVar = new Var(name, type, false);
-        localVars.add(use(localVar));
+        localVars.add(localVar);
         return localVar;
+    }
+
+    @Override
+    public String shortName() {
+        return name;
     }
 
     @Override
@@ -49,7 +67,7 @@ public final class Function implements User {
         StringBuilder sb = new StringBuilder();
         sb.append("Function ").append(name).append("(type = ").append(returnType)
                 .append(", entryBlock = ").append(entry.label).append("):\nLocal Vars:\n")
-                .append(localVars.stream().map(it -> it.value.shortName())
+                .append(localVars.stream().map(Var::shortName)
                         .collect(Collectors.joining(", ")))
                 .append("\nBlocks:\n")
                 .append(blocks.stream().map(BasicBlock::toString)

@@ -6,24 +6,32 @@ import java.util.Set;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+
+import java.util.HashMap;
+
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
  * 建议通过 {@link InstructionHelper} 构造指令
  * 请注意整数运算指令都是 signed 的
  */
-public abstract sealed class Instruction extends Value implements User {
+@SuppressWarnings("rawtypes")
+public abstract sealed class Instruction extends User {
+    public BasicBlock block;
+
     // local label
     public final int label;
 
-    public final Set<Value> uses;
-
-    Instruction(int label, Type type) {
+    Instruction(BasicBlock block, int label, Type type) {
         super(type);
+        this.block = block;
         this.label = label;
-        uses = new HashSet<>();
     }
-    
+
+    public BasicBlock getBlock() {
+        return block;
+    }
+
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
@@ -40,13 +48,13 @@ public abstract sealed class Instruction extends Value implements User {
 
     // 检查右边的表达式是否相同
     public boolean equalRVal(Instruction other) {
-        return getClass() == other.getClass() && uses.equals(other.uses);
+        return getClass() == other.getClass() && used.equals(other.used);
     }
 
     // 基本块结束指令
     public abstract sealed static class Terminator extends Instruction {
-        Terminator() {
-            super(-1, Types.Void);
+        Terminator(BasicBlock block) {
+            super(block, -1, Types.Void);
         }
     }
 
@@ -54,7 +62,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class Ret extends Terminator {
         public Use retVal;
 
-        Ret(Value retVal) {
+        Ret(BasicBlock block, Value retVal) {
+            super(block);
             this.retVal = use(retVal);
         }
 
@@ -68,6 +77,10 @@ public abstract sealed class Instruction extends Value implements User {
      * 无值返回 return void
      */
     public static final class RetV extends Terminator {
+        RetV(BasicBlock block) {
+            super(block);
+        }
+
         @Override
         public String toString() {
             return "ret void";
@@ -77,9 +90,11 @@ public abstract sealed class Instruction extends Value implements User {
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
         public BasicBlock target;
-        public List<Use> params;
+        // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
+        public HashMap<Var, Use> params = new HashMap<>();
 
-        Jmp(BasicBlock target) {
+        Jmp(BasicBlock block, BasicBlock target) {
+            super(block);
             this.target = target;
         }
 
@@ -94,10 +109,11 @@ public abstract sealed class Instruction extends Value implements User {
         public Use condition;
         public BasicBlock trueTarget;
         public BasicBlock falseTarget;
-        public List<Use> trueParams;
-        public List<Use> falseParams;
+        public HashMap<Var, Use> trueParams = new HashMap<>();
+        public HashMap<Var, Use> falseParams = new HashMap<>();
 
-        Br(Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
+        Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block);
             this.condition = use(condition);
             this.trueTarget = trueTarget;
             this.falseTarget = falseTarget;
@@ -115,16 +131,15 @@ public abstract sealed class Instruction extends Value implements User {
         public Function function;
         public Use[] args;
 
-        // for external
-        Call(int label, Type retType, Value... args) {
-            super(label, retType);
+        Call(BasicBlock block, int label, Type retType, Value... args) {
+            super(block, label, retType);
             var argLen = args.length;
             this.args = new Use[argLen];
             for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
         }
 
-        Call(int label, Function function, Value... args) {
-            super(label, function.returnType);
+        Call(BasicBlock block, int label, Function function, Value... args) {
+            super(block, label, function.returnType);
             this.function = function;
             var argLen = args.length;
             this.args = new Use[argLen];
@@ -152,8 +167,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class Alloca extends Instruction {
         public Type allocatedType;
 
-        Alloca(int label, Type type) {
-            super(label, Types.ptrOf(type));
+        Alloca(BasicBlock block, int label, Type type) {
+            super(block, label, Types.ptrOf(type));
             this.allocatedType = type;
         }
 
@@ -166,8 +181,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class Load extends Instruction {
         public Use address;
 
-        Load(int label, Value address) {
-            super(label, ((Type.Pointer) address.type).baseType);
+        Load(BasicBlock block, int label, Value address) {
+            super(block, label, ((Type.Pointer) address.type).baseType);
             this.address = use(address);
         }
 
@@ -181,8 +196,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use address;
         public Use storeVal;
 
-        Store(Value address, Value value) {
-            super(-1, Types.Void);
+        Store(BasicBlock block, Value address, Value value) {
+            super(block, -1, Types.Void);
             this.address = use(address);
             this.storeVal = use(value);
         }
@@ -201,8 +216,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use basePtr;
         public Use[] indices;
 
-        GetElemPtr(int label, Value basePtr, Value[] indices) {
-            super(label, switch (basePtr.type) {
+        GetElemPtr(BasicBlock block, int label, Value basePtr, Value[] indices) {
+            super(block, label, switch (basePtr.type) {
                 case Type.Pointer ptr -> ptr;
                 case Type.Array array -> Types.decay(array);
                 default -> unsupported(basePtr.type);
@@ -229,8 +244,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class I2F extends Instruction {
         public Use value;
 
-        I2F(int label, Value value) {
-            super(label, Types.Float);
+        I2F(BasicBlock block, int label, Value value) {
+            super(block, label, Types.Float);
             this.value = use(value);
         }
 
@@ -246,8 +261,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class F2I extends Instruction {
         public Use value;
 
-        F2I(int label, Value value) {
-            super(label, Types.Int);
+        F2I(BasicBlock block, int label, Value value) {
+            super(block, label, Types.Int);
             this.value = use(value);
         }
 
@@ -263,8 +278,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class BitCastI2F extends Instruction {
         public Use value;
 
-        BitCastI2F(int label, Value value) {
-            super(label, Types.Float);
+        BitCastI2F(BasicBlock block, int label, Value value) {
+            super(block, label, Types.Float);
             this.value = use(value);
         }
 
@@ -280,8 +295,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class BitCastF2I extends Instruction {
         public Use value;
 
-        BitCastF2I(int label, Value value) {
-            super(label, Types.Int);
+        BitCastF2I(BasicBlock block, int label, Value value) {
+            super(block, label, Types.Int);
             this.value = use(value);
         }
 
@@ -297,8 +312,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IAdd(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IAdd(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -313,8 +328,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        ISub(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        ISub(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -329,8 +344,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IMul(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IMul(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -345,8 +360,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IDiv(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IDiv(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -361,8 +376,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IMod(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IMod(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -377,8 +392,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FAdd(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FAdd(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -393,8 +408,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FSub(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FSub(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -409,8 +424,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FMul(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FMul(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -425,8 +440,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FDiv(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FDiv(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -441,8 +456,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FMod(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FMod(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -456,8 +471,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class FNeg extends Instruction {
         public Use lhs;
 
-        FNeg(int label, Value lhs) {
-            super(label, Types.Float);
+        FNeg(BasicBlock block, int label, Value lhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
         }
 
@@ -476,8 +491,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        Shl(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        Shl(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -496,8 +511,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        Shr(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        Shr(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -515,8 +530,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        AShr(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        AShr(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -531,8 +546,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        And(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        And(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -547,8 +562,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        Or(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        Or(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -563,8 +578,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        Xor(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        Xor(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -581,8 +596,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IEq(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IEq(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -597,8 +612,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        INe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        INe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -613,8 +628,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IGt(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IGt(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -629,8 +644,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        ILt(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        ILt(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -645,8 +660,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        IGe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        IGe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -661,8 +676,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        ILe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        ILe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -677,8 +692,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FEq(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FEq(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -693,8 +708,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FNe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FNe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -709,8 +724,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FGt(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FGt(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -725,8 +740,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FLt(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FLt(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -741,8 +756,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FGe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FGe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -757,8 +772,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FLe(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
+        FLe(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Int);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -774,8 +789,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class FSqrt extends Instruction {
         public Use lhs;
 
-        FSqrt(int label, Value lhs) {
-            super(label, Types.Float);
+        FSqrt(BasicBlock block, int label, Value lhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
         }
 
@@ -788,8 +803,8 @@ public abstract sealed class Instruction extends Value implements User {
     public static final class FAbs extends Instruction {
         public Use lhs;
 
-        FAbs(int label, Value lhs) {
-            super(label, Types.Float);
+        FAbs(BasicBlock block, int label, Value lhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
         }
 
@@ -803,8 +818,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FMin(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FMin(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -819,8 +834,8 @@ public abstract sealed class Instruction extends Value implements User {
         public Use lhs;
         public Use rhs;
 
-        FMax(int label, Value lhs, Value rhs) {
-            super(label, Types.Float);
+        FMax(BasicBlock block, int label, Value lhs, Value rhs) {
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }

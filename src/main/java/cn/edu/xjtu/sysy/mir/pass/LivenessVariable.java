@@ -1,14 +1,10 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
 import java.util.HashSet;
-import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Use;
 import cn.edu.xjtu.sysy.mir.node.Value;
@@ -47,7 +43,7 @@ public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
     }
 
     private Stream<Value> gen(Use<Instruction> instr) {
-        return instr.value.uses.stream().filter(it ->
+        return instr.value.used.stream().map(it -> it.value).filter(it ->
             it instanceof Instruction || it instanceof Var
         );
     }
