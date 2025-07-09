@@ -13,6 +13,7 @@ public final class MirPassGroups {
                 EnterSSA::new,
                 EmptyBlockElimination::new,
                 StrengthReduction::new,
+                CommonSubexprElimination::new,
                 ExitSSA::new
         );
     }

@@ -1,26 +1,29 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
-import cn.edu.xjtu.sysy.util.Assertions;
-
-import java.util.List;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
  * 建议通过 {@link InstructionHelper} 构造指令
  * 请注意整数运算指令都是 signed 的
  */
-public abstract sealed class Instruction extends Value implements  User {
+public abstract sealed class Instruction extends Value implements User {
     // local label
     public final int label;
+
+    public final Set<Value> uses;
 
     Instruction(int label, Type type) {
         super(type);
         this.label = label;
+        uses = new HashSet<>();
     }
-
+    
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
@@ -29,6 +32,16 @@ public abstract sealed class Instruction extends Value implements  User {
 
     @Override
     public abstract String toString();
+
+    // 若label为-1表示没有定义
+    public boolean hasNoDef() {
+        return label == -1;
+    }
+
+    // 检查右边的表达式是否相同
+    public boolean equalRVal(Instruction other) {
+        return getClass() == other.getClass() && uses.equals(other.uses);
+    }
 
     // 基本块结束指令
     public abstract sealed static class Terminator extends Instruction {
@@ -214,16 +227,16 @@ public abstract sealed class Instruction extends Value implements  User {
      * 整数转浮点数
      */
     public static final class I2F extends Instruction {
-        public Value value;
+        public Use value;
 
         I2F(int label, Value value) {
             super(label, Types.Float);
-            this.value = value;
+            this.value = use(value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = i2f %s", this.shortName(), value.shortName());
+            return String.format("%s = i2f %s", this.shortName(), value.value.shortName());
         }
     }
 
@@ -231,16 +244,16 @@ public abstract sealed class Instruction extends Value implements  User {
      * 浮点数转整数
      */
     public static final class F2I extends Instruction {
-        public Value value;
+        public Use value;
 
         F2I(int label, Value value) {
             super(label, Types.Int);
-            this.value = value;
+            this.value = use(value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = f2i %s", this.shortName(), value.shortName());
+            return String.format("%s = f2i %s", this.shortName(), value.value.shortName());
         }
     }
 
@@ -248,16 +261,16 @@ public abstract sealed class Instruction extends Value implements  User {
      * 不实际转换地将某整数值当作浮点数
      */
     public static final class BitCastI2F extends Instruction {
-        public Value value;
+        public Use value;
 
         BitCastI2F(int label, Value value) {
             super(label, Types.Float);
-            this.value = value;
+            this.value = use(value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = i2f bitcast %s", this.shortName(), value.shortName());
+            return String.format("%s = i2f bitcast %s", this.shortName(), value.value.shortName());
         }
     }
 
@@ -265,192 +278,192 @@ public abstract sealed class Instruction extends Value implements  User {
      * 不实际转换地将某整数值当作浮点数
      */
     public static final class BitCastF2I extends Instruction {
-        public Value value;
+        public Use value;
 
         BitCastF2I(int label, Value value) {
             super(label, Types.Int);
-            this.value = value;
+            this.value = use(value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = f2i bitcast %s", this.shortName(), value.shortName());
+            return String.format("%s = f2i bitcast %s", this.shortName(), value.value.shortName());
         }
     }
 
     // 算数指令
 
     public static final class IAdd extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IAdd(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = iadd %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = iadd %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class ISub extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         ISub(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = isub %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = isub %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class IMul extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IMul(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = imul %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = imul %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class IDiv extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IDiv(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = idiv %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = idiv %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class IMod extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IMod(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = imod %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = imod %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FAdd extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FAdd(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fadd %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fadd %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FSub extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FSub(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fsub %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fsub %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FMul extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FMul(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmul %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fmul %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FDiv extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FDiv(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            super(label, Types.Float);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fdiv %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fdiv %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FMod extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FMod(int label, Value lhs, Value rhs) {
-            super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            super(label, Types.Float);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmod %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fmod %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FNeg extends Instruction {
-        public Value lhs;
+        public Use lhs;
 
         FNeg(int label, Value lhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
+            this.lhs = use(lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fneg %s", this.shortName(), lhs.shortName());
+            return String.format("%s = fneg %s", this.shortName(), lhs.value.shortName());
         }
     }
 
@@ -460,18 +473,18 @@ public abstract sealed class Instruction extends Value implements  User {
      * 左移位 shift left
      */
     public static final class Shl extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         Shl(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = shl %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = shl %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
@@ -480,18 +493,18 @@ public abstract sealed class Instruction extends Value implements  User {
      * 右移位 right shift
      */
     public static final class Shr extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         Shr(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = shr %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = shr %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
@@ -499,322 +512,322 @@ public abstract sealed class Instruction extends Value implements  User {
      * 算数右移位 arithmetic shift right
      */
     public static final class AShr extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         AShr(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = ashr %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = ashr %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class And extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         And(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = and %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = and %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class Or extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         Or(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = or %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = or %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class Xor extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         Xor(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = xor %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = xor %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     // 比较指令
 
     public static final class IEq extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IEq(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp eq %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp eq %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class INe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         INe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp ne %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp ne %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class IGt extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IGt(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp gt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp gt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class ILt extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         ILt(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp lt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp lt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class IGe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         IGe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp ge %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp ge %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class ILe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         ILe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp le %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = icmp le %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FEq extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FEq(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp eq %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp eq %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FNe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FNe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp ne %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp ne %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FGt extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FGt(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp gt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp gt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FLt extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FLt(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp lt %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp lt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FGe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FGe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp ge %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp ge %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FLe extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FLe(int label, Value lhs, Value rhs) {
             super(label, Types.Int);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp le %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fcmp le %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     // intrinsic 指令
 
     public static final class FSqrt extends Instruction {
-        public Value lhs;
+        public Use lhs;
 
         FSqrt(int label, Value lhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
+            this.lhs = use(lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fsqrt %s", this.shortName(), lhs.shortName());
+            return String.format("%s = fsqrt %s", this.shortName(), lhs.value.shortName());
         }
     }
 
     public static final class FAbs extends Instruction {
-        public Value lhs;
+        public Use lhs;
 
         FAbs(int label, Value lhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
+            this.lhs = use(lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fabs %s", this.shortName(), lhs.shortName());
+            return String.format("%s = fabs %s", this.shortName(), lhs.value.shortName());
         }
     }
 
     public static final class FMin extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FMin(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmin %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fmin %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 
     public static final class FMax extends Instruction {
-        public Value lhs;
-        public Value rhs;
+        public Use lhs;
+        public Use rhs;
 
         FMax(int label, Value lhs, Value rhs) {
             super(label, Types.Float);
-            this.lhs = lhs;
-            this.rhs = rhs;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmax %s, %s", this.shortName(), lhs.shortName(), rhs.shortName());
+            return String.format("%s = fmax %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
         }
     }
 

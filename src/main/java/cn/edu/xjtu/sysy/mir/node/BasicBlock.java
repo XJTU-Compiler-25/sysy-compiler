@@ -1,13 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static cn.edu.xjtu.sysy.util.Assertions.todo;
+import cn.edu.xjtu.sysy.symbol.Type;
 
 public final class BasicBlock implements User {
     public String label;
@@ -18,6 +16,9 @@ public final class BasicBlock implements User {
     public Instruction.Terminator terminator;
 
     // 以下都为分析用的字段
+    
+    /** 这个基本块是否属于一个size > 1的强连通分量 */
+    public boolean isStronglyConnected;
 
     // 前导块
     public HashSet<BasicBlock> pred;
@@ -36,6 +37,9 @@ public final class BasicBlock implements User {
         this.label = label;
         this.arguments = new ArrayList<>();
         this.instructions = new ArrayList<>();
+        this.pred = new HashSet<>();
+        this.succ = new HashSet<>();
+        this.isStronglyConnected = false;
     }
 
     public BlockArgument newBlockArgument(Type type) {
@@ -50,10 +54,28 @@ public final class BasicBlock implements User {
 
     public void setTerminator(Instruction.Terminator terminator) {
         this.terminator = terminator;
+        instructions.add(use(terminator));
+        switch (terminator) {
+            case Instruction.Jmp it -> {
+                this.succ.add(it.target);
+                it.target.pred.add(this);
+            }
+            case Instruction.Br it -> {
+                this.succ.add(it.trueTarget);
+                it.trueTarget.pred.add(this);
+                this.succ.add(it.falseTarget);
+                it.falseTarget.pred.add(this);
+            }
+            default -> {}
+        }
     }
 
     public List<BasicBlock> getPredBlocks() {
-        return todo();
+        return new ArrayList<>(pred);
+    }
+
+    public List<BasicBlock> getSuccBlocks() {
+        return new ArrayList<>(succ);
     }
 
     public String toString() {

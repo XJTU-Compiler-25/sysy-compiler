@@ -75,7 +75,7 @@ public final class InstructionHelper {
 
     public static Instruction add(int index, Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs, rhs));
         return switch (lType) {
             case Type.Int _ -> new Instruction.IAdd(index, lhs, rhs);
             case Type.Float _ -> new Instruction.FAdd(index, lhs, rhs);
@@ -85,7 +85,7 @@ public final class InstructionHelper {
 
     public static Instruction sub(int index, Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
         return switch (lType) {
             case Type.Int _ -> new Instruction.ISub(index, lhs, rhs);
             case Type.Float _ -> new Instruction.FSub(index, lhs, rhs);
@@ -95,7 +95,7 @@ public final class InstructionHelper {
 
     public static Instruction mul(int index, Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs, rhs));
         return switch (lType) {
             case Type.Int _ -> new Instruction.IMul(index, lhs, rhs);
             case Type.Float _ -> new Instruction.FMul(index, lhs, rhs);
@@ -105,7 +105,7 @@ public final class InstructionHelper {
 
     public static Instruction div(int index, Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
         return switch (lType) {
             case Type.Int _ -> new Instruction.IDiv(index, lhs, rhs);
             case Type.Float _ -> new Instruction.FDiv(index, lhs, rhs);
@@ -115,7 +115,7 @@ public final class InstructionHelper {
 
     public static Instruction mod(int index, Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
         return switch (lType) {
             case Type.Int _ -> new Instruction.IMod(index, lhs, rhs);
             case Type.Float _ -> new Instruction.FMod(index, lhs, rhs);

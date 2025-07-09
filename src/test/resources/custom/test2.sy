@@ -1,0 +1,11 @@
+int main() {
+  int a = 0;
+  int y = 0;
+  int z = 0;
+  y = a + 1;
+  z = a + 1;
+  a = a + 1;
+  y = a + 1;
+  z = a + 1;
+  return a;
+}

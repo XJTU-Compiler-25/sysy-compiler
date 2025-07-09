@@ -1,9 +1,10 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.function.Predicate;
+
+import cn.edu.xjtu.sysy.symbol.Type;
 
 public abstract sealed class Value permits BlockArgument, ImmediateValue, Instruction, Var {
 
@@ -24,16 +25,22 @@ public abstract sealed class Value permits BlockArgument, ImmediateValue, Instru
         return shortName();
     }
 
-    public final void addUse(Use use) {
+    public void addUse(Use use) {
         usedBy.add(use);
+        if (use.user instanceof Instruction it) {
+            it.uses.add(this);
+        }
     }
 
     public final void removeUse(Use use) {
         usedBy.remove(use);
+        if (use.user instanceof Instruction it) {
+            it.uses.remove(this);
+        }
     }
 
     public final void replaceAllUsesWith(Value newValue) {
-        usedBy.forEach(use -> {
+        new ArrayList<>(usedBy).forEach(use -> {
             var value = use.value;
             use.value = newValue;
             value.removeUse(use);
