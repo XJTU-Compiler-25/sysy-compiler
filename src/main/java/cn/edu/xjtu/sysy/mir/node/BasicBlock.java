@@ -21,6 +21,9 @@ public final class BasicBlock extends User {
 
     // 以下都为分析用的字段
 
+    /** 这个基本块是否属于一个size > 1的强连通分量 */
+    public boolean isStronglyConnected;
+
     // 该块的直接支配者（支配者树上的父节点）
     public BasicBlock idom;
     // 支配边界
@@ -32,6 +35,7 @@ public final class BasicBlock extends User {
         this.label = label;
         this.arguments = new ArrayList<>();
         this.instructions = new ArrayList<>();
+        this.isStronglyConnected = false;
     }
 
     public InstructionHelper getHelper() {

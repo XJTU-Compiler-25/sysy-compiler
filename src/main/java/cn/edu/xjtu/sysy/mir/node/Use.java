@@ -22,4 +22,8 @@ public final class Use<V extends Value> {
                 value.equals(use.value);
     }
 
+    @Override
+    public String toString() {
+        return value.toString();
+    }
 }

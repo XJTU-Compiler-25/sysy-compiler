@@ -1,5 +1,9 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
@@ -36,6 +40,16 @@ public abstract sealed class Instruction extends User {
 
     @Override
     public abstract String toString();
+
+    // 若label为-1表示没有定义
+    public boolean hasNoDef() {
+        return label == -1;
+    }
+
+    // 检查右边的表达式是否相同
+    public boolean equalRVal(Instruction other) {
+        return getClass() == other.getClass() && uses.equals(other.uses);
+    }
 
     // 基本块结束指令
     public abstract sealed static class Terminator extends Instruction {

@@ -1,0 +1,18 @@
+int main() {
+  int a = 0;
+  int y = 0;
+  int z = 0;
+  y = a;
+  y = a + 1;
+  if (y == a) {
+    z = a + 1;
+    a = a + 1;
+    y = a + 1;
+    z = a + 1;
+  } else {
+    y = a + 2;
+  }
+  z = a + 1;
+  y = a + 2;
+  return 0;
+}

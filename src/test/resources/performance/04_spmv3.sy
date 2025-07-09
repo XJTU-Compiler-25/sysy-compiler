@@ -39,7 +39,7 @@ int main(){
     starttime();
 
     int i = 0;
-    while (i < 100){
+    while (i < 10){
         spmv(n, x, y, v, a, b);
         spmv(n, x, y, v, b, a);
         i=i+1;
