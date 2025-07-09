@@ -15,7 +15,7 @@ public final class StrengthReduction extends ModuleVisitor {
         if(true) return;
 
         if (i instanceof Instruction.ILt l)
-            l.replaceAllUsesWith(InstructionHelper.gt(l.label, l.lhs, l.rhs));
+            l.replaceAllUsesWith(InstructionHelper.gt(l.label, l.lhs.value, l.rhs.value));
 
         super.visit(i);
     }

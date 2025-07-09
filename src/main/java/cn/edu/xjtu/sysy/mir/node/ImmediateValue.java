@@ -46,7 +46,7 @@ public abstract sealed class ImmediateValue extends Value {
         public float value;
 
         FloatConst(float value) {
-            super(Types.Int);
+            super(Types.Float);
             this.value = value;
         }
 

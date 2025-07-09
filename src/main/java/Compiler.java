@@ -14,6 +14,7 @@ import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
@@ -54,12 +55,18 @@ public class Compiler {
             return;
         }
         var pp = new AstPrettyPrinter();
-        pp.visit(compUnit);
+        //pp.visit(compUnit);
 
         MirBuilder mirBuilder = new MirBuilder(em);
         Module mir = mirBuilder.build(compUnit);
+        //System.out.println(mir);
+        MirPassGroups.makePassGroup(em).process(mir);
+        if (em.hasErr()) {
+            em.printErrs();
+            return;
+        }
+        System.out.println(mir);
 
-        em.printErrs();
         var calc = new StackCalculator();
         calc.visit(compUnit);
         var asm = new RiscVWriter();
@@ -68,7 +75,7 @@ public class Compiler {
         
         asm.emitAll();
         var riscVCode = asm.toString();
-        System.out.println(riscVCode);
+        //System.out.println(riscVCode);
         File out = new File(output);
         if (out.exists()) {
             out.delete();

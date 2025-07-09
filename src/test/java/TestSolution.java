@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -81,8 +82,10 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
-                            MirPassGroups.makePassGroup(em).process(module);
-                            System.out.println(module.toString());
+                            Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+                                MirPassGroups.makePassGroup(em).process(module);
+                            });
+                            //System.out.println(module.toString());
 
                             String riscVCode = CompileToRiscV(ast);
                             File out = new File(f.getParent(), f.getName() + ".s");
