@@ -48,7 +48,7 @@ public abstract sealed class Instruction extends User {
 
     // 检查右边的表达式是否相同
     public boolean equalRVal(Instruction other) {
-        return getClass() == other.getClass() && uses.equals(other.uses);
+        return getClass() == other.getClass() && used.equals(other.used);
     }
 
     // 基本块结束指令

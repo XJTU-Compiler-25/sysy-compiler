@@ -8,15 +8,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Basic Block 最终继承了 Value 是希望借助 Value 的 Def-Use 去便利地收集 pred 和 succ blocks
+ * Basic Block 继承 Value 可以借助 Value 的 Def-Use 去便利地收集 pred 和 succ blocks
  */
-public final class BasicBlock extends User {
+public final class BasicBlock extends Value {
     public String label;
 
     private final InstructionHelper helper = new InstructionHelper(this);
     private final Function function;
-    public ArrayList<Use<Var>> arguments;
-    public ArrayList<Use<Instruction>> instructions;
+    public ArrayList<Instruction> instructions;
     public Instruction.Terminator terminator;
 
     // 以下都为分析用的字段
@@ -33,7 +32,6 @@ public final class BasicBlock extends User {
         super(Types.Void);
         this.function = function;
         this.label = label;
-        this.arguments = new ArrayList<>();
         this.instructions = new ArrayList<>();
         this.isStronglyConnected = false;
     }
@@ -47,7 +45,7 @@ public final class BasicBlock extends User {
     }
 
     public void addInstruction(Instruction instruction) {
-        instructions.add(use(instruction));
+        instructions.add(instruction);
     }
 
     public void setTerminator(Instruction.Terminator terminator) {
@@ -61,10 +59,8 @@ public final class BasicBlock extends User {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append('$').append(label).append('(')
-                .append(arguments.stream().map(it -> it.value.toString())
-                        .collect(Collectors.joining(", "))).append("):\n")
-                .append(instructions.stream().map(it -> it.value.toString() + "\n")
+        sb.append('$').append(label).append(':')
+                .append(instructions.stream().map(it -> it.toString() + "\n")
                         .collect(Collectors.joining()));
         if (terminator != null) sb.append(terminator.toString());
         return sb.toString();

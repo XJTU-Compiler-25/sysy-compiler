@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.function.Predicate;
 
 @SuppressWarnings("rawtypes")
-public abstract sealed class Value permits ImmediateValue, User, Var {
+public abstract sealed class Value permits BasicBlock, ImmediateValue, User, Var {
 
     public Type type;
     public final HashSet<Use> usedBy = new HashSet<>();

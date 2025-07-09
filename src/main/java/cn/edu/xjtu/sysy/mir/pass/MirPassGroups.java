@@ -11,6 +11,7 @@ public final class MirPassGroups {
     public static PassGroup<Module> makePassGroup(ErrManager em) {
         return new PassGroup<>(em,
                 DominanceAnalysis::new,
+                LivenessVariable::new,
                 EnterSSA::new,
                 EmptyBlockElimination::new,
                 StrengthReduction::new,
