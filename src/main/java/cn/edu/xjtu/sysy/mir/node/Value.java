@@ -5,7 +5,8 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import java.util.HashSet;
 import java.util.function.Predicate;
 
-public abstract sealed class Value permits BlockArgument, ImmediateValue, Instruction, Var {
+@SuppressWarnings("rawtypes")
+public abstract sealed class Value permits ImmediateValue, User, Var {
 
     public Type type;
     public final HashSet<Use> usedBy = new HashSet<>();
@@ -34,18 +35,16 @@ public abstract sealed class Value permits BlockArgument, ImmediateValue, Instru
 
     public final void replaceAllUsesWith(Value newValue) {
         usedBy.forEach(use -> {
-            var value = use.value;
+            use.value.removeUse(use);
             use.value = newValue;
-            value.removeUse(use);
             newValue.addUse(use);
         });
     }
 
     public final void replaceAllUsesWithIf(Value newValue, Predicate<Use> predicate) {
         usedBy.stream().filter(predicate).forEach(use -> {
-            var value = use.value;
+            use.value.removeUse(use);
             use.value = newValue;
-            value.removeUse(use);
             newValue.addUse(use);
         });
     }

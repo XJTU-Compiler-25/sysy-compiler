@@ -56,6 +56,17 @@ public abstract sealed class ImmediateValue extends Value {
         }
     }
 
+    public static final class Undefined extends ImmediateValue {
+        Undefined() {
+            super(Types.Void);
+        }
+
+        @Override
+        String buildStringRepresent() {
+            return "undef";
+        }
+    }
+
     public static final class ZeroInit extends ImmediateValue {
         ZeroInit() {
             super(Types.Void);

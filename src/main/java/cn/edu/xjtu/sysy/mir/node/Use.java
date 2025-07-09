@@ -17,7 +17,7 @@ public final class Use<V extends Value> {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof Use use &&
+        return obj instanceof Use<?> use &&
                 user.equals(use.user) &&
                 value.equals(use.value);
     }

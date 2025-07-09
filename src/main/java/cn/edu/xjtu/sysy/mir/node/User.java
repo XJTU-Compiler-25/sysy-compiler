@@ -1,8 +1,14 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-public sealed interface User permits BasicBlock, Function, Instruction {
+import cn.edu.xjtu.sysy.symbol.Type;
 
-    default Use use(Value value) {
+public sealed abstract class User extends Value permits BasicBlock, Function, Instruction {
+
+    public User(Type type) {
+        super(type);
+    }
+
+    public <V extends Value> Use<V> use(V value) {
         var use = new Use<>(this, value);
         value.addUse(use);
         return use;

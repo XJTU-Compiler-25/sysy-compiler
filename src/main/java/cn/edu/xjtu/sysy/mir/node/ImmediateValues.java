@@ -2,8 +2,6 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 
-import static cn.edu.xjtu.sysy.util.Assertions.todo;
-
 public final class ImmediateValues {
 
     private ImmediateValues() {}
@@ -31,7 +29,8 @@ public final class ImmediateValues {
         else return new ImmediateValue.FloatConst(value);
     }
 
-    public static ImmediateValue.ZeroInit ZeroInit = new ImmediateValue.ZeroInit();
+    public static final ImmediateValue.Undefined Undefined = new ImmediateValue.Undefined();
+    public static final ImmediateValue.ZeroInit ZeroInit = new ImmediateValue.ZeroInit();
 
     public static ImmediateValue.SparseArrayInit sparseArrayOf(Type type, int[] indexes, Value[] values) {
         return new ImmediateValue.SparseArrayInit(type, indexes, values);
