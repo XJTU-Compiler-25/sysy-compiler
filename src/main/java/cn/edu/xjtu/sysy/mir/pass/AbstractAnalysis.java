@@ -180,7 +180,6 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         T in = flowBeforeBlock.get(b);
         T out = flowAfterBlock.get(b);
         if (b.isStronglyConnected) {
-            System.out.println(b);
             T newOut = initial();
             flowThrough(b, in, newOut);
             if (newOut.equals(out)) {
@@ -212,14 +211,17 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     public void visit(Function function) {
         var blocks = direction.getOrderedBlocks(function.blocks);
         init(blocks);
-        Queue<BasicBlock> worklist = new ArrayDeque<>();
-        worklist.add(blocks.getFirst());
+        Queue<BasicBlock> worklist = new ArrayDeque<>(blocks);
+        Set<BasicBlock> inWorklist = new HashSet<>(blocks);
         while (!worklist.isEmpty()) {
             var e = worklist.poll();
+            inWorklist.remove(e);
             meet(e);
             boolean changed = flowThrough(e);
             if (changed) {
-                worklist.addAll(direction.getSuccBlocksOf(e));
+                for (var succ : direction.getSuccBlocksOf(e)) {
+                    if (inWorklist.add(e)) worklist.add(succ);
+                }
             }
         }
     }
@@ -229,8 +231,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     }
 
     public void printResult(Function function) {
-        var blocks = direction.getOrderedBlocks(function.blocks);
-        for (var block : blocks) {
+        for (var block : function.blocks) {
             System.out.println("%s:".formatted(block.label));
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));

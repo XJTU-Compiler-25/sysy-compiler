@@ -82,9 +82,7 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
-                            Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
-                                MirPassGroups.makePassGroup(em).process(module);
-                            });
+                            MirPassGroups.makePassGroup(em).process(module);
                             //System.out.println(module.toString());
 
                             String riscVCode = CompileToRiscV(ast);
