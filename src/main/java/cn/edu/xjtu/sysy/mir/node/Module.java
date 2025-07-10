@@ -12,7 +12,7 @@ public final class Module {
     public Function main;
 
     public Function newFunction(String name, Type retType) {
-        Function function = new Function(name, retType);
+        Function function = new Function(this, name, retType);
         functions.put(name, function);
         return function;
     }

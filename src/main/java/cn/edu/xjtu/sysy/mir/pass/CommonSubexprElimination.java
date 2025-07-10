@@ -26,9 +26,9 @@ public class CommonSubexprElimination extends ModuleVisitor {
     public void visit(BasicBlock block) {
         for (var instr : block.instructions) {
             try {
-                var in = analysis.getFlowBefore(instr);
-                var other = in.stream().filter(o -> instr.value.equalRVal(o.value)).findFirst().get();
-                instr.value.replaceAllUsesWithIf(other.value, use -> use.user instanceof Instruction);
+                var in = analysis.getFlowBefore(instr.getBlock());
+                var other = in.stream().filter(o -> instr.equalRVal(o.value)).findFirst().get();
+                instr.replaceAllUsesWithIf(other.value, use -> use.user instanceof Instruction);
             } catch (NoSuchElementException e) { 
                 // 不存在相同的表达式的情况，跳过
             }

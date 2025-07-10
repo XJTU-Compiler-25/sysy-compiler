@@ -1,12 +1,12 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import java.util.ArrayList;
+import cn.edu.xjtu.sysy.symbol.Type;
+
 import java.util.HashSet;
 import java.util.function.Predicate;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-
-public abstract sealed class Value permits BlockArgument, ImmediateValue, Instruction, Var {
+@SuppressWarnings("rawtypes")
+public abstract sealed class Value permits BasicBlock, ImmediateValue, User, Var {
 
     public Type type;
     public final HashSet<Use> usedBy = new HashSet<>();
@@ -25,34 +25,26 @@ public abstract sealed class Value permits BlockArgument, ImmediateValue, Instru
         return shortName();
     }
 
-    public void addUse(Use use) {
+    public final void addUse(Use use) {
         usedBy.add(use);
-        if (use.user instanceof Instruction it) {
-            it.uses.add(this);
-        }
     }
 
     public final void removeUse(Use use) {
         usedBy.remove(use);
-        if (use.user instanceof Instruction it) {
-            it.uses.remove(this);
-        }
     }
 
     public final void replaceAllUsesWith(Value newValue) {
-        new ArrayList<>(usedBy).forEach(use -> {
-            var value = use.value;
+        usedBy.forEach(use -> {
+            use.value.removeUse(use);
             use.value = newValue;
-            value.removeUse(use);
             newValue.addUse(use);
         });
     }
 
     public final void replaceAllUsesWithIf(Value newValue, Predicate<Use> predicate) {
         usedBy.stream().filter(predicate).forEach(use -> {
-            var value = use.value;
+            use.value.removeUse(use);
             use.value = newValue;
-            value.removeUse(use);
             newValue.addUse(use);
         });
     }

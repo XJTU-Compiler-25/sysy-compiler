@@ -25,7 +25,7 @@ public abstract class ModuleVisitor extends Pass<Module> {
     }
 
     public void visit(BasicBlock block) {
-        block.instructions.forEach(it -> visit(it.value));
+        block.instructions.forEach(this::visit);
         visit(block.terminator);
     }
 

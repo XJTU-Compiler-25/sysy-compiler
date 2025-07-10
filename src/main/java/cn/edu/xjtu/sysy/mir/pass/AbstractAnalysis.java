@@ -38,7 +38,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
 
             @Override
-            public List<Use<Instruction>> getOrderedInstrs(List<Use<Instruction>> instrs) {
+            public List<Instruction> getOrderedInstrs(List<Instruction> instrs) {
                 return instrs;
             }
         },
@@ -60,7 +60,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
 
             @Override
-            public List<Use<Instruction>> getOrderedInstrs(List<Use<Instruction>> instrs) {
+            public List<Instruction> getOrderedInstrs(List<Instruction> instrs) {
                 return instrs.reversed();
             }
         };
@@ -68,7 +68,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         public abstract List<BasicBlock> getSuccBlocksOf(BasicBlock block);
         public abstract List<BasicBlock> getPredBlocksOf(BasicBlock block);
         public abstract List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks); 
-        public abstract List<Use<Instruction>> getOrderedInstrs(List<Use<Instruction>> instrs);
+        public abstract List<Instruction> getOrderedInstrs(List<Instruction> instrs);
 
         private static List<BasicBlock> topoSort(List<BasicBlock> cfg) {
             List<BasicBlock> result = new ArrayList<>();
@@ -114,8 +114,8 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         }
     }
 
-    protected final Map<Use<Instruction>, T> flowBeforeInstr;
-    protected final Map<Use<Instruction>, T> flowAfterInstr;
+    protected final Map<Instruction, T> flowBeforeInstr;
+    protected final Map<Instruction, T> flowAfterInstr;
     protected final Map<BasicBlock, T> flowBeforeBlock;
     protected final Map<BasicBlock, T> flowAfterBlock;
     protected final AnalysisDirection direction;
@@ -209,7 +209,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         var outFlow = initial();
         for (var instr : instrs) {
             flowBeforeInstr.put(instr, inFlow);
-            flowThrough(instr, inFlow, outFlow);
+            flowThrough(instr.getBlock(), inFlow, outFlow);
             flowAfterInstr.put(instr, outFlow);
 
             inFlow = outFlow;

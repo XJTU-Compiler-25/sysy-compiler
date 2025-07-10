@@ -46,11 +46,6 @@ public final class MirBuilder implements ErrManaged {
     // current building basic block
     private BasicBlock curBB;
 
-    private int valueCount;
-    private int nextIndex() {
-        return valueCount++;
-    }
-
     private ArrayDeque<BasicBlock> loopBlocks = new ArrayDeque<>();
     private ArrayDeque<BasicBlock> loopExits = new ArrayDeque<>();
 
@@ -84,17 +79,18 @@ public final class MirBuilder implements ErrManaged {
             if (funcDef.resolution.name.equals("main")) {
                 var main = funcDef.resolution.address;
                 var globalInitBB = main.newBlock("init-globals");
+                var helper = globalInitBB.getHelper();
                 for (var varDef : globals) {
                     var globalVar = varDef.resolution.address;
                     // 若没有初始化表达式，则自动使用零初始化
                     var initExpr = varDef.init;
                     var initInstruction = initExpr == null ?
-                            store(globalVar, ZeroInit)
-                            : store(globalVar, visit(initExpr));
+                            helper.store(globalVar, ZeroInit)
+                            : helper.store(globalVar, visit(initExpr));
                     globalInitBB.addInstruction(initInstruction);
                 }
 
-                globalInitBB.setTerminator(jmp(main.entry));
+                globalInitBB.setTerminator(helper.jmp(main.entry));
                 main.entry = globalInitBB;
                 main.blocks.addFirst(globalInitBB);
             }
@@ -104,8 +100,6 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Decl.FuncDef node) {
-        valueCount = 0;
-
         var symbol = node.resolution;
 
         var func = curMod.newFunction(symbol.name, symbol.funcType);
@@ -117,11 +111,7 @@ public final class MirBuilder implements ErrManaged {
         func.entry = entryBB;
         curBB = entryBB;
 
-        for (var arg : symbol.params) {
-            // 函数的参数就是入口基本块的参数
-            arg.address = entryBB.newBlockArgument(arg.type);
-        }
-
+        for (var arg : symbol.params) arg.address = func.addNewLocalVar(arg.name, arg.type);
         for (var var : node.allVars) var.address = curFunc.addNewLocalVar(var.name, var.type);
 
         visit(node.body);
@@ -145,11 +135,12 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.LocalVarDef node) {
+        var helper = curBB.getHelper();
         for (var varDef : node.varDefs) {
             // 若没有初始化表达式，则自动使用零初始化
             var initExpr = varDef.init;
             if (initExpr != null) {
-                var initInstruction = store(varDef.resolution.address, visit(initExpr));
+                var initInstruction = helper.store(varDef.resolution.address, visit(initExpr));
                 curBB.addInstruction(initInstruction);
             }
         }
@@ -167,18 +158,20 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.Return node) {
+        var helper = curBB.getHelper();
         var retVal = node.value;
-        curBB.setTerminator(retVal == null ? ret() : ret(visit(retVal)));
+        curBB.setTerminator(retVal == null ? helper.ret() : helper.ret(visit(retVal)));
     }
 
     public void visit(Stmt.Assign node) {
+        var helper = curBB.getHelper();
         var target = node.target;
         var value = node.value;
 
         switch (target) {
             case Expr.VarAccess varAccess -> {
                 var symbol = varAccess.resolution;
-                curBB.addInstruction(store(symbol.address, visit(value)));
+                curBB.addInstruction(helper.store(symbol.address, visit(value)));
             }
             case Expr.IndexAccess indexAccess -> {
                 var symbol = indexAccess.lhs.resolution;
@@ -186,11 +179,11 @@ public final class MirBuilder implements ErrManaged {
                 var indexSize = indexes.size();
                 var indices = new Value[indexSize];
                 for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
-                var arr = load(nextIndex(), symbol.address);
+                var arr = helper.load(symbol.address);
                 curBB.addInstruction(arr);
-                var getPtr = getElementPtr(nextIndex(), arr, indices);
+                var getPtr = helper.getElementPtr(arr, indices);
                 curBB.addInstruction(getPtr);
-                var store = store(getPtr, visit(value));
+                var store = helper.store(getPtr, visit(value));
                 curBB.addInstruction(store);
             }
             default -> unsupported(target);
@@ -202,6 +195,7 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.If node) {
+        var helper = curBB.getHelper();
         var curLabel = curBB.label;
 
         var condVal = visit(node.cond);
@@ -210,22 +204,22 @@ public final class MirBuilder implements ErrManaged {
 
         var elseStmt = node.elseStmt;
         if (elseStmt == Stmt.Empty.INSTANCE) {
-            curBB.setTerminator(br(condVal, thenBB, mergeBB));
+            curBB.setTerminator(helper.br(condVal, thenBB, mergeBB));
 
             curBB = thenBB;
             visit(node.thenStmt);
-            if (curBB.terminator == null) curBB.setTerminator(jmp(mergeBB));
+            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
         } else {
             var elseBB = curFunc.addNewBlock("%s.if-else".formatted(curLabel));
-            curBB.setTerminator(br(condVal, thenBB, elseBB));
+            curBB.setTerminator(helper.br(condVal, thenBB, elseBB));
 
             curBB = thenBB;
             visit(node.thenStmt);
-            if (curBB.terminator == null) curBB.setTerminator(jmp(mergeBB));
+            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
 
             curBB = elseBB;
             visit(elseStmt);
-            if (curBB.terminator == null) curBB.setTerminator(jmp(mergeBB));
+            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
         }
 
         curFunc.addBlock(mergeBB);
@@ -233,20 +227,21 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.While node) {
+        var helper = curBB.getHelper();
         var curLabel = curBB.label;
 
         var condVal = visit(node.cond);
         var loopBB = curFunc.addNewBlock("%s.while-body".formatted(curLabel));
         var mergeBB = curFunc.newBlock("%s.while-merge".formatted(curLabel));
 
-        curBB.setTerminator(br(condVal, loopBB, mergeBB));
+        curBB.setTerminator(helper.br(condVal, loopBB, mergeBB));
 
         loopBlocks.addLast(loopBB);
         loopExits.addLast(mergeBB);
 
         curBB = loopBB;
         visit(node.body);
-        if (curBB.terminator == null) curBB.setTerminator(br(condVal, loopBB, mergeBB));
+        if (curBB.terminator == null) curBB.setTerminator(helper.br(condVal, loopBB, mergeBB));
 
         loopBlocks.removeLast();
         loopExits.removeLast();
@@ -256,23 +251,25 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.Break node) {
+        var helper = curBB.getHelper();
         if (loopExits.isEmpty()) {
             err("break statement not in loop");
             return;
         }
 
         var exitBB = loopExits.getLast();
-        curBB.setTerminator(jmp(exitBB));
+        curBB.setTerminator(helper.jmp(exitBB));
     }
 
     public void visit(Stmt.Continue node) {
+        var helper = curBB.getHelper();
         if (loopBlocks.isEmpty()) {
             err("continue statement not in loop");
             return;
         }
 
         var loopBB = loopBlocks.getLast();
-        curBB.setTerminator(jmp(loopBB));
+        curBB.setTerminator(helper.jmp(loopBB));
     }
 
     public Value visit(Expr node) {
@@ -290,24 +287,25 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Binary node) {
+        var helper = curBB.getHelper();
         var lhs = visit(node.lhs);
         var rhs = visit(node.rhs);
         var instr = switch (node.op) {
-            case ADD -> add(nextIndex(), lhs, rhs);
-            case SUB -> sub(nextIndex(), lhs, rhs);
-            case MUL -> mul(nextIndex(), lhs, rhs);
-            case DIV -> div(nextIndex(), lhs, rhs);
-            case MOD -> mod(nextIndex(), lhs, rhs);
+            case ADD -> helper.add(lhs, rhs);
+            case SUB -> helper.sub(lhs, rhs);
+            case MUL -> helper.mul(lhs, rhs);
+            case DIV -> helper.div(lhs, rhs);
+            case MOD -> helper.mod(lhs, rhs);
 
-            case EQ -> eq(nextIndex(), lhs, rhs);
-            case NE -> ne(nextIndex(), lhs, rhs);
-            case GT -> gt(nextIndex(), lhs, rhs);
-            case GE -> ge(nextIndex(), lhs, rhs);
-            case LT -> lt(nextIndex(), lhs, rhs);
-            case LE -> le(nextIndex(), lhs, rhs);
+            case EQ -> helper.eq(lhs, rhs);
+            case NE -> helper.ne(lhs, rhs);
+            case GT -> helper.gt(lhs, rhs);
+            case GE -> helper.ge(lhs, rhs);
+            case LT -> helper.lt(lhs, rhs);
+            case LE -> helper.le(lhs, rhs);
 
-            case AND -> and(nextIndex(), lhs, rhs);
-            case OR -> or(nextIndex(), lhs, rhs);
+            case AND -> helper.and(lhs, rhs);
+            case OR -> helper.or(lhs, rhs);
             default -> (Instruction) unsupported(node.op);
         };
         curBB.addInstruction(instr);
@@ -315,12 +313,13 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Unary node) {
+        var helper = curBB.getHelper();
         var rhs = visit(node.rhs);
         if (node.op == Expr.Operator.ADD) return rhs;
 
         var instr = switch (node.op) {
-            case SUB -> neg(nextIndex(), rhs);
-            case NOT -> not(nextIndex(), rhs);
+            case SUB -> helper.neg(rhs);
+            case NOT -> helper.not(rhs);
             default -> (Instruction) unsupported(node.op);
         };
         curBB.addInstruction(instr);
@@ -328,11 +327,12 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Call node) {
+        var helper = curBB.getHelper();
         var symbol = node.resolution;
         var args = new Value[node.args.size()];
         for (int i = 0; i < node.args.size(); i++) args[i] = visit(node.args.get(i));
-        var call = symbol.isExternal ? callExternal(nextIndex(), symbol.funcType.returnType, args)
-                : call(nextIndex(), symbol.address, args);
+        var call = symbol.isExternal ? helper.callExternal(symbol.funcType.returnType, args)
+                : helper.call(symbol.address, args);
         curBB.addInstruction(call);
         return call;
     }
@@ -345,15 +345,17 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.VarAccess node) {
+        var helper = curBB.getHelper();
         var symbol = node.resolution;
 
-        var load = load(nextIndex(), symbol.address);
+        var load = helper.load(symbol.address);
         curBB.addInstruction(load);
 
         return load;
     }
 
     public Value visit(Expr.IndexAccess node) {
+        var helper = curBB.getHelper();
         var symbol = node.lhs.resolution;
         var indexes = node.indexes;
         var indexSize = indexes.size();
@@ -361,14 +363,14 @@ public final class MirBuilder implements ErrManaged {
         for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
 
         // 先要取 “变量类型的值” 指向的 “数组类型的值”
-        var arr = load(nextIndex(), symbol.address);
+        var arr = helper.load(symbol.address);
         curBB.addInstruction(arr);
 
         // 再计算 indices 偏移
-        var elementPtr = getElementPtr(nextIndex(), arr, indices);
+        var elementPtr = helper.getElementPtr(arr, indices);
         curBB.addInstruction(elementPtr);
 
-        var load = load(nextIndex(), elementPtr);
+        var load = helper.load(elementPtr);
         curBB.addInstruction(load);
 
         return load;
@@ -394,13 +396,14 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Cast node) {
+        var helper = curBB.getHelper();
         var value = visit(node.value);
         if (node.toType == Types.Int) {
-            var f2i = f2i(nextIndex(), value);
+            var f2i = helper.f2i(value);
             curBB.addInstruction(f2i);
             return f2i;
         } else if (node.toType == Types.Float) {
-            var i2f = i2f(nextIndex(), value);
+            var i2f = helper.i2f(value);
             curBB.addInstruction(i2f);
             return i2f;
         }
