@@ -80,6 +80,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             return result;
         }
         
+        //* tarjan算法求解强连通分量 */
         private static void dfs(BasicBlock block,
                             Map<BasicBlock, Integer> dfn, Map<BasicBlock, Integer> low, 
                             Stack<BasicBlock> stack, List<BasicBlock> result) {                
@@ -88,6 +89,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             stack.push(block);
             result.add(block);                    
             for (BasicBlock succ : block.getSuccBlocks()) {
+                // 自环的情况
                 if (succ.equals(block)) {
                     block.isStronglyConnected = true;
                 }
@@ -100,7 +102,9 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
             if (dfn.get(block).equals(low.get(block))) {
                 var v = stack.pop();
+                // 如果是大小为1的强连通分量，忽略它
                 if (v.equals(block)) return;
+                // 否则进行标记（存在循环）
                 v.isStronglyConnected = true;
                 while (!v.equals(block)) {
                     v = stack.pop();
@@ -115,8 +119,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     protected final Map<BasicBlock, T> flowBeforeBlock;
     protected final Map<BasicBlock, T> flowAfterBlock;
     protected final AnalysisDirection direction;
-    
-    
+
     public AbstractAnalysis(ErrManager errManager, AnalysisDirection direction) {
         super(errManager);
         this.direction = direction;
@@ -142,14 +145,19 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         return flowAfterInstr.get(instr);
     }
 
+    /** 初始情况，也就是格的下界 */
     protected abstract T initial();
 
+    /** 拷贝，将src的值拷贝到dst */
     protected abstract void copy(T dst, T src);
 
+    /** 合并，在控制流交汇的地方选择取交或者取并 */
     protected abstract void merge(T dst, T src1, T src2);
 
+    /** 单条语句的转换函数 */
     protected abstract void flowThrough(Use<Instruction> instr, T in, T out);
 
+    /** 初始化每个基本块 */
     protected void init(List<BasicBlock> blocks) {
         for (var b : blocks) {
             flowBeforeBlock.put(b, initial());
@@ -157,6 +165,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         }
     }
 
+    /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
     protected void meet(BasicBlock block) {
         var inBlocks = direction.getPredBlocksOf(block);
         if (inBlocks.isEmpty()) return;
@@ -176,6 +185,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         }
     }
 
+    /** 处理基本块 */
     protected boolean flowThrough(BasicBlock b) {
         T in = flowBeforeBlock.get(b);
         T out = flowAfterBlock.get(b);
@@ -192,6 +202,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         return true;
     }
 
+    /** 基本块的转换函数 */
     protected void flowThrough(BasicBlock b, T in, T out) {
         var instrs = direction.getOrderedInstrs(b.instructions);
         var inFlow = in;
@@ -220,6 +231,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             boolean changed = flowThrough(e);
             if (changed) {
                 for (var succ : direction.getSuccBlocksOf(e)) {
+                    // 如果不在worklist里，添加到worklist
                     if (inWorklist.add(e)) worklist.add(succ);
                 }
             }
