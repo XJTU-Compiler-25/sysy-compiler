@@ -15,7 +15,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 /** 计算栈帧大小以及每个变量在栈帧的相对位置 */
 public class StackCalculator extends AstVisitor {
     SymbolTable currentST = null;
-    Symbol.Func currentFunc = null;
+    Symbol.FuncSymbol currentFunc = null;
     int currentMx = 0;
     
     public StackCalculator() {
@@ -83,7 +83,7 @@ public class StackCalculator extends AstVisitor {
     public int visit(Stmt.Assign node, int nt) {
         updateMax(nt);
         visit(node.target, nt);
-        visit(node.value, Symbol.Func.align(nt, 8) + 16);
+        visit(node.value, Symbol.FuncSymbol.align(nt, 8) + 16);
         return nt;
     }
 
@@ -134,6 +134,7 @@ public class StackCalculator extends AstVisitor {
             case Expr.Literal _ -> nt;
             case Expr.Unary it -> visit(it, nt);
             case Expr.Cast it -> visit(it, nt);
+            case Expr.Decay it -> visit(it, nt);
             default -> unreachable();
         };
     }
@@ -175,7 +176,7 @@ public class StackCalculator extends AstVisitor {
         for (var arg : node.args) {
             visit(arg, m);
             if (arg.type instanceof Type.Int || arg.type instanceof Type.Float) m += 4;
-            else m = Symbol.Func.align(m, 8) + 16;
+            else m = Symbol.FuncSymbol.align(m, 8) + 16;
         }
         return nt;
     }
@@ -195,13 +196,19 @@ public class StackCalculator extends AstVisitor {
         visit(node.indexes.get(0), nt+4);
         if (node.indexes.size() > 1) {
             for (int i = 1; i < node.indexes.size(); i++) {
-                visit(node.indexes.get(i), Symbol.Func.align(nt+4, 8) + 16);
+                visit(node.indexes.get(i), Symbol.FuncSymbol.align(nt+4, 8) + 16);
             }
         }
         return nt;
     }
 
     public int visit(Expr.Cast node, int nt) {
+        updateMax(nt);
+        visit(node.value, nt);
+        return nt;
+    }
+
+    public int visit(Expr.Decay node, int nt) {
         updateMax(nt);
         visit(node.value, nt);
         return nt;

@@ -73,7 +73,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         for (var node : ctx.children) {
             switch (node) {
                 case VarDefsContext decl ->
-                        decls.addAll(this.visitVarDefs(decl, Symbol.Var.Kind.GLOBAL));
+                        decls.addAll(this.visitVarDefs(decl, true));
                 case FuncDefContext funcDef -> decls.add(visitFuncDef(funcDef));
                 default -> Placeholder.pass();
             }
@@ -82,43 +82,42 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         return new CompUnit(ctx.getStart(), ctx.getStop(), decls);
     }
 
-    public List<Decl.VarDef> visitVarDefs(VarDefsContext ctx, Symbol.Var.Kind kind) {
+    public List<Decl.VarDef> visitVarDefs(VarDefsContext ctx, boolean isGlobal) {
         return switch (ctx) {
             case SysYParser.ConstVarDefsContext cv ->
                     cv.varDef().stream()
-                            .map(it -> visitVarDef(it, kind, cv.type.getText(), true))
+                            .map(it -> visitVarDef(it, isGlobal, cv.type.getText(), true))
                             .collect(Collectors.toList());
             case SysYParser.NormalVarDefsContext nv ->
                     nv.varDef().stream()
-                            .map(it -> visitVarDef(it, kind, nv.type.getText(), false))
+                            .map(it -> visitVarDef(it, isGlobal, nv.type.getText(), false))
                             .collect(Collectors.toList());
             default -> throw new IllegalStateException("Unexpected value: " + ctx);
         };
     }
 
     public Decl.VarDef visitVarDef(
-            SysYParser.VarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+            SysYParser.VarDefContext ctx, boolean isGlobal, String baseType, boolean isConst) {
         return switch (ctx) {
             case ScalarVarDefContext scalarVar ->
-                    visitScalarVarDef(scalarVar, kind, baseType, isConst);
-            case ArrayVarDefContext arrayVar -> visitArrayVarDef(arrayVar, kind, baseType, isConst);
+                    visitScalarVarDef(scalarVar, isGlobal, baseType, isConst);
+            case ArrayVarDefContext arrayVar -> visitArrayVarDef(arrayVar, isGlobal, baseType, isConst);
             default -> unreachable();
         };
     }
 
     public Decl.VarDef visitScalarVarDef(
-            ScalarVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+            ScalarVarDefContext ctx, boolean isGlobal, String baseType, boolean isConst) {
         String name = ctx.name.getText();
 
         Expr exp = null;
         var init = ctx.initVal;
         if (init != null) exp = visitExp(init);
 
-        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), kind, name, baseType, isConst, exp);
+        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), name, isGlobal, baseType, isConst, exp);
     }
 
-    public Decl.VarDef visitArrayVarDef(
-            ArrayVarDefContext ctx, Symbol.Var.Kind kind, String baseType, boolean isConst) {
+    public Decl.VarDef visitArrayVarDef(ArrayVarDefContext ctx, boolean isGlobal, String baseType, boolean isConst) {
         String name = ctx.name.getText();
         List<Expr> dimensions = ctx.exp().stream().map(this::visitExp).collect(Collectors.toList());
 
@@ -130,8 +129,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
             if (literalInit != null) exp = visitArrayLiteralExp(literalInit);
         }
 
-        return new Decl.VarDef(
-                ctx.getStart(), ctx.getStop(), kind, name, baseType, dimensions, isConst, exp);
+        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), name, isGlobal, baseType, dimensions, isConst, exp);
     }
 
     /**
@@ -157,15 +155,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
         List<Expr> dimensions = ctx.exp().stream().map(this::visitExp).collect(Collectors.toList());
         // 有空第一维，在最前加上 -1 项
         if (ctx.emptyDim != null) dimensions.addFirst(new Expr.Literal(null, null, -1));
-        return new Decl.VarDef(
-                ctx.getStart(),
-                ctx.getStop(),
-                Symbol.Var.Kind.LOCAL,
-                name,
-                type,
-                dimensions,
-                false,
-                null);
+        return new Decl.VarDef(ctx.getStart(), ctx.getStop(), name, false, type, dimensions, false, null);
     }
 
     @Override
@@ -197,8 +187,7 @@ public final class AstBuilder extends SysYBaseVisitor<Node> implements ErrManage
 
     @Override
     public Stmt.LocalVarDef visitVarDefStmt(VarDefStmtContext ctx) {
-        var varDefs = visitVarDefs(ctx.varDefs(), Symbol.Var.Kind.LOCAL);
-        return new Stmt.LocalVarDef(ctx.getStart(), ctx.getStop(), varDefs);
+        return new Stmt.LocalVarDef(ctx.getStart(), ctx.getStop(), visitVarDefs(ctx.varDefs(), false));
     }
 
     @Override

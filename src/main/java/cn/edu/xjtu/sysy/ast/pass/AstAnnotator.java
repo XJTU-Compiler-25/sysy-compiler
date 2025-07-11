@@ -27,7 +27,7 @@ public final class AstAnnotator extends AstVisitor {
     private SymbolTable.Global globalST;
     private SymbolTable currentST;
 
-    private Symbol.Func currentFunc;
+    private Symbol.FuncSymbol currentFunc;
 
     @Override
     public void visit(CompUnit node) {
@@ -70,7 +70,7 @@ public final class AstAnnotator extends AstVisitor {
 
         // resolveSymbol
         var paramSymbols = params.stream().map(p -> p.resolution).toList();
-        var funcSymbol = new Symbol.Func(node.name, funcType, paramSymbols);
+        var funcSymbol = new Symbol.FuncSymbol(node.name, funcType, paramSymbols);
         // 先 declare func symbol，再 visit func body 是为了防止递归时找不到 func symbol
         globalST.declareFunc(funcSymbol);
         node.resolution = funcSymbol;
@@ -91,7 +91,7 @@ public final class AstAnnotator extends AstVisitor {
 
         // resolveSymbol
         // symbol 对 initExpr 的 comptime value 有数据依赖
-        var varSymbol = new Symbol.Var(node.kind, node.name, node.type, isConst);
+        var varSymbol = new Symbol.VarSymbol(node.name, false, node.type, isConst);
         currentST.declare(varSymbol);
         node.resolution = varSymbol;
     }
@@ -117,7 +117,7 @@ public final class AstAnnotator extends AstVisitor {
             }
         }
 
-        var varSymbol = new Symbol.Var(node.kind, node.name, node.type, isConst);
+        var varSymbol = new Symbol.VarSymbol(node.name, node.isGlobal, node.type, isConst);
         currentST.declare(varSymbol);
         node.resolution = varSymbol;
 
@@ -198,26 +198,15 @@ public final class AstAnnotator extends AstVisitor {
 
         if (varType instanceof Type.Pointer varPtrType) {
             if (valueType instanceof Type.Array valueArrType) {
-                if (varPtrType.baseType.equals(valueArrType.getIndexElementType(1))) {
-                    return valueExpr;
-                } else
-                    err(
-                            valueExpr,
-                            "Value type: "
-                                    + valueType
-                                    + " not compatible with var type: "
-                                    + varType);
-            } else
-                err(
-                        valueExpr,
-                        "Value type: " + valueType + " not compatible with var type: " + varType);
+                if (varPtrType.equals(Types.decay(valueArrType)))
+                    return new Expr.Decay(valueExpr);
+                else err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+            } else err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
         }
 
         if (!(varType instanceof Type.Array varArrType
                 && valueExpr instanceof Expr.RawArray valueArrExpr)) {
-            err(
-                    valueExpr,
-                    "Value type: " + valueType + " not compatible with var type: " + varType);
+            err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
             return valueExpr;
         }
 
@@ -232,14 +221,8 @@ public final class AstAnnotator extends AstVisitor {
             else if (varElemType == Types.Float && baseType == Types.Int) {
                 valueArrExpr.type = varType;
                 promoteElementType(valueArrExpr);
-            } else
-                err(
-                        valueExpr,
-                        "Value type: " + valueType + " not compatible with var type: " + varType);
-        } else
-            err(
-                    valueExpr,
-                    "Value type: " + valueType + " not compatible with var type: " + varType);
+            } else err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
+        } else err(valueExpr, "Value type: " + valueType + " not compatible with var type: " + varType);
 
         return valueExpr;
     }
@@ -247,8 +230,7 @@ public final class AstAnnotator extends AstVisitor {
     @Override
     public void visit(Stmt.Assign node) {
         super.visit(node);
-        var value = matchVarValueType(node.target.type, node.value);
-        node.value = value;
+        node.value = matchVarValueType(node.target.type, node.value);
     }
 
     @Override
@@ -328,22 +310,9 @@ public final class AstAnnotator extends AstVisitor {
         // resolveType & foldComptimeValue
         var lhs = node.lhs;
         var lhsType = lhs.type;
-        var indexSize = node.indexes.size();
-        switch (lhsType) {
-            case Type.Array arrType -> {
-                node.type = arrType.getIndexElementType(indexSize);
-            }
-            case Type.Pointer ptrType -> {
-                var baseType = ptrType.baseType;
-                node.type =
-                        baseType instanceof Type.Array arrType
-                                ? arrType.getIndexElementType(indexSize - 1)
-                                : baseType;
-            }
-            default -> {
-                err(node, "Index access on non-array type: " + lhsType);
-            }
-        }
+        if (lhsType instanceof Type.Pointer ptrType) lhsType = Types.fixed(ptrType, 0);
+        if (lhsType instanceof Type.Array arrType) node.type = arrType.getIndexElementType(node.indexes.size());
+        else err(node, "Index access on non-array type: " + lhsType);
     }
 
     /**
@@ -420,6 +389,9 @@ public final class AstAnnotator extends AstVisitor {
         node.type =
                 switch (node.op) {
                     case NOT -> {
+                        if (rhsType != Types.Int && rhsType != Types.Float)
+                            err(node, "Unary operator can only be applied to number");
+                        if (rhsType == Types.Float) node.rhs = new Expr.Cast(node.rhs, Types.Int);
                         yield Types.Int;
                     }
                     case ADD, SUB -> {
@@ -468,13 +440,15 @@ public final class AstAnnotator extends AstVisitor {
 
         if (node.isLogical()) {
             node.type = Types.Int;
+            if (lhsType == Types.Float) node.lhs = new Expr.Cast(lhs, Types.Int);
+            if (rhsType == Types.Float) node.rhs = new Expr.Cast(rhs, Types.Int);
             return;
         }
 
-        if (lhsType.equals(Types.Float) && rhsType.equals(Types.Int)) {
+        if (lhsType == Types.Float && rhsType == Types.Int) {
             node.rhs = new Expr.Cast(rhs, Types.Float);
             rhsType = Types.Float;
-        } else if (lhsType.equals(Types.Int) && rhsType.equals(Types.Float)) {
+        } else if (lhsType == Types.Int && rhsType == Types.Float) {
             node.lhs = new Expr.Cast(lhs, Types.Float);
             lhsType = Types.Float;
         }

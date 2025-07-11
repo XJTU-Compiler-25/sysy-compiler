@@ -122,14 +122,15 @@ public abstract sealed class Type {
          * 取 depth 次索引后的元素类型
          */
         public Type getIndexElementType(int depth) {
-            if(depth < 0 || depth > dimensions.length) throw new IllegalArgumentException("Illegal depth");
+            if (depth < 0) throw new IllegalArgumentException("Negative depth");
+            if (depth > dimensions.length) throw new IllegalArgumentException("depth > dimensions.length");
             else if (depth == 0) return this;
             else if (depth == dimensions.length) return elementType;
             else return getSubArrayType(depth);
         }
 
         public Array getSubArrayType(int depth) {
-            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length-depth));
+            return new Array(elementType, Arrays.copyOfRange(dimensions, 0, dimensions.length - depth));
         }
 
         public int getDimension(int depth) {

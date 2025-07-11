@@ -152,7 +152,7 @@ public abstract sealed class Expr extends Node {
     public static final class VarAccess extends Assignable {
         public String name;
 
-        public Symbol.Var resolution;
+        public Symbol.VarSymbol resolution;
 
         public VarAccess(Token start, Token end, String name) {
             super(start, end);
@@ -184,7 +184,7 @@ public abstract sealed class Expr extends Node {
         public String funcName;
         public List<Expr> args;
 
-        public Symbol.Func resolution;
+        public Symbol.FuncSymbol resolution;
 
         public Call(Token start, Token end, String funcName, List<Expr> args) {
             super(start, end);
@@ -298,6 +298,7 @@ public abstract sealed class Expr extends Node {
 
     /**
      * 数组到指针的转换，在类型分析中被插入，AstBuilder 不需要生成这个节点
+     * Decay 的语义就是取数组 [0] 的位置指针
      * 便于直接遍历生成下一步 IR，不用特判
      */
     public static final class Decay extends Expr {
