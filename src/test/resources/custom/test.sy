@@ -1,8 +1,14 @@
+int b(int c[]) {
+    return c[0];
+}
+
 int main() {
     int a = getint();
     if (a && a || a > 0) {
         a = 2;
     }
     putint(a);
+    int k[1] = { 0 };
+    b(k);
     return 0;
 }

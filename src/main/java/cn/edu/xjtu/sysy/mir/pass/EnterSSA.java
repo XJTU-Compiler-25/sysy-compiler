@@ -15,6 +15,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
  * 由于我们直接从前端拿到了 local var 的信息，不用去分析 promotable alloca 了
  * var 的 def 就是 store，use 就是 load
  */
+@SuppressWarnings("unchecked")
 public final class EnterSSA extends ModuleVisitor {
     public EnterSSA(ErrManager errManager) {
         super(errManager);
@@ -63,9 +64,7 @@ public final class EnterSSA extends ModuleVisitor {
 
     private void insertPhiForVar(Var var) {
         var defs = new HashSet<BasicBlock>();
-        for (var use : var.usedBy) {
-            if (use.user instanceof Instruction.Store store) defs.add(store.getBlock());
-        }
+        for (var use : var.usedBy) if (use.user instanceof Instruction.Store store) defs.add(store.getBlock());
 
         var blocksToInsert = new HashSet<BasicBlock>();
         var worklist = new ArrayDeque<>(defs);
@@ -116,19 +115,23 @@ public final class EnterSSA extends ModuleVisitor {
      * 将没有访问过的后继基本块加入 worklist
      */
     private final HashMap<Var, Value> incomingVals = new HashMap<>();
+    private final HashSet<BasicBlock> visited = new HashSet<>();
     private void renaming(Function function) {
         var vars = function.localVars;
 
         incomingVals.clear();
-        for (Var var : vars) {
-            incomingVals.put(var, ImmediateValues.Undefined);
-        }
+        for (var var : vars) incomingVals.put(var, ImmediateValues.Undefined);
+        for (var param : function.params.values()) incomingVals.put(param.value, param.value);
 
+        // 从 entry 向后继方向 DFS
+        visited.clear();
         renamingRecursive(function.entry);
     }
 
-    // 按支配树顺序 DFS 基本块，所以一个块是不会被重复访问的
     private void renamingRecursive(BasicBlock block) {
+        if (visited.contains(block)) return;
+        visited.add(block);
+
         // 块开头时值改为 block argument
         incomingVals.putAll(block.args);
 
@@ -136,34 +139,36 @@ public final class EnterSSA extends ModuleVisitor {
             var instr = iterator.next();
             switch (instr) {
                 case Instruction.Store store -> {
-                    if (store.address.value instanceof Var storeVar) {
-                        incomingVals.put(storeVar, store.storeVal.value);
+                    if (store.address.value instanceof Var var && !var.isGlobal) {
+                        incomingVals.put(var, store.storeVal.value);
                         store.dispose();
                         iterator.remove();
                     }
                 }
                 case Instruction.Load load -> {
-                    if (load.address.value instanceof Var loadVar) {
-                        load.replaceAllUsesWith(incomingVals.get(loadVar));
+                    if (load.address.value instanceof Var var && !var.isGlobal) {
+                        load.replaceAllUsesWith(incomingVals.get(var));
                         load.dispose();
                         iterator.remove();
                     }
                 }
-                default -> {
-                }
+                default -> { }
             }
         }
 
         switch (block.terminator) {
-            case Instruction.Jmp jmp -> jmp.params.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
+            case Instruction.Jmp jmp -> {
+                jmp.params.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
+                renamingRecursive(jmp.target.value);
+            }
             case Instruction.Br br -> {
                 br.trueParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
                 br.falseParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
+                renamingRecursive(br.trueTarget.value);
+                renamingRecursive(br.falseTarget.value);
             }
             default -> {}
         }
-
-        for (var child : block.getDomChildren()) renamingRecursive(child);
     }
 
 }

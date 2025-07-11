@@ -8,6 +8,7 @@ import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
@@ -70,8 +71,9 @@ public final class MirBuilder implements ErrManaged {
 
     public void visit(Decl.FuncDef node) {
         var symbol = node.resolution;
+        var funcType = symbol.funcType;
 
-        var func = curMod.newFunction(symbol.name, symbol.funcType);
+        var func = curMod.newFunction(symbol.name, funcType);
         var entryBB = func.addNewBlock();
 
         curFunc = func;
@@ -84,6 +86,13 @@ public final class MirBuilder implements ErrManaged {
         for (var var : node.allVars) var.address = curFunc.addNewLocalVar(var.name, var.type);
 
         visit(node.body);
+
+        if (helper.getBlock() != null && !helper.hasTerminator()) {
+            var retType = funcType.returnType;
+            if (retType == Types.Int) helper.ret(iZero);
+            else if (retType == Types.Float) helper.ret(fZero);
+            else if (retType == Types.Void) helper.ret();
+        }
     }
 
     public void visit(Stmt node) {
@@ -105,7 +114,6 @@ public final class MirBuilder implements ErrManaged {
 
     public void visit(Stmt.LocalVarDef node) {
         for (var varDef : node.varDefs) {
-            // 若没有初始化表达式，则自动使用零初始化
             var initExpr = varDef.init;
             if (initExpr != null) helper.store(varDef.resolution.address, visit(initExpr));
         }
@@ -175,7 +183,7 @@ public final class MirBuilder implements ErrManaged {
         helper.changeBlock(thenBB);
         visit(node.thenStmt);
         // 如果里面有 break 等等，有可能本来就有 terminator，不能覆盖
-        if (!helper.hasTerminator()) {
+        if (helper.getBlock() != null && !helper.hasTerminator()) {
             needMerge = true;
             helper.jmp(mergeBB);
         }
@@ -183,9 +191,9 @@ public final class MirBuilder implements ErrManaged {
         if (hasElse) {
             curFunc.addBlock(elseBB);
             helper.changeBlock(elseBB);
-
             visit(elseStmt);
-            if (!helper.hasTerminator()) {
+
+            if (helper.getBlock() != null && !helper.hasTerminator()) {
                 needMerge = true;
                 helper.jmp(mergeBB);
             }
@@ -209,11 +217,12 @@ public final class MirBuilder implements ErrManaged {
         curFunc.addBlock(loopBB);
         helper.changeBlock(loopBB);
         visit(node.body);
-        // 需要重新求值 condVal，但是，比如直接写一个 break 在结尾的时候就不需要
-        if (!helper.hasTerminator()) visitCond(node.cond, loopBB, mergeBB);
 
         loopBlocks.removeLast();
         loopExits.removeLast();
+        if (helper.getBlock() == null) return;
+        // 需要重新求值 condVal，但是，比如直接写一个 break 在结尾的时候就不需要
+        if (!helper.hasTerminator()) visitCond(node.cond, loopBB, mergeBB);
 
         curFunc.addBlock(mergeBB);
         helper.changeBlock(mergeBB);
@@ -276,6 +285,7 @@ public final class MirBuilder implements ErrManaged {
             case Expr.Array it -> visit(it);
             case Expr.Literal it -> visit(it);
             case Expr.Cast it -> visit(it);
+            case Expr.Decay it -> visit(it);
             default -> unsupported(node);
         };
     }
@@ -320,7 +330,7 @@ public final class MirBuilder implements ErrManaged {
         var args = new Value[node.args.size()];
         for (int i = 0; i < node.args.size(); i++) args[i] = visit(node.args.get(i));
 
-        return symbol.isExternal ? helper.callExternal(symbol.funcType.returnType, args)
+        return symbol.isBuiltin ? helper.callBuiltin(symbol.name, args)
                 : helper.call(symbol.address, args);
     }
 
@@ -378,5 +388,11 @@ public final class MirBuilder implements ErrManaged {
         if (node.toType == Types.Int) return helper.f2i(value);
         else if (node.toType == Types.Float) return helper.i2f(value);
         else return unsupported(value);
+    }
+
+    public Value visit(Expr.Decay node) {
+        var value = visit(node.value);
+
+        return helper.getElementPtr(value, iZero);
     }
 }

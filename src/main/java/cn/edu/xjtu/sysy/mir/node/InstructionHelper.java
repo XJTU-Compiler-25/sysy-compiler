@@ -63,8 +63,8 @@ public final class InstructionHelper {
         return instr;
     }
 
-    public Instruction.Call callExternal(Type retType, Value... args) {
-        var instr = new Instruction.Call(block, getNewIndex(), retType, args);
+    public Instruction.CallExternal callBuiltin(String name, Value... args) {
+        var instr = new Instruction.CallExternal(block, getNewIndex(), name, args);
         block.addInstruction(instr);
         return instr;
     }
@@ -94,28 +94,32 @@ public final class InstructionHelper {
     }
 
     public Instruction.I2F i2f(Value value) {
-        Assertions.requires(value.type == Types.Int);
+        Assertions.requires(value.type == Types.Int,
+                String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.I2F(block, getNewIndex(), value);
         block.addInstruction(instr);
         return instr;
     }
 
     public Instruction.F2I f2i(Value value) {
-        Assertions.requires(value.type == Types.Float);
+        Assertions.requires(value.type == Types.Float,
+                String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.F2I(block, getNewIndex(), value);
         block.addInstruction(instr);
         return instr;
     }
 
     public Instruction.BitCastI2F bitCastI2F(Value value) {
-        Assertions.requires(value.type == Types.Int);
+        Assertions.requires(value.type == Types.Int,
+                String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.BitCastI2F(block, getNewIndex(), value);
         block.addInstruction(instr);
         return instr;
     }
 
     public Instruction.BitCastF2I bitCastF2I(Value value) {
-        Assertions.requires(value.type == Types.Float);
+        Assertions.requires(value.type == Types.Float,
+                String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.BitCastF2I(block, getNewIndex(), value);
         block.addInstruction(instr);
         return instr;
@@ -123,7 +127,8 @@ public final class InstructionHelper {
 
     public Instruction add(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IAdd(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FAdd(block, getNewIndex(), lhs, rhs);
@@ -135,7 +140,8 @@ public final class InstructionHelper {
 
     public Instruction sub(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.ISub(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FSub(block, getNewIndex(), lhs, rhs);
@@ -147,7 +153,8 @@ public final class InstructionHelper {
 
     public Instruction mul(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IMul(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FMul(block, getNewIndex(), lhs, rhs);
@@ -159,7 +166,8 @@ public final class InstructionHelper {
 
     public Instruction div(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IDiv(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FDiv(block, getNewIndex(), lhs, rhs);
@@ -171,7 +179,8 @@ public final class InstructionHelper {
 
     public Instruction mod(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type, String.format("invalid type: %s %s", lhs.type, rhs.type));
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IMod(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FMod(block, getNewIndex(), lhs, rhs);
@@ -195,7 +204,8 @@ public final class InstructionHelper {
 
     public Instruction shl(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Shl(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -203,7 +213,8 @@ public final class InstructionHelper {
 
     public Instruction shr(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Shr(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -211,7 +222,8 @@ public final class InstructionHelper {
 
     public Instruction ashr(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.AShr(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -219,7 +231,8 @@ public final class InstructionHelper {
 
     public Instruction and(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.And(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -227,7 +240,8 @@ public final class InstructionHelper {
 
     public Instruction or(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Or(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -235,7 +249,8 @@ public final class InstructionHelper {
 
     public Instruction xor(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Int);
+        Assertions.requires(lType == rhs.type && lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Xor(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -243,7 +258,8 @@ public final class InstructionHelper {
 
     // ~value = -1 ^ value
     public Instruction not(Value lhs) {
-        Assertions.requires(lhs.type == Types.Int);
+        Assertions.requires(lhs.type == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
         var instr = new Instruction.Xor(block, getNewIndex(), ImmediateValues.iNegOne, lhs);
         block.addInstruction(instr);
         return instr;
@@ -252,7 +268,8 @@ public final class InstructionHelper {
     // equal
     public Instruction eq(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IEq(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FEq(block, getNewIndex(), lhs, rhs);
@@ -265,7 +282,8 @@ public final class InstructionHelper {
     // not equal
     public Instruction ne(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.INe(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FNe(block, getNewIndex(), lhs, rhs);
@@ -278,7 +296,8 @@ public final class InstructionHelper {
     // greater than
     public Instruction gt(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IGt(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FGt(block, getNewIndex(), lhs, rhs);
@@ -291,7 +310,8 @@ public final class InstructionHelper {
     // less than
     public Instruction lt(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.ILt(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FLt(block, getNewIndex(), lhs, rhs);
@@ -304,7 +324,8 @@ public final class InstructionHelper {
     // greater or equal
     public Instruction ge(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.IGe(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FGe(block, getNewIndex(), lhs, rhs);
@@ -317,7 +338,8 @@ public final class InstructionHelper {
     // less or equal
     public Instruction le(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type);
+        Assertions.requires(lType == rhs.type,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         Instruction instr = switch (lType) {
             case Type.Int _ -> new Instruction.ILe(block, getNewIndex(), lhs, rhs);
             case Type.Float _ -> new Instruction.FLe(block, getNewIndex(), lhs, rhs);
@@ -330,14 +352,16 @@ public final class InstructionHelper {
     // intrinsics
 
     public Instruction fsqrt(Value lhs) {
-        Assertions.requires(lhs.type == Types.Float);
+        Assertions.requires(lhs.type == Types.Float,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
         var instr = new Instruction.FSqrt(block, getNewIndex(), lhs);
         block.addInstruction(instr);
         return instr;
     }
 
     public Instruction fabs(Value lhs) {
-        Assertions.requires(lhs.type == Types.Float);
+        Assertions.requires(lhs.type == Types.Float,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
         var instr = new Instruction.FAbs(block, getNewIndex(), lhs);
         block.addInstruction(instr);
         return instr;
@@ -345,7 +369,8 @@ public final class InstructionHelper {
 
     public Instruction fmin(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Float);
+        Assertions.requires(lType == rhs.type && lType == Types.Float,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.FMin(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;
@@ -353,7 +378,8 @@ public final class InstructionHelper {
 
     public Instruction fmax(Value lhs, Value rhs) {
         var lType = lhs.type;
-        Assertions.requires(lType == rhs.type && lType == Types.Float);
+        Assertions.requires(lType == rhs.type && lType == Types.Float,
+                String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.FMax(block, getNewIndex(), lhs, rhs);
         block.addInstruction(instr);
         return instr;

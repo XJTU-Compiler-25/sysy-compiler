@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
@@ -150,13 +151,6 @@ public abstract sealed class Instruction extends User {
         public Function function;
         public Use[] args;
 
-        Call(BasicBlock block, int label, Type retType, Value... args) {
-            super(block, label, retType);
-            var argLen = args.length;
-            this.args = new Use[argLen];
-            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
-        }
-
         Call(BasicBlock block, int label, Function function, Value... args) {
             super(block, label, function.funcType.returnType);
             this.function = function;
@@ -167,12 +161,36 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "%" + this.label + " = call " +
-                    (function == null ? "external" : function.name) + "(" +
+            return "%" + this.label + " = call " + function.name + "(" +
                     Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
-                    ')';
+                    ")";
         }
     }
+
+    public static final class CallExternal extends Instruction {
+        public BuiltinFunction function;
+        public Use[] args;
+
+        CallExternal(BasicBlock block, int label, String function, Value... args) {
+            this(block, label, BuiltinFunction.of(function), args);
+        }
+
+        CallExternal(BasicBlock block, int label, BuiltinFunction function, Value... args) {
+            super(block, label, function.symbol.funcType.returnType);
+            this.function = function;
+            var argLen = args.length;
+            this.args = new Use[argLen];
+            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
+        }
+
+        @Override
+        public String toString() {
+            return "%" + this.label + " = call external " + function.linkName + "(" +
+                    Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
+                    ")";
+        }
+    }
+
     // 内存操作
 
     /**
@@ -241,8 +259,11 @@ public abstract sealed class Instruction extends User {
 
         GetElemPtr(BasicBlock block, int label, Value basePtr, Value[] indices) {
             super(block, label, switch (basePtr.type) {
-                case Type.Pointer ptr -> ptr;
-                case Type.Array array -> Types.decay(array);
+                case Type.Pointer ptr -> {
+                    if (indices.length == 1) yield ptr;
+                    yield Types.ptrOf(Types.fixed(ptr, 0).getIndexElementType(indices.length));
+                }
+                case Type.Array array -> Types.ptrOf(array.getIndexElementType(indices.length));
                 default -> unsupported(basePtr.type);
             });
             this.basePtr = use(basePtr);
@@ -253,9 +274,8 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            var sb = new StringBuilder(String.format("%s = getelemptr base %s", this.shortName(), basePtr.value.shortName()));
-            for (var index : indices) sb.append(", ").append(index.value.shortName());
-            return sb.toString();
+            return shortName() + " = getelemptr base " + basePtr.value.shortName() + ", indices " +
+                    Arrays.stream(indices).map(v -> v.value.shortName()).collect(Collectors.joining(", "));
         }
     }
 
@@ -464,7 +484,7 @@ public abstract sealed class Instruction extends User {
         public Use rhs;
 
         FDiv(BasicBlock block, int label, Value lhs, Value rhs) {
-            super(block, label, Types.Int);
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -480,7 +500,7 @@ public abstract sealed class Instruction extends User {
         public Use rhs;
 
         FMod(BasicBlock block, int label, Value lhs, Value rhs) {
-            super(block, label, Types.Int);
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
