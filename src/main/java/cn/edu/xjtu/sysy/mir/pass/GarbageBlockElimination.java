@@ -1,0 +1,64 @@
+package cn.edu.xjtu.sysy.mir.pass;
+
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+
+import java.util.HashSet;
+import java.util.Iterator;
+
+/**
+ * 1. 删除空基本块
+ * 2. 删除没有前驱的基本块
+ */
+public final class GarbageBlockElimination extends ModuleVisitor {
+    public GarbageBlockElimination(ErrManager errManager) {
+        super(errManager);
+    }
+
+    @Override
+    public void visit(Function function) {
+        removeEmptyBlocks(function);
+        removeUnreachableBlocks(function);
+    }
+
+    private void removeEmptyBlocks(Function function) {
+        // 由于删除一个块可能会使别的块也变得可删除，可能需要多次运行
+        boolean changed = true;
+        while(changed) {
+            changed = false;
+            for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
+                var block = iterator.next();
+                if (block == function.entry) continue;
+
+                // 单后继才能删除
+                if (!(block.terminator instanceof Instruction.Jmp jmp)) continue;
+                if (!block.instructions.isEmpty()) continue;
+
+                // 没有 phi，一定可以删除，有 phi 而只有单个前驱，也可以删除
+                if (block.args.isEmpty() || block.getPredBlocks().size() == 1) {
+                    iterator.remove();
+                    block.replaceAllUsesWith(jmp.target.value);
+                }
+            }
+        }
+    }
+
+    private void removeUnreachableBlocks(Function function) {
+        var reachable = new HashSet<BasicBlock>();
+        reachable.add(function.entry);
+
+        // 从入口块开始，遍历所有可达的块
+        dfs(function.entry, reachable);
+
+        function.blocks.retainAll(reachable);
+    }
+
+    private void dfs(BasicBlock entry, HashSet<BasicBlock> visited) {
+        for (BasicBlock succ : entry.getSuccBlocks()) {
+            if (visited.add(succ)) dfs(succ, visited);
+        }
+    }
+
+}
