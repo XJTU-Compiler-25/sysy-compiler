@@ -121,6 +121,7 @@ public abstract class AstVisitor extends Pass<CompUnit> {
             case Expr.Literal it -> visit(it);
             case Expr.Unary it -> visit(it);
             case Expr.Cast it -> visit(it);
+            case Expr.Decay it -> visit(it);
             default -> unreachable();
         }
     }
@@ -181,4 +182,9 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     public void visit(Expr.Cast node) {
         visit(node.value);
     }
+
+    public void visit(Expr.Decay node) {
+        visit(node.value);
+    }
+
 }

@@ -7,13 +7,8 @@ import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.Label;
 
 public abstract sealed class Symbol {
-    public static final class Var extends Symbol {
-        public enum Kind {
-            GLOBAL,
-            LOCAL
-        }
-
-        public Kind kind;
+    public static final class VarSymbol extends Symbol {
+        public boolean isGlobal;
         public String name;
         public Type type;
         public boolean isConst;
@@ -29,21 +24,21 @@ public abstract sealed class Symbol {
         /** 变量在当前作用域是否已经被声明。 */
         public boolean declared;
 
-        public Var(Kind kind, String name, Type type, boolean isConst) {
-            this.kind = kind;
+        public VarSymbol(String name, boolean isGlobal, Type type, boolean isConst) {
             this.name = name;
+            this.isGlobal = isGlobal;
             this.type = type;
             this.isConst = isConst;
             this.label = new Label(String.format("$%s", name));
         }
     }
 
-    public static final class Func extends Symbol {
+    public static final class FuncSymbol extends Symbol {
         public String name;
         public Type.Function funcType;
-        public List<Symbol.Var> params;
+        public List<VarSymbol> params;
 
-        public boolean isExternal = false;
+        public boolean isBuiltin = false;
 
         public Function address;
 
@@ -53,15 +48,15 @@ public abstract sealed class Symbol {
         public int outSize = 0;
         public boolean raSave = false;
 
-        public Func(String name, Type.Function funcType, List<Symbol.Var> params) {
+        public FuncSymbol(String name, Type.Function funcType, List<VarSymbol> params) {
             this(name, funcType, params, false);
         }
 
-        public Func(String name, Type.Function funcType, List<Symbol.Var> params, boolean isExternal) {
+        public FuncSymbol(String name, Type.Function funcType, List<VarSymbol> params, boolean isBuiltin) {
             this.name = name;
             this.funcType = funcType;
             this.params = params;
-            this.isExternal = isExternal;
+            this.isBuiltin = isBuiltin;
             this.label = new Label(name);
             inSize = 0;
             for (var param : params) {
@@ -93,7 +88,7 @@ public abstract sealed class Symbol {
                     : alignExc(8 + localSize + outSize, 16) + 16;
         }
 
-        public int getIndex(Var var) {
+        public int getIndex(VarSymbol var) {
             /** 参数 */
             if (var.addr <= 0) return var.addr;
             /** 局部变量 */

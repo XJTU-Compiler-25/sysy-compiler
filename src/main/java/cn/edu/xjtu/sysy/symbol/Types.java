@@ -36,7 +36,7 @@ public final class Types {
     }
 
     public static Type.Array arrayOf(Type.Scalar type, int size) {
-        return new Type.Array(type, new int[size]);
+        return new Type.Array(type, new int[] { size });
     }
 
     public static Type.Array arrayOf(Type.Scalar type, int[] dims) {
@@ -48,10 +48,7 @@ public final class Types {
     }
 
     public static Type.Pointer decay(Type.Array arr) {
-        var oldDim = arr.dimensions;
-        var oldDimLen = oldDim.length;
-        return oldDimLen == 1 ? ptrOf(arr.elementType)
-                : ptrOf(new Type.Array(arr.elementType, Arrays.copyOf(oldDim, oldDimLen - 1)));
+        return ptrOf(arr.getIndexElementType(1));
     }
 
     // 将指针指向的大小固定，使之成为数组

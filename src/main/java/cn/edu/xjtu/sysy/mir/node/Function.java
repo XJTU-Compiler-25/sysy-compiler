@@ -56,7 +56,7 @@ public final class Function extends User {
     }
 
     public Var addNewParam(String name, Type type) {
-        var param = new Var(name, type, true);
+        var param = new Var(name, type, false);
         params.put(name, use(param));
         localVars.add(param);
         return param;
@@ -82,7 +82,7 @@ public final class Function extends User {
                         .collect(Collectors.joining(", ")))
                 .append(") -> ").append(funcType.returnType)
                 .append(" (entry = ").append(entry.label).append(", locals = {")
-                .append(localVars.stream().map(it -> it.name)
+                .append(localVars.stream().map(it -> it.name + ": " + it.varType)
                         .collect(Collectors.joining(", ")))
                 .append("}) \n")
                 .append(blocks.stream().map(BasicBlock::toString)
