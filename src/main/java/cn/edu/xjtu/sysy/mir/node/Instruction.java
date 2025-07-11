@@ -1,13 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
@@ -17,7 +15,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
  */
 @SuppressWarnings("rawtypes")
 public abstract sealed class Instruction extends User {
-    public BasicBlock block;
+    private final BasicBlock block;
 
     // local label
     public final int label;
@@ -89,39 +87,60 @@ public abstract sealed class Instruction extends User {
 
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
-        public BasicBlock target;
+        public Use<BasicBlock> target;
         // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
         public HashMap<Var, Use> params = new HashMap<>();
 
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
-            this.target = target;
+            this.target = use(target);
+        }
+
+        public void putParam(Var var, Value value) {
+            params.put(var, use(value));
         }
 
         @Override
         public String toString() {
-            return "jmp " + target.label;
+            return "jmp " + target.value.label + "(" +
+                    params.entrySet().stream()
+                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .collect(Collectors.joining(", ")) +
+                    ')';
         }
     }
 
     // 分支 branch
     public static final class Br extends Terminator {
         public Use condition;
-        public BasicBlock trueTarget;
-        public BasicBlock falseTarget;
+        public Use<BasicBlock> trueTarget;
+        public Use<BasicBlock> falseTarget;
         public HashMap<Var, Use> trueParams = new HashMap<>();
         public HashMap<Var, Use> falseParams = new HashMap<>();
 
         Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
             this.condition = use(condition);
-            this.trueTarget = trueTarget;
-            this.falseTarget = falseTarget;
+            this.trueTarget = use(trueTarget);
+            this.falseTarget = use(falseTarget);
+        }
+
+        public void putParam(BasicBlock block, Var var, Value value) {
+            if (block == trueTarget.value) trueParams.put(var, use(value));
+            if (block == falseTarget.value) falseParams.put(var, use(value));
         }
 
         @Override
         public String toString() {
-            return "br " + condition.value.shortName() + ", " + trueTarget.label + ", " + falseTarget.label;
+            return "br " + condition.value.shortName() + ", " + trueTarget.value.label + "(" +
+                    trueParams.entrySet().stream()
+                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.label + "(" +
+                    falseParams.entrySet().stream()
+                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
         }
     }
 
@@ -139,7 +158,7 @@ public abstract sealed class Instruction extends User {
         }
 
         Call(BasicBlock block, int label, Function function, Value... args) {
-            super(block, label, function.returnType);
+            super(block, label, function.funcType.returnType);
             this.function = function;
             var argLen = args.length;
             this.args = new Use[argLen];
@@ -148,15 +167,10 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            var sb = new StringBuilder();
-            sb.append('%').append(this.label).append(" = call ")
-                    .append(function == null ? "external" : function.name).append("(");
-            for (int i = 0; i < args.length; i++) {
-                sb.append(args[i].value.shortName());
-                if (i != args.length - 1) sb.append(", ");
-            }
-            sb.append(')');
-            return sb.toString();
+            return "%" + this.label + " = call " +
+                    (function == null ? "external" : function.name) + "(" +
+                    Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
+                    ')';
         }
     }
     // 内存操作
@@ -190,6 +204,10 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return String.format("%s = load ptr %s", this.shortName(), address.value.shortName());
         }
+
+        public void dispose() {
+            address.dispose();
+        }
     }
 
     public static final class Store extends Instruction {
@@ -205,6 +223,11 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("store ptr %s, value %s", address.value.shortName(), storeVal.value.shortName());
+        }
+
+        public void dispose() {
+            address.dispose();
+            storeVal.dispose();
         }
     }
 

@@ -26,4 +26,23 @@ public final class Use<V extends Value> {
     public String toString() {
         return value.toString();
     }
+
+    public void replaceUser(User newUser) {
+        user.removeUsed(this);
+        user = newUser;
+        newUser.addUsed(this);
+    }
+
+    public void replaceValue(V newValue) {
+        value.removeUse(this);
+        value = newValue;
+        newValue.addUse(this);
+    }
+
+    public void dispose() {
+        user.removeUsed(this);
+        value.removeUse(this);
+        user = null;
+        value = null;
+    }
 }

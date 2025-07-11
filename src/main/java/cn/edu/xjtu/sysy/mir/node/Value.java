@@ -5,8 +5,8 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import java.util.HashSet;
 import java.util.function.Predicate;
 
-@SuppressWarnings("rawtypes")
-public abstract sealed class Value permits BasicBlock, ImmediateValue, User, Var {
+@SuppressWarnings({"rawtypes", "unchecked"})
+public abstract sealed class Value permits BasicBlock, BlockArgument, ImmediateValue, User, Var {
 
     public Type type;
     public final HashSet<Use> usedBy = new HashSet<>();
@@ -34,19 +34,15 @@ public abstract sealed class Value permits BasicBlock, ImmediateValue, User, Var
     }
 
     public final void replaceAllUsesWith(Value newValue) {
-        usedBy.forEach(use -> {
-            use.value.removeUse(use);
-            use.value = newValue;
-            newValue.addUse(use);
-        });
+        for (var use : (HashSet<Use>) usedBy.clone()) {
+            use.replaceValue(newValue);
+        }
     }
 
     public final void replaceAllUsesWithIf(Value newValue, Predicate<Use> predicate) {
-        usedBy.stream().filter(predicate).forEach(use -> {
-            use.value.removeUse(use);
-            use.value = newValue;
-            newValue.addUse(use);
-        });
+        for (var use : (HashSet<Use>) usedBy.clone()) {
+            if (predicate.test(use)) use.replaceValue(newValue);
+        }
     }
 
 }

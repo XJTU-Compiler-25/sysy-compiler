@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.mir.node;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,8 +14,8 @@ import java.util.stream.Collectors;
 public final class BasicBlock extends Value {
     public String label;
 
-    private final InstructionHelper helper = new InstructionHelper(this);
     private final Function function;
+    public HashMap<Var, BlockArgument> args;
     public ArrayList<Instruction> instructions;
     public Instruction.Terminator terminator;
 
@@ -28,16 +29,17 @@ public final class BasicBlock extends Value {
     // 支配边界
     public HashSet<BasicBlock> df;
 
+    public BasicBlock(Function function) {
+        this(function, null);
+    }
+
     public BasicBlock(Function function, String label) {
         super(Types.Void);
         this.function = function;
         this.label = label;
+        this.args = new HashMap<>();
         this.instructions = new ArrayList<>();
         this.isStronglyConnected = false;
-    }
-
-    public InstructionHelper getHelper() {
-        return helper;
     }
 
     public Function getFunction() {
@@ -52,6 +54,12 @@ public final class BasicBlock extends Value {
         this.terminator = terminator;
     }
 
+    public BlockArgument addBlockArgument(Var var) {
+        var arg = new BlockArgument(this, var);
+        args.put(var, arg);
+        return arg;
+    }
+
     @Override
     public String shortName() {
         return label;
@@ -59,10 +67,13 @@ public final class BasicBlock extends Value {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append('$').append(label).append(':')
+        sb.append('^').append(label).append(" (")
+                .append(args.entrySet().stream().map(v -> v.getKey().name + " -> " + v.getValue().shortName())
+                        .collect(Collectors.joining(", ")))
+                .append("):\n")
                 .append(instructions.stream().map(it -> it.toString() + "\n")
                         .collect(Collectors.joining()));
-        if (terminator != null) sb.append(terminator.toString());
+        if (terminator != null) sb.append(terminator);
         return sb.toString();
     }
 
@@ -76,10 +87,16 @@ public final class BasicBlock extends Value {
 
     public List<BasicBlock> getSuccBlocks() {
         return switch (terminator) {
-            case Instruction.Jmp jmp -> List.of(jmp.target);
-            case Instruction.Br br -> List.of(br.trueTarget, br.falseTarget);
+            case Instruction.Jmp jmp -> List.of(jmp.target.value);
+            case Instruction.Br br -> List.of(br.trueTarget.value, br.falseTarget.value);
             case Instruction.Ret _,  Instruction.RetV _ -> List.of();
         };
+    }
+
+    public List<BasicBlock> getDomChildren() {
+        return function.blocks.stream()
+                .filter(it -> it.idom == this)
+                .toList();
     }
 
 }

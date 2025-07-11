@@ -295,4 +295,22 @@ public abstract sealed class Expr extends Node {
             }
         }
     }
+
+    /**
+     * 数组到指针的转换，在类型分析中被插入，AstBuilder 不需要生成这个节点
+     * 便于直接遍历生成下一步 IR，不用特判
+     */
+    public static final class Decay extends Expr {
+        public Expr value;
+
+        public Decay(Expr value) {
+            this(null, null, value);
+        }
+
+        public Decay(Token start, Token end, Expr value) {
+            super(start, end);
+            this.type = Types.decay((Type.Array) value.type);
+            this.value = value;
+        }
+    }
 }
