@@ -82,6 +82,9 @@ public final class InstructionHelper {
     }
 
     public Instruction.Store store(Value target, Value value) {
+        var ptrTy = (Type.Pointer) target.type;
+        Assertions.requires(value.type == ptrTy.baseType,
+                String.format("invalid type: typeof target(%s) = %s, value(%s) = %s", target, ptrTy, value, value.type));
         var instr = new Instruction.Store(block, target, value);
         block.addInstruction(instr);
         return instr;
@@ -247,20 +250,18 @@ public final class InstructionHelper {
         return instr;
     }
 
+    // !value = value == 0
+    public Instruction not(Value lhs) {
+        Assertions.requires(lhs.type == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
+        return eq(lhs, ImmediateValues.iZero);
+    }
+
     public Instruction xor(Value lhs, Value rhs) {
         var lType = lhs.type;
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Xor(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
-        return instr;
-    }
-
-    // ~value = -1 ^ value
-    public Instruction not(Value lhs) {
-        Assertions.requires(lhs.type == Types.Int,
-                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
-        var instr = new Instruction.Xor(block, getNewIndex(), ImmediateValues.iNegOne, lhs);
         block.addInstruction(instr);
         return instr;
     }

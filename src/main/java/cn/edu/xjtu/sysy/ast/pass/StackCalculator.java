@@ -134,30 +134,23 @@ public class StackCalculator extends AstVisitor {
             case Expr.Literal _ -> nt;
             case Expr.Unary it -> visit(it, nt);
             case Expr.Cast it -> visit(it, nt);
-            case Expr.Decay it -> visit(it, nt);
             default -> unreachable();
         };
     }
 
     public int visit(Expr.Binary node, int nt) {
         updateMax(nt);
-        Stack<Expr.Binary> binaries = new Stack<>();
-        Expr expr = node;
-        while (expr instanceof Expr.Binary it) {
-            binaries.push(it);
-            expr = it.lhs;
-        }
-        visit(expr, nt);
-        while (!binaries.isEmpty()) {
-            var bin = binaries.pop();
-            visit(bin.rhs, nt+4);
-        }
+        var opers = node.operands;
+        var ops = node.operators;
+        var first = opers.getFirst();
+        visit(first, nt);
+        for (var oper : opers) visit(oper, nt + 4);
         return nt;
     }
 
     public int visit(Expr.Unary node, int nt) {
         updateMax(nt);
-        visit(node.rhs, nt);
+        visit(node.operand, nt);
         return nt;
     }
     
@@ -203,12 +196,6 @@ public class StackCalculator extends AstVisitor {
     }
 
     public int visit(Expr.Cast node, int nt) {
-        updateMax(nt);
-        visit(node.value, nt);
-        return nt;
-    }
-
-    public int visit(Expr.Decay node, int nt) {
         updateMax(nt);
         visit(node.value, nt);
         return nt;

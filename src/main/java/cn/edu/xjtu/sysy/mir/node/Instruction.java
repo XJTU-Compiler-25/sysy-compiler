@@ -34,7 +34,8 @@ public abstract sealed class Instruction extends User {
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
-        return "%" + label;
+        //return "%" + label;
+        return "%" + label + ": " + type;
     }
 
     @Override
@@ -222,10 +223,6 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return String.format("%s = load ptr %s", this.shortName(), address.value.shortName());
         }
-
-        public void dispose() {
-            address.dispose();
-        }
     }
 
     public static final class Store extends Instruction {
@@ -242,11 +239,6 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return String.format("store ptr %s, value %s", address.value.shortName(), storeVal.value.shortName());
         }
-
-        public void dispose() {
-            address.dispose();
-            storeVal.dispose();
-        }
     }
 
     /**
@@ -261,7 +253,7 @@ public abstract sealed class Instruction extends User {
             super(block, label, switch (basePtr.type) {
                 case Type.Pointer ptr -> {
                     if (indices.length == 1) yield ptr;
-                    yield Types.ptrOf(Types.fixed(ptr, 0).getIndexElementType(indices.length));
+                    yield Types.ptrOf(ptr.getIndexElementType(indices.length));
                 }
                 case Type.Array array -> Types.ptrOf(array.getIndexElementType(indices.length));
                 default -> unsupported(basePtr.type);

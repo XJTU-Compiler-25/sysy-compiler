@@ -38,7 +38,7 @@ public abstract sealed class Symbol {
         public Type.Function funcType;
         public List<VarSymbol> params;
 
-        public boolean isBuiltin = false;
+        public boolean isExternal;
 
         public Function address;
 
@@ -52,11 +52,11 @@ public abstract sealed class Symbol {
             this(name, funcType, params, false);
         }
 
-        public FuncSymbol(String name, Type.Function funcType, List<VarSymbol> params, boolean isBuiltin) {
+        public FuncSymbol(String name, Type.Function funcType, List<VarSymbol> params, boolean isExternal) {
             this.name = name;
             this.funcType = funcType;
             this.params = params;
-            this.isBuiltin = isBuiltin;
+            this.isExternal = isExternal;
             this.label = new Label(name);
             inSize = 0;
             for (var param : params) {
