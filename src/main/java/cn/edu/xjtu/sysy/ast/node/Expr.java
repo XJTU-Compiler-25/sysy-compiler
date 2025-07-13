@@ -96,36 +96,25 @@ public abstract sealed class Expr extends Node {
      * 文法中已体现 出优先级与结合性的定义。
      */
     public static final class Binary extends Expr {
-        /** 运算符 */
-        public Operator op;
-        /** 左运算元 */
-        public Expr lhs;
-        /** 右运算元 */
-        public Expr rhs;
+        public List<Operator> operators;
+        public List<Expr> operands;
 
-        public Binary(Token start, Token end, Expr lhs, Operator op, Expr rhs) {
+        public Binary(Token start, Token end, List<Operator> operators, List<Expr> operands) {
             super(start, end);
-            this.lhs = lhs;
-            this.op = op;
-            this.rhs = rhs;
-        }
-
-        public boolean isLogical() {
-            return op == Operator.AND || op == Operator.OR;
+            this.operators = operators;
+            this.operands = operands;
         }
     }
 
     /** Unary Expressions */
     public static final class Unary extends Expr {
-        /** 运算符 */
-        public Operator op;
-        /** 运算元 */
-        public Expr rhs;
+        public List<Operator> operators;
+        public Expr operand;
 
-        public Unary(Token start, Token end, Operator op, Expr rhs) {
+        public Unary(Token start, Token end, List<Operator> operators, Expr operand) {
             super(start, end);
-            this.rhs = rhs;
-            this.op = op;
+            this.operand = operand;
+            this.operators = operators;
         }
     }
 
@@ -269,49 +258,67 @@ public abstract sealed class Expr extends Node {
     }
 
     /**
-     * 隐式转换，在类型分析中被插入，AstBuilder 不需要生成这个节点
-     * 便于直接遍历生成下一步 IR，不用在 expected type 是 int/float 时特判 actual type 是否是 float/int
+     * 隐式转换，在类型分析中被插入，AstBuilder 不需要生成这个节点，便于直接遍历生成下一步 IR
      */
     public static final class Cast extends Expr {
-        public Expr value;
-        public Type fromType;
-        public Type toType;
-
-        public Cast(Expr value, Type toType) {
-            this(null, null, value, toType);
+        public enum Kind {
+            Float2Int,
+            Int2Float,
+            // 在比如 !ptr 这种表达式中会出现的，需要将 array, pointer 转成 integer 1 用
+            Ptr2Bool,
+            // 语义是数组 decay 成首地址指针
+            Decay,
+            // 语义是数组 decay 掉所有维度信息变成首地址指针
+            // 是由于外部函数对类型检查不严格导致的
+            DecayAll,
         }
 
-        public Cast(Token start, Token end, Expr value, Type toType) {
+        public Expr value;
+        public Kind kind;
+
+        public Cast(Expr value, Kind kind) {
+            this(null, null, value, kind);
+        }
+
+        public static Cast int2Float(Expr value) {
+            return new Cast(value, Kind.Int2Float);
+        }
+
+        public static Cast float2Int(Expr value) {
+            return new Cast(value, Kind.Float2Int);
+        }
+
+        public static Cast decay(Expr value) {
+            return new Cast(value, Kind.Decay);
+        }
+
+        public static Cast decayAll(Expr value) {
+            return new Cast(value, Kind.DecayAll);
+        }
+
+        public static Cast ptr2bool(Expr value) {
+            return new Cast(value, Kind.Ptr2Bool);
+        }
+
+        public Cast(Token start, Token end, Expr value, Kind kind) {
             super(start, end);
-            this.type = toType;
             this.value = value;
-            this.toType = toType;
-            this.fromType = value.type;
+            this.kind = kind;
+            this.type = switch(kind) {
+                case Float2Int, Ptr2Bool -> Types.Int;
+                case Int2Float -> Types.Float;
+                case Decay -> Types.decay((Type.Array) value.type);
+                case DecayAll -> Types.ptrOf(((Type.Array) value.type).elementType);
+            };
 
             if (value.isComptime) {
-                if (toType == Types.Int) this.setComptimeValue(value.comptimeValue.intValue());
-                else if (toType == Types.Float) this.setComptimeValue(value.comptimeValue.floatValue());
-                else throw new RuntimeException("Invalid comptime value type: " + type);
+                switch (kind) {
+                    case Float2Int -> this.setComptimeValue(value.comptimeValue.intValue());
+                    case Int2Float -> this.setComptimeValue(value.comptimeValue.floatValue());
+                    case Ptr2Bool -> this.setComptimeValue(1);
+                    default -> throw new RuntimeException("Invalid comptime value type: " + type);
+                }
             }
-        }
-    }
-
-    /**
-     * 数组到指针的转换，在类型分析中被插入，AstBuilder 不需要生成这个节点
-     * Decay 的语义就是取数组 [0] 的位置指针
-     * 便于直接遍历生成下一步 IR，不用特判
-     */
-    public static final class Decay extends Expr {
-        public Expr value;
-
-        public Decay(Expr value) {
-            this(null, null, value);
-        }
-
-        public Decay(Token start, Token end, Expr value) {
-            super(start, end);
-            this.type = Types.decay((Type.Array) value.type);
-            this.value = value;
         }
     }
 }

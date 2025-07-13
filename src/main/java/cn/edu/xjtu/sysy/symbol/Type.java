@@ -75,6 +75,20 @@ public abstract sealed class Type {
         public boolean equals(Object obj) {
             return obj instanceof Pointer ptrType && baseType.equals(ptrType.baseType);
         }
+
+        /**
+         * 取 depth 次索引后的元素类型
+         */
+        public Type getIndexElementType(int depth) {
+            if (depth < 0) throw new IllegalArgumentException("Negative depth");
+            else if (depth == 0) return this;
+            else if (depth == 1) return baseType;
+            else return switch (baseType) {
+                    case Pointer p -> p.getIndexElementType(depth - 1);
+                    case Array a -> a.getIndexElementType(depth - 1);
+                    default -> throw new IllegalArgumentException("Cannot index into " + baseType);
+                };
+        }
     }
 
 

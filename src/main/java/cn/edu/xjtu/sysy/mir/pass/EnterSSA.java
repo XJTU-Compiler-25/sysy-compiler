@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.symbol.Type;
 
 import java.util.*;
 

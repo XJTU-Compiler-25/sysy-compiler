@@ -109,27 +109,42 @@ stmt
     ;
 
 // SysY 语言中逻辑运算必须在 Cond 中
-cond
-    : value=exp                                      # expCond
-    | lhs=cond op=('<' | '>' | '<=' | '>=') rhs=cond # relCond
-    | lhs=cond op=('==' | '!=') rhs=cond             # eqCond
-    | lhs=cond '&&' rhs=cond                         # andCond
-    | lhs=cond '||' rhs=cond                         # orCond
+cond: orExp;
+
+orExp: andExp (Or andExp)*;
+
+andExp: eqExp (And eqExp)*;
+
+eqOp: Eq | Ne;
+eqExp: relExp (eqOp relExp)*;
+
+relOp: Ge | Le | Gt | Lt;
+relExp: exp (relOp exp)*;
+
+exp: addExp;
+
+addOp: Add | Sub;
+addExp: mulExp (addOp mulExp)*;
+
+mulOp: Mul | Div | Mod;
+mulExp: unaryExp (mulOp unaryExp)*;
+
+unaryOp: Add | Sub | Not;
+unaryExp: unaryOp* primaryExp;
+
+primaryExp
+    : '(' value=exp ')'                 # parenExp
+    | IntLiteral                        # intConstExp
+    | FloatLiteral                      # floatConstExp
+    | name=Id '(' (exp (',' exp)*)? ')' # funcCallExp
+    | assignableExp                     # varAccessExp
     ;
-exp
-    : '(' value=exp ')'                    # parenExp
-    | IntLiteral                           # intConstExp
-    | FloatLiteral                         # floatConstExp
-    | assignableExp                        # varAccessExp
-    | name=Id '(' (exp (',' exp)*)? ')'    # funcCallExp
-    | op=('+' | '-' | '!') rhs=exp         # unaryExp
-    | lhs=exp op=('*' | '/' | '%') rhs=exp # mulExp
-    | lhs=exp op=('+' | '-') rhs=exp       # addExp
-    ;
+
 assignableExp
     : name=Id                # scalarAssignable
     | name=Id ('[' exp ']')+ # arrayAssignable
     ;
+
 arrayLiteralExp
     : value=exp                                         # elementExp
     | '{' (arrayLiteralExp (',' arrayLiteralExp)*)? '}' # arrayExp
@@ -153,6 +168,25 @@ While: 'while';
 Break: 'break';
 Continue: 'continue';
 Return: 'return';
+
+// Operators
+Ge: '>=';
+Le: '<=';
+Gt: '>';
+Lt: '<';
+
+Eq: '==';
+Ne: '!=';
+
+And: '&&';
+Or: '||';
+Not: '!';
+
+Add: '+';
+Sub: '-';
+Mul: '*';
+Div: '/';
+Mod: '%';
 
 fragment IdHead: [a-zA-Z_];
 fragment IdPart: IdHead | [0-9];
