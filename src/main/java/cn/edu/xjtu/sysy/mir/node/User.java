@@ -34,4 +34,9 @@ public sealed abstract class User extends Value permits Function, Instruction {
         return use;
     }
 
+    public void dispose() {
+        for (var use : used) use.value.removeUse(use);
+        used.clear();
+    }
+
 }

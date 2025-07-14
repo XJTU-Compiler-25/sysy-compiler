@@ -10,13 +10,9 @@ public final class MirPassGroups {
 
     public static PassGroup<Module> makePassGroup(ErrManager em) {
         return new PassGroup<>(em,
+                //GarbageBlockElimination::new,
                 DominanceAnalysis::new,
-                LivenessVariable::new,
-                EnterSSA::new,
-                EmptyBlockElimination::new,
-                StrengthReduction::new,
-                CommonSubexprElimination::new,
-                ExitSSA::new
+                EnterSSA::new
         );
     }
 }

@@ -1,22 +1,33 @@
 package cn.edu.xjtu.sysy.mir;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
+
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.Undefined;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.ZeroInit;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseArrayOf;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.node.Value;
+import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 import cn.edu.xjtu.sysy.util.Placeholder;
-
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-
-import static cn.edu.xjtu.sysy.mir.node.InstructionHelper.*;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 /**
  * Middle IR Builder
@@ -24,7 +35,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.*;
  */
 public final class MirBuilder implements ErrManaged {
 
-    private ErrManager errManager;
+    private final ErrManager errManager;
 
     public MirBuilder() {
         this(ErrManager.GLOBAL);
@@ -43,12 +54,10 @@ public final class MirBuilder implements ErrManaged {
     private Module curMod;
     // current building function
     private Function curFunc;
-    // current building basic block
-    private BasicBlock curBB;
+    private final InstructionHelper helper = new InstructionHelper();
 
-    private ArrayDeque<BasicBlock> loopBlocks = new ArrayDeque<>();
-    private ArrayDeque<BasicBlock> loopExits = new ArrayDeque<>();
-
+    private final ArrayDeque<BasicBlock> loopBlocks = new ArrayDeque<>();
+    private final ArrayDeque<BasicBlock> loopExits = new ArrayDeque<>();
 
     public Module build(CompUnit compUnit) {
         return visit(compUnit);
@@ -58,63 +67,68 @@ public final class MirBuilder implements ErrManaged {
         var mod = new Module();
         curMod = mod;
 
-        var globals = new ArrayList<Decl.VarDef>();
-        var funcs = new ArrayList<Decl.FuncDef>();
-
         for (var decl : node.decls) {
             if (decl instanceof Decl.VarDef varDef) {
-                globals.add(varDef);
                 var symbol = varDef.resolution;
-                symbol.address = mod.newGlobalVar(symbol.name, symbol.type);
+                symbol.address = mod.newGlobalVar(symbol, foldGlobalInit(varDef.init));
             } else if (decl instanceof Decl.FuncDef funcDef) {
-                funcs.add(funcDef);
                 var symbol = funcDef.resolution;
-                symbol.address = mod.newFunction(symbol.name, symbol.funcType.returnType);
+                symbol.address = mod.newFunction(symbol.name, symbol.funcType);
+                visit(funcDef);
             }
-        }
-
-        for (var funcDef : funcs) {
-            visit(funcDef);
-            /*
-            if (funcDef.resolution.name.equals("main")) {
-                var main = funcDef.resolution.address;
-                var globalInitBB = main.newBlock("init-globals");
-                var helper = globalInitBB.getHelper();
-                for (var varDef : globals) {
-                    var globalVar = varDef.resolution.address;
-                    // 若没有初始化表达式，则自动使用零初始化
-                    var initExpr = varDef.init;
-                    var initInstruction = initExpr == null ?
-                            helper.store(globalVar, ZeroInit)
-                            : helper.store(globalVar, visit(initExpr));
-                    globalInitBB.addInstruction(initInstruction);
-                }
-
-                globalInitBB.setTerminator(helper.jmp(main.entry));
-                main.entry = globalInitBB;
-                main.blocks.addFirst(globalInitBB);
-            } */
         }
 
         return mod;
     }
 
+    private ImmediateValue foldGlobalInit(Expr node) {
+        if (node == null) return ZeroInit;
+
+        var ctv = node.getComptimeValue();
+        if (ctv != null) {
+            return switch (ctv) {
+                case Integer intVal -> intConst(intVal);
+                case Float floatVal -> floatConst(floatVal);
+                default -> {
+                    err("global variable initial value must be a constant expression, but got: " + node);
+                    yield Undefined;
+                }
+            };
+        } else if (node instanceof Expr.Array arr) {
+            return sparseArrayOf(node.type,
+                    arr.indexes.stream().mapToInt(Integer::intValue).toArray(),
+                    arr.elements.stream().map(this::foldGlobalInit).toArray(Value[]::new));
+        } else {
+            err("global variable initial value must be a constant expression, but got: " + node);
+            return Undefined;
+        }
+    }
+
     public void visit(Decl.FuncDef node) {
         var symbol = node.resolution;
+        var funcType = symbol.funcType;
 
-        var func = curMod.newFunction(symbol.name, symbol.funcType);
-        var entryBB = func.addNewBlock("body");
+        var func = curMod.newFunction(symbol.name, funcType);
+        var entryBB = func.addNewBlock();
 
         curFunc = func;
         symbol.address = func;
 
         func.entry = entryBB;
-        curBB = entryBB;
+        helper.changeBlock(entryBB);
 
-        for (var arg : symbol.params) arg.address = func.addNewLocalVar(arg.name, arg.type);
-        for (var var : node.allVars) var.address = curFunc.addNewLocalVar(var.name, var.type);
+        for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
+        for (var var : node.allVars) var.address = var.type instanceof Type.Array arr ? helper.alloca(arr)
+                : curFunc.addNewLocalVar(var.name, var.type);
 
         visit(node.body);
+
+        if (helper.getBlock() != null && !helper.hasTerminator()) {
+            var retType = funcType.returnType;
+            if (retType == Types.Int) helper.ret(iZero);
+            else if (retType == Types.Float) helper.ret(fZero);
+            else if (retType == Types.Void) helper.ret();
+        }
     }
 
     public void visit(Stmt node) {
@@ -135,13 +149,28 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.LocalVarDef node) {
-        var helper = curBB.getHelper();
         for (var varDef : node.varDefs) {
-            // 若没有初始化表达式，则自动使用零初始化
             var initExpr = varDef.init;
             if (initExpr != null) {
-                var initInstruction = helper.store(varDef.resolution.address, visit(initExpr));
-                curBB.addInstruction(initInstruction);
+                var address = varDef.resolution.address;
+                if (varDef.type instanceof Type.Array arr) {
+                    if (!(initExpr instanceof Expr.Array init)) {
+                        err("array variable must be initialized with an array literal, but got: " + initExpr);
+                        continue;
+                    }
+
+                    var indices = new Value[arr.dimensions.length + 1];
+                    Arrays.fill(indices, iZero);
+                    var decayAll = helper.getElementPtr(address, indices);
+
+                    var indexes = init.indexes;
+                    var values = init.elements;
+                    for (int i = 0, size = init.indexes.size(); i < size; i++) {
+                        var value = visit(values.get(i));
+                        var ptr = helper.getElementPtr(decayAll, intConst(indexes.get(i)));
+                        helper.store(ptr, value);
+                    }
+                } else helper.store(address, visit(initExpr));
             }
         }
     }
@@ -150,41 +179,41 @@ public final class MirBuilder implements ErrManaged {
         for (Stmt stmt : node.stmts) {
             visit(stmt);
 
-            if (stmt instanceof Stmt.Return || stmt instanceof Stmt.Break || stmt instanceof Stmt.Continue) {
-                // 如果是返回、break或continue语句，后面的语句不应该被 emit
-                return;
-            }
+            // 约定：如果语句不会把控制流交回，它应该把 helper 指向 null
+            // 如： if (cond) return; else return;
+            if (helper.getBlock() == null) break;
+
+            // 一个 block 的 return、continue、break 后面的语句都是死语句
+            if (stmt instanceof Stmt.Return || stmt instanceof Stmt.Continue || stmt instanceof Stmt.Break) break;
         }
     }
 
     public void visit(Stmt.Return node) {
-        var helper = curBB.getHelper();
         var retVal = node.value;
-        curBB.setTerminator(retVal == null ? helper.ret() : helper.ret(visit(retVal)));
+
+        if (retVal == null) helper.ret();
+        else helper.ret(visit(retVal));
     }
 
     public void visit(Stmt.Assign node) {
-        var helper = curBB.getHelper();
         var target = node.target;
         var value = node.value;
 
         switch (target) {
             case Expr.VarAccess varAccess -> {
                 var symbol = varAccess.resolution;
-                curBB.addInstruction(helper.store(symbol.address, visit(value)));
+                helper.store(symbol.address, visit(value));
             }
             case Expr.IndexAccess indexAccess -> {
                 var symbol = indexAccess.lhs.resolution;
                 var indexes = indexAccess.indexes;
                 var indexSize = indexes.size();
-                var indices = new Value[indexSize];
-                for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
-                var arr = helper.load(symbol.address);
-                curBB.addInstruction(arr);
-                var getPtr = helper.getElementPtr(arr, indices);
-                curBB.addInstruction(getPtr);
-                var store = helper.store(getPtr, visit(value));
-                curBB.addInstruction(store);
+                var indices = new Value[indexSize + 1];
+                // “数组类型的变量”的值（Alloca） 的类型是 指向数组的指针，需要先解引用
+                indices[0] = iZero;
+                for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
+                var getPtr = helper.getElementPtr(symbol.address, indices);
+                helper.store(getPtr, visit(value));
             }
             default -> unsupported(target);
         }
@@ -195,81 +224,119 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.If node) {
-        var helper = curBB.getHelper();
-        var curLabel = curBB.label;
-
-        var condVal = visit(node.cond);
-        var thenBB = curFunc.addNewBlock("%s.if-then".formatted(curLabel));
-        var mergeBB = new BasicBlock(curFunc, "%s.if-merge".formatted(curLabel));
+        var thenBB = new BasicBlock(curFunc);
+        var elseBB = new BasicBlock(curFunc);
+        var mergeBB = new BasicBlock(curFunc);
 
         var elseStmt = node.elseStmt;
-        if (elseStmt == Stmt.Empty.INSTANCE) {
-            curBB.setTerminator(helper.br(condVal, thenBB, mergeBB));
+        var hasElse = elseStmt != Stmt.Empty.INSTANCE;
 
-            curBB = thenBB;
-            visit(node.thenStmt);
-            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
-        } else {
-            var elseBB = curFunc.addNewBlock("%s.if-else".formatted(curLabel));
-            curBB.setTerminator(helper.br(condVal, thenBB, elseBB));
+        // 对整个表达式来说，值是 true 的走向就是 then，false 的走向就是 else 或者 merge
+        visitCond(node.cond, thenBB, hasElse ? elseBB : mergeBB);
 
-            curBB = thenBB;
-            visit(node.thenStmt);
-            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
+        var needMerge = false;
 
-            curBB = elseBB;
-            visit(elseStmt);
-            if (curBB.terminator == null) curBB.setTerminator(helper.jmp(mergeBB));
+        curFunc.addBlock(thenBB);
+        helper.changeBlock(thenBB);
+        visit(node.thenStmt);
+        // 如果里面有 break 等等，有可能本来就有 terminator，不能覆盖
+        if (helper.getBlock() != null && !helper.hasTerminator()) {
+            needMerge = true;
+            helper.jmp(mergeBB);
         }
 
-        curFunc.addBlock(mergeBB);
-        curBB = mergeBB;
+        if (hasElse) {
+            curFunc.addBlock(elseBB);
+            helper.changeBlock(elseBB);
+            visit(elseStmt);
+
+            if (helper.getBlock() != null && !helper.hasTerminator()) {
+                needMerge = true;
+                helper.jmp(mergeBB);
+            }
+        } else needMerge = true; // 如果没有 else，那肯定需要 merge block
+
+        if (needMerge) {
+            curFunc.addBlock(mergeBB);
+            helper.changeBlock(mergeBB);
+        } else helper.changeBlock(null); // 设为 null 方便检测继续插入的错误
     }
 
     public void visit(Stmt.While node) {
-        var helper = curBB.getHelper();
-        var curLabel = curBB.label;
+        var loopBB = new BasicBlock(curFunc);
+        var mergeBB = new BasicBlock(curFunc);
 
-        var condVal = visit(node.cond);
-        var loopBB = curFunc.addNewBlock("%s.while-body".formatted(curLabel));
-        var mergeBB = curFunc.newBlock("%s.while-merge".formatted(curLabel));
-
-        curBB.setTerminator(helper.br(condVal, loopBB, mergeBB));
+        visitCond(node.cond, loopBB, mergeBB);
 
         loopBlocks.addLast(loopBB);
         loopExits.addLast(mergeBB);
 
-        curBB = loopBB;
+        curFunc.addBlock(loopBB);
+        helper.changeBlock(loopBB);
         visit(node.body);
-        if (curBB.terminator == null) curBB.setTerminator(helper.br(condVal, loopBB, mergeBB));
 
         loopBlocks.removeLast();
         loopExits.removeLast();
+        // 需要重新求值 condVal，但是，比如直接写一个 break 在结尾的时候就不需要
+        if (helper.getBlock() != null && !helper.hasTerminator()) visitCond(node.cond, loopBB, mergeBB);
 
         curFunc.addBlock(mergeBB);
-        curBB = mergeBB;
+        helper.changeBlock(mergeBB);
     }
 
-    public void visit(Stmt.Break node) {
-        var helper = curBB.getHelper();
+    private void visitCond(Expr cond, BasicBlock trueTarget, BasicBlock falseTarget) {
+        if (cond instanceof Expr.Binary binary) {
+            var ops = binary.operators;
+            var opers = binary.operands;
+            var firstOp = ops.getFirst();
+            // 由于 binary 包含同一级的操作符，and 和 or 没有相同优先级的别的操作符
+            // 所以判断第一个就知道整体是 and 还是 or 了
+            if (firstOp == Expr.Operator.AND) {
+                for (int i = 0, size = opers.size() - 1; i < size; i++) {
+                    var oper = opers.get(i);
+                    var checkRhs = new BasicBlock(curFunc);
+                    visitCond(oper, checkRhs, falseTarget);
+                    curFunc.addBlock(checkRhs);
+                    helper.changeBlock(checkRhs);
+                }
+                visitCond(opers.getLast(), trueTarget, falseTarget);
+                return;
+            } else if (firstOp == Expr.Operator.OR) {
+                for (int i = 0, size = opers.size() - 1; i < size; i++) {
+                    var oper = opers.get(i);
+                    var checkRhs = new BasicBlock(curFunc);
+                    visitCond(oper, trueTarget, checkRhs);
+                    curFunc.addBlock(checkRhs);
+                    helper.changeBlock(checkRhs);
+                }
+                visitCond(opers.getLast(), trueTarget, falseTarget);
+                return;
+            }
+            // 如果第一个操作符不是 and 或者 or 最后还会回落到下面普通表达式的
+        }
+        // 普通的表达式
+        var condVal = visit(cond);
+        helper.br(condVal, trueTarget, falseTarget);
+    }
+
+    public void visit(Stmt.Break ignored) {
         if (loopExits.isEmpty()) {
             err("break statement not in loop");
             return;
         }
 
         var exitBB = loopExits.getLast();
-        curBB.setTerminator(helper.jmp(exitBB));
+        helper.jmp(exitBB);
     }
 
-    public void visit(Stmt.Continue node) {
-        var helper = curBB.getHelper();
+    public void visit(Stmt.Continue ignored) {
         if (loopBlocks.isEmpty()) {
             err("continue statement not in loop");
             return;
         }
 
         var loopBB = loopBlocks.getLast();
-        curBB.setTerminator(helper.jmp(loopBB));
+        helper.jmp(loopBB);
     }
 
     public Value visit(Expr node) {
@@ -287,54 +354,54 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Binary node) {
-        var helper = curBB.getHelper();
-        var lhs = visit(node.lhs);
-        var rhs = visit(node.rhs);
-        var instr = switch (node.op) {
-            case ADD -> helper.add(lhs, rhs);
-            case SUB -> helper.sub(lhs, rhs);
-            case MUL -> helper.mul(lhs, rhs);
-            case DIV -> helper.div(lhs, rhs);
-            case MOD -> helper.mod(lhs, rhs);
+        var opers = node.operands;
+        var ops = node.operators;
+        var result = visit(opers.getFirst());
+        for (int i = 0, size = ops.size(); i < size; i++) {
+            var op = ops.get(i);
+            var oper = visit(opers.get(i + 1));
+            result = switch (op) {
+                case ADD -> helper.add(result, oper);
+                case SUB -> helper.sub(result, oper);
+                case MUL -> helper.mul(result, oper);
+                case DIV -> helper.div(result, oper);
+                case MOD -> helper.mod(result, oper);
 
-            case EQ -> helper.eq(lhs, rhs);
-            case NE -> helper.ne(lhs, rhs);
-            case GT -> helper.gt(lhs, rhs);
-            case GE -> helper.ge(lhs, rhs);
-            case LT -> helper.lt(lhs, rhs);
-            case LE -> helper.le(lhs, rhs);
+                case EQ -> helper.eq(result, oper);
+                case NE -> helper.ne(result, oper);
+                case GT -> helper.gt(result, oper);
+                case GE -> helper.ge(result, oper);
+                case LT -> helper.lt(result, oper);
+                case LE -> helper.le(result, oper);
 
-            case AND -> helper.and(lhs, rhs);
-            case OR -> helper.or(lhs, rhs);
-            default -> (Instruction) unsupported(node.op);
-        };
-        curBB.addInstruction(instr);
-        return instr;
+                case AND -> helper.and(result, oper);
+                case OR -> helper.or(result, oper);
+                default -> (Instruction) unsupported(op);
+            };
+        }
+        return result;
     }
 
     public Value visit(Expr.Unary node) {
-        var helper = curBB.getHelper();
-        var rhs = visit(node.rhs);
-        if (node.op == Expr.Operator.ADD) return rhs;
-
-        var instr = switch (node.op) {
-            case SUB -> helper.neg(rhs);
-            case NOT -> helper.not(rhs);
-            default -> (Instruction) unsupported(node.op);
-        };
-        curBB.addInstruction(instr);
-        return instr;
+        var result = visit(node.operand);
+        for (var op : node.operators) {
+            result = switch (op) {
+                case ADD -> result; // unary plus, do nothing
+                case SUB -> helper.neg(result);
+                case NOT -> helper.not(result);
+                default -> (Instruction) unsupported(node.operators);
+            };
+        }
+        return result;
     }
 
     public Value visit(Expr.Call node) {
-        var helper = curBB.getHelper();
         var symbol = node.resolution;
         var args = new Value[node.args.size()];
         for (int i = 0; i < node.args.size(); i++) args[i] = visit(node.args.get(i));
-        var call = symbol.isExternal ? helper.callExternal(symbol.funcType.returnType, args)
+
+        return symbol.isExternal ? helper.callBuiltin(symbol.name, args)
                 : helper.call(symbol.address, args);
-        curBB.addInstruction(call);
-        return call;
     }
 
     public Value visit(Expr.Assignable node) {
@@ -345,35 +412,21 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.VarAccess node) {
-        var helper = curBB.getHelper();
         var symbol = node.resolution;
 
-        var load = helper.load(symbol.address);
-        curBB.addInstruction(load);
-
-        return load;
+        return helper.load(symbol.address);
     }
 
     public Value visit(Expr.IndexAccess node) {
-        var helper = curBB.getHelper();
         var symbol = node.lhs.resolution;
         var indexes = node.indexes;
         var indexSize = indexes.size();
-        var indices = new Value[indexSize];
-        for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
+        var indices = new Value[indexSize + 1];
+        indices[0] = iZero; // 数组类型的变量的值（Alloca） 的类型是 指向数组的指针，需要先解引用
+        for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
+        var elementPtr = helper.getElementPtr(symbol.address, indices);
 
-        // 先要取 “变量类型的值” 指向的 “数组类型的值”
-        var arr = helper.load(symbol.address);
-        curBB.addInstruction(arr);
-
-        // 再计算 indices 偏移
-        var elementPtr = helper.getElementPtr(arr, indices);
-        curBB.addInstruction(elementPtr);
-
-        var load = helper.load(elementPtr);
-        curBB.addInstruction(load);
-
-        return load;
+        return helper.load(elementPtr);
     }
 
     public Value visit(Expr.Literal node) {
@@ -387,27 +440,24 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Array node) {
-        var elements = node.elements;
-        var elementCount = elements.size();
-        var values = new Value[elementCount];
-        for (int i = 0; i < elementCount; i++) values[i] = visit(elements.get(i));
+        var values = node.elements.stream().map(this::visit).toArray(Value[]::new);
         var indexes = node.indexes.stream().mapToInt(Integer::intValue).toArray();
         return sparseArrayOf(node.type, indexes, values);
     }
 
     public Value visit(Expr.Cast node) {
-        var helper = curBB.getHelper();
         var value = visit(node.value);
-        if (node.toType == Types.Int) {
-            var f2i = helper.f2i(value);
-            curBB.addInstruction(f2i);
-            return f2i;
-        } else if (node.toType == Types.Float) {
-            var i2f = helper.i2f(value);
-            curBB.addInstruction(i2f);
-            return i2f;
-        }
 
-        return unsupported(value);
+        return switch (node.kind) {
+            case Float2Int -> helper.f2i(value);
+            case Int2Float -> helper.i2f(value);
+            case Ptr2Bool -> iOne; // !ptr 的场景 ptr 都当 true 吧
+            case Decay -> helper.getElementPtr(value, iZero);
+            case DecayAll -> {
+                var indices = new Value[((Type.Array) node.value.type).dimensions.length];
+                Arrays.fill(indices, iZero);
+                yield helper.getElementPtr(value, indices);
+            }
+        };
     }
 }

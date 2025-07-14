@@ -5,8 +5,8 @@ import java.util.Map;
 
 public abstract sealed class SymbolTable {
     public abstract SymbolTable getParent();
-    public abstract Symbol.Var resolve(String name);
-    public abstract void declare(Symbol.Var var);
+    public abstract Symbol.VarSymbol resolve(String name);
+    public abstract void declare(Symbol.VarSymbol var);
 
     public static final class Global extends SymbolTable {
         private final Map<String, Symbol> table = new HashMap<>();
@@ -17,19 +17,18 @@ public abstract sealed class SymbolTable {
 
         public Global(boolean declBuiltin) {
             if (declBuiltin) {
-                declareFunc(BuiltinSymbols.GETINT);
-                declareFunc(BuiltinSymbols.GETCH);
-                declareFunc(BuiltinSymbols.GETFLOAT);
-                declareFunc(BuiltinSymbols.GETARRAY);
-                declareFunc(BuiltinSymbols.GETFARRAY);
-                declareFunc(BuiltinSymbols.PUTINT);
-                declareFunc(BuiltinSymbols.PUTCH);
-                declareFunc(BuiltinSymbols.PUTFLOAT);
-                declareFunc(BuiltinSymbols.PUTARRAY);
-                declareFunc(BuiltinSymbols.PUTFARRAY);
-
-                declareFunc("starttime", BuiltinSymbols.STARTTIME);
-                declareFunc("stoptime", BuiltinSymbols.STOPTIME);
+                declareFunc(BuiltinFunction.GETINT.symbol);
+                declareFunc(BuiltinFunction.GETCH.symbol);
+                declareFunc(BuiltinFunction.GETFLOAT.symbol);
+                declareFunc(BuiltinFunction.GETARRAY.symbol);
+                declareFunc(BuiltinFunction.GETFARRAY.symbol);
+                declareFunc(BuiltinFunction.PUTINT.symbol);
+                declareFunc(BuiltinFunction.PUTCH.symbol);
+                declareFunc(BuiltinFunction.PUTFLOAT.symbol);
+                declareFunc(BuiltinFunction.PUTARRAY.symbol);
+                declareFunc(BuiltinFunction.PUTFARRAY.symbol);
+                declareFunc(BuiltinFunction.STARTTIME.symbol);
+                declareFunc(BuiltinFunction.STOPTIME.symbol);
             }
         }
 
@@ -39,41 +38,41 @@ public abstract sealed class SymbolTable {
         }
 
         @Override
-        public Symbol.Var resolve(String name) {
+        public Symbol.VarSymbol resolve(String name) {
             var var = table.get(name);
             if (var == null) throw new IllegalArgumentException("Undefined variable: " + name);
-            else if (!(var instanceof Symbol.Var it)) throw new IllegalArgumentException("Symbol is not global variable: " + name);
+            else if (!(var instanceof Symbol.VarSymbol it)) throw new IllegalArgumentException("Symbol is not global variable: " + name);
             else return it;
         }
 
         @Override
-        public void declare(Symbol.Var var) {
+        public void declare(Symbol.VarSymbol var) {
             var key = var.name;
             if (table.containsKey(key)) throw new IllegalArgumentException("Global variable redefinition: " + key);
             else table.put(key, var);
         }
 
-        public Symbol.Func resolveFunc(String name) {
+        public Symbol.FuncSymbol resolveFunc(String name) {
             var func = table.get(name);
             if (func == null) throw new IllegalArgumentException("Undefined function: " + name);
-            else if (!(func instanceof Symbol.Func it)) throw new IllegalArgumentException("Symbol is not function: " + name);
+            else if (!(func instanceof Symbol.FuncSymbol it)) throw new IllegalArgumentException("Symbol is not function: " + name);
             else return it;
         }
 
-        public void declareFunc(Symbol.Func func) {
+        public void declareFunc(Symbol.FuncSymbol func) {
             var key = func.name;
             if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
             else table.put(key, func);
         }
 
-        public void declareFunc(String key, Symbol.Func func) {
+        public void declareFunc(String key, Symbol.FuncSymbol func) {
             if (table.containsKey(key)) throw new IllegalArgumentException("Function redefinition: " + key);
             else table.put(key, func);
         }
     }
 
     public static final class Local extends SymbolTable {
-        private final Map<String, Symbol.Var> table = new HashMap<>();
+        private final Map<String, Symbol.VarSymbol> table = new HashMap<>();
         public final SymbolTable parent;
 
         public Local(SymbolTable parent) {
@@ -86,14 +85,14 @@ public abstract sealed class SymbolTable {
         }
 
         @Override
-        public Symbol.Var resolve(String name) {
+        public Symbol.VarSymbol resolve(String name) {
             var var = table.get(name);
             if (var != null) return var;
             else return parent.resolve(name);
         }
 
         @Override
-        public void declare(Symbol.Var var) {
+        public void declare(Symbol.VarSymbol var) {
             var key = var.name;
             if (table.containsKey(key)) throw new IllegalArgumentException("Local variable redefinition: " + key);
             else table.put(key, var);

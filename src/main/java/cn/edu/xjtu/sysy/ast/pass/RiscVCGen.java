@@ -6,7 +6,6 @@ import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
-import cn.edu.xjtu.sysy.riscv.Global;
 import cn.edu.xjtu.sysy.riscv.Label;
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FA0;
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FT0;
@@ -20,10 +19,11 @@ import static cn.edu.xjtu.sysy.riscv.Register.Int.T1;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.ZERO;
 import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.symbol.Symbol;
-import cn.edu.xjtu.sysy.symbol.Symbol.Var;
 import cn.edu.xjtu.sysy.symbol.SymbolTable;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+
+import static cn.edu.xjtu.sysy.util.Assertions.requires;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 
@@ -32,10 +32,10 @@ public class RiscVCGen extends AstVisitor {
     protected final RiscVWriter asm;
 
     protected SymbolTable.Global globalST = null;
-    
+
     protected SymbolTable currentST = null;
 
-    protected Symbol.Func currentFunc = null;
+    protected Symbol.FuncSymbol currentFunc = null;
 
     protected Label funcEpilogue = null;
 
@@ -76,26 +76,26 @@ public class RiscVCGen extends AstVisitor {
         int funcSize = node.resolution.getSize();
         if (funcSize > 2048) {
             asm .addi(SP, SP, -16);
-            
+
             if (node.resolution.raSave) {
                 asm .sd(RA, SP, 8)
-                    .sd(FP, SP, 0);
+                        .sd(FP, SP, 0);
             } else {
                 asm .sd(FP, SP, 8);
             }
 
             asm .addi(FP, SP, 16)
-                .li(T0, -funcSize+16)
-                .add(SP, SP, T0);
+                    .li(T0, -funcSize+16)
+                    .add(SP, SP, T0);
         } else {
             asm .addi(SP, SP, -funcSize);
             if (node.resolution.raSave) {
                 asm .sd(RA, SP, funcSize-8)
-                    .sd(FP, SP, funcSize-16);
+                        .sd(FP, SP, funcSize-16);
             }
             else {
                 asm .sd(FP, SP, funcSize-8);
-            }            
+            }
             asm .addi(FP, SP, funcSize);
         }
 
@@ -113,25 +113,25 @@ public class RiscVCGen extends AstVisitor {
         asm .label(funcEpilogue);
         if (funcSize > 2048) {
             asm .li(T0, funcSize-16)
-                .add(SP, SP, T0);
+                    .add(SP, SP, T0);
             if (node.resolution.raSave) {
                 asm .ld(RA, SP, 8)
-                    .ld(FP, SP, 0);
+                        .ld(FP, SP, 0);
             } else {
                 asm .ld(FP, SP, 8);
-            } 
+            }
             asm .addi(SP, SP, 16)
-                .ret();
+                    .ret();
         } else {
             if (node.resolution.raSave) {
                 asm .ld(RA, SP, funcSize-8)
-                    .ld(FP, SP, funcSize-16);
+                        .ld(FP, SP, funcSize-16);
             } else {
                 asm .ld(FP, SP, funcSize-8);
             }
-            
+
             asm .addi(SP, SP, funcSize)
-                .ret();
+                    .ret();
         }
         asm.defFunc(sym);
         currentST = currentST.getParent();
@@ -145,7 +145,7 @@ public class RiscVCGen extends AstVisitor {
         sym.declared = true;
         if (node.init == null) {
             asm .zero(sym.type.size)
-                .defVarBss(sym);
+                    .defVarBss(sym);
             return;
         }
         switch (sym.type) {
@@ -197,10 +197,10 @@ public class RiscVCGen extends AstVisitor {
             case Type.Int _, Type.Float _ -> {
                 if (sym.comptimeValue != null) {
                     asm .li(A0, sym.comptimeValue)
-                        .sw(A0, FP, -currentFunc.getIndex(sym), T0);
+                            .sw(A0, FP, -currentFunc.getIndex(sym), T0);
                 } else {
                     visit(node.init, nt);
-                    if (sym.type instanceof Type.Float) 
+                    if (sym.type instanceof Type.Float)
                         asm.fsw(FA0, FP, -currentFunc.getIndex(sym), T0);
                     else
                         asm.sw(A0, FP, -currentFunc.getIndex(sym), T0);
@@ -210,7 +210,7 @@ public class RiscVCGen extends AstVisitor {
                 var arr = (Expr.Array) node.init;
                 int arrayIndex = currentFunc.getIndex(sym);
                 int lasti = -1;
-                
+
                 for (int i = 0; i < arr.indexes.size(); i++) {
                     int index = arr.indexes.get(i);
                     Expr exp = arr.elements.get(i);
@@ -219,10 +219,10 @@ public class RiscVCGen extends AstVisitor {
                     }
                     if (exp.isComptime) {
                         asm.li(A0, exp.getComptimeValue())
-                            .sw(A0, FP, -(arrayIndex - 4* index), T0);
+                                .sw(A0, FP, -(arrayIndex - 4* index), T0);
                     } else {
                         visit(exp, arrayIndex + 4);
-                        if (arrType.elementType instanceof Type.Float) 
+                        if (arrType.elementType instanceof Type.Float)
                             asm.fsw(FA0, FP, -(arrayIndex - 4* index), T0);
                         else
                             asm.sw(A0, FP, -(arrayIndex - 4* index), T0);
@@ -232,7 +232,7 @@ public class RiscVCGen extends AstVisitor {
                 int tailSize = sym.type.size - 4*(lasti+1);
                 if (tailSize > 0)
                     asm.setzero(arrayIndex - 4*(lasti+1), tailSize, T0);
-    
+
             }
             default -> unreachable();
         }
@@ -282,19 +282,16 @@ public class RiscVCGen extends AstVisitor {
                     st = st.getParent();
                     sym = st.resolve(it.name);
                 }
-                switch (sym.kind) {
-                    case Var.Kind.GLOBAL -> {
-                        if (sym.type instanceof Type.Float) 
-                            asm.fsw(FA0, sym.label, T0);
-                        else
-                            asm.sw(A0, sym.label, T0);
-                    }
-                    case Var.Kind.LOCAL -> {
-                        if (sym.type instanceof Type.Float) 
-                            asm.fsw(FA0, FP, -currentFunc.getIndex(sym), T0);
-                        else
-                            asm.sw(A0, FP, -currentFunc.getIndex(sym), T0);
-                    }
+                if (sym.isGlobal) {
+                    if (sym.type instanceof Type.Float)
+                        asm.fsw(FA0, sym.label, T0);
+                    else
+                        asm.sw(A0, sym.label, T0);
+                } else {
+                    if (sym.type instanceof Type.Float)
+                        asm.fsw(FA0, FP, -currentFunc.getIndex(sym), T0);
+                    else
+                        asm.sw(A0, FP, -currentFunc.getIndex(sym), T0);
                 }
             }
             case Expr.IndexAccess it -> {
@@ -313,54 +310,51 @@ public class RiscVCGen extends AstVisitor {
                     case Type.Array a -> a.elementType;
                     default -> type;
                 };
-                if (baseType instanceof Type.Float) 
+                if (baseType instanceof Type.Float)
                     asm.fsw(FA0, FP, -nt, T0);
                 else
                     asm.sw(A0, FP, -nt, T0);
                 var i0 = it.indexes.get(0);
                 visit(i0, nt+4);
                 if (it.indexes.size() > 1 && type instanceof Type.Array t) {
-                    int addr = Symbol.Func.align(nt+4, 8) + 8;
+                    int addr = Symbol.FuncSymbol.align(nt+4, 8) + 8;
                     for (int i = 1; i < it.indexes.size(); i++) {
                         asm .li(T0, t.getDimension(i-1))
-                            .mul(A0, T0, A0)
-                            .sd(A0, FP, -addr, T0);
+                                .mul(A0, T0, A0)
+                                .sd(A0, FP, -addr, T0);
                         var index = it.indexes.get(i);
                         visit(index, addr+8);
                         asm .ld(T0, FP, -addr, T1)
-                            .add(A0, T0, A0);
+                                .add(A0, T0, A0);
                     }
                 }
-                switch (sym.kind) {
-                    case Var.Kind.GLOBAL -> {
-                        asm .slli(A0, A0, 2)
+                if (sym.isGlobal) {
+                    asm .slli(A0, A0, 2)
                             .la(T0, sym.label)
                             .add(A0, T0, A0);
-                        if (baseType instanceof Type.Float) 
-                            asm .flw(FT0, FP, -nt, T1)
+                    if (baseType instanceof Type.Float)
+                        asm .flw(FT0, FP, -nt, T1)
                                 .fsw(FT0, A0, 0);
-                        else
-                            asm .lw(T0, FP, -nt, T1)
+                    else
+                        asm .lw(T0, FP, -nt, T1)
                                 .sw(T0, A0, 0);
-                    }
-                    case Var.Kind.LOCAL -> {
-                        int index = currentFunc.getIndex(sym);
-                        if (index <= 0) {
-                            asm .slli(A0, A0, 2)
+                } else {
+                    int index = currentFunc.getIndex(sym);
+                    if (index <= 0) {
+                        asm .slli(A0, A0, 2)
                                 .ld(T0, FP, -index, T1)
                                 .add(A0, T0, A0);
-                        } else {
-                            asm .slli(A0, A0, 2)
+                    } else {
+                        asm .slli(A0, A0, 2)
                                 .addi(T0, FP, -index, T1)
                                 .add(A0, T0, A0);
-                        }
-                        if (baseType instanceof Type.Float) 
-                            asm .flw(FT0, FP, -nt, T1)
-                                .fsw(FT0, A0, 0);
-                        else
-                            asm .lw(T0, FP, -nt, T1)
-                                .sw(T0, A0, 0);
                     }
+                    if (baseType instanceof Type.Float)
+                        asm .flw(FT0, FP, -nt, T1)
+                                .fsw(FT0, A0, 0);
+                    else
+                        asm .lw(T0, FP, -nt, T1)
+                                .sw(T0, A0, 0);
                 }
             }
         }
@@ -404,14 +398,14 @@ public class RiscVCGen extends AstVisitor {
         asm.beqz(A0, loopEpilogue);
         visit(node.body, nt);
         asm.j(loopEntry);
-        asm.label(loopEpilogue); 
+        asm.label(loopEpilogue);
 
         loopEntry = outerEntry;
         loopEpilogue = outerEpilogue;
         return nt;
     }
 
-    public int visit(Stmt.Break node, int nt) { 
+    public int visit(Stmt.Break node, int nt) {
         asm.j(loopEpilogue);
         return nt;
     }
@@ -434,56 +428,39 @@ public class RiscVCGen extends AstVisitor {
     }
 
     public int visit(Expr.Binary node, int nt) {
-        Stack<Expr.Binary> binaries = new Stack<>();
-        Stack<Expr.Operator> ops = new Stack<>();
-        Expr expr = node;
-        while (expr instanceof Expr.Binary it) {
-            binaries.push(it);
-            ops.push(it.op);
-            expr = it.lhs;
-        }
-        visit(expr, nt);
-        assert expr != null;
-        while (!binaries.isEmpty()) {
-            var bin = binaries.pop();
-            var op = ops.pop();
-            if (!bin.isLogical()) {
-                if (expr.type instanceof Type.Float) {
-                    asm.fsw(FA0, FP, -nt, T0);
-                } else {
-                    asm.sw(A0, FP, -nt, T0);
-                }
-                visit(bin.rhs, nt+4);
-                if (expr.type instanceof Type.Float) {
-                    asm.flw(FT0, FP, -nt, T1);
-                } else {
-                    asm.lw(T0, FP, -nt, T1);
-                }
-            }
+        var opers = node.operands;
+        var ops = node.operators;
+        var first = opers.getFirst();
+        visit(first, nt);
+        for (int i = 0, size = ops.size(); i < size; i++) {
+            var op = ops.get(i);
+            var oper = opers.get(i + 1);
+            var type = oper.type;
+            var needVisit = true;
             switch (op) {
                 case Expr.Operator.ADD -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .fadd(FA0, FT0, FA0);
                     } else {
                         asm .addw(A0, T0, A0);
                     }
                 }
                 case Expr.Operator.SUB -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .fsub(FA0, FT0, FA0);
                     } else {
                         asm .subw(A0, T0, A0);
                     }
                 }
                 case Expr.Operator.MUL -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .fmul(FA0, FT0, FA0);
                     } else {
                         asm .mulw(A0, T0, A0);
                     }
                 }
                 case Expr.Operator.DIV -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .fdiv(FA0, FT0, FA0);
                     } else {
                         asm .divw(A0, T0, A0);
@@ -493,131 +470,135 @@ public class RiscVCGen extends AstVisitor {
                     asm .remw(A0, T0, A0);
                 }
                 case Expr.Operator.EQ -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .feq(A0, FT0, FA0);
                     } else {
                         asm .xor(A0, T0, A0)
-                            .seqz(A0, A0);
+                                .seqz(A0, A0);
                     }
                 }
                 case Expr.Operator.NE -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .feq(A0, FT0, FA0)
-                            .xori(A0, A0, 1);
+                                .xori(A0, A0, 1);
                     } else {
                         asm .xor(A0, T0, A0)
-                            .snez(A0, A0);
+                                .snez(A0, A0);
                     }
                 }
                 case Expr.Operator.LT -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .flt(A0, FT0, FA0);
                     } else {
                         asm .slt(A0, T0, A0);
                     }
                 }
                 case Expr.Operator.LE -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .flt(A0, FA0, FT0)
-                            .xori(A0, A0, 1);
+                                .xori(A0, A0, 1);
                     } else {
                         asm .slt(A0, A0, T0)
-                            .xori(A0, A0, 1);
+                                .xori(A0, A0, 1);
                     }
                 }
                 case Expr.Operator.GT -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .flt(A0, FA0, FT0);
                     } else {
                         asm .slt(A0, A0, T0);
                     }
                 }
                 case Expr.Operator.GE -> {
-                    if (bin.rhs.type instanceof Type.Float) {
+                    if (type == Types.Float) {
                         asm .flt(A0, FT0, FA0)
-                            .xori(A0, A0, 1);
+                                .xori(A0, A0, 1);
                     } else {
                         asm .slt(A0, T0, A0)
-                            .xori(A0, A0, 1);
+                                .xori(A0, A0, 1);
                     }
                 }
                 case Expr.Operator.AND -> {
                     var end = genLocalLabel();
-                    if (expr.type instanceof Type.Float) {
+                    if (node.type instanceof Type.Float) {
                         asm .fmv_w_x(FT0, ZERO)
-                            .feq(A0, FA0, FT0)
-                            .xori(A0, A0, 1);
+                                .feq(A0, FA0, FT0)
+                                .xori(A0, A0, 1);
                     } else {
                         asm .snez(A0, A0);
                     }
                     asm.beqz(A0, end);
                     asm.sw(A0, FP, -nt, T0);
-                    visit(bin.rhs, nt+4);
-                    if (bin.rhs.type instanceof Type.Float) {
+                    visit(oper, nt + 4);
+                    needVisit = false;
+                    if (type == Types.Float) {
                         asm .fmv_w_x(FT0, ZERO)
-                            .feq(A0, FA0, FT0)
-                            .xori(A0, A0, 1);
+                                .feq(A0, FA0, FT0)
+                                .xori(A0, A0, 1);
                     } else {
                         asm .snez(A0, A0);
                     }
-                   
+
                     asm .lw(T0, FP, -nt, T1)
-                        .and(A0, T0, A0);
+                            .and(A0, T0, A0);
                     asm.label(end);
                 }
                 case Expr.Operator.OR -> {
                     var end = genLocalLabel();
-                    if (expr.type instanceof Type.Float) {
+                    if (node.type instanceof Type.Float) {
                         asm .fmv_w_x(FT0, ZERO)
-                            .feq(A0, FA0, FT0)
-                            .xori(A0, A0, 1);
+                                .feq(A0, FA0, FT0)
+                                .xori(A0, A0, 1);
                     } else {
                         asm .snez(A0, A0);
                     }
                     asm.bnez(A0, end);
                     asm.sw(A0, FP, -nt, T0);
-                    visit(bin.rhs, nt+4);
-                    if (bin.rhs.type instanceof Type.Float) {
+                    visit(oper, nt + 4);
+                    needVisit = false;
+                    if (type == Types.Float) {
                         asm .fmv_w_x(FT0, ZERO)
-                            .feq(A0, FA0, FT0)
-                            .xori(A0, A0, 1);
+                                .feq(A0, FA0, FT0)
+                                .xori(A0, A0, 1);
                     } else {
                         asm .snez(A0, A0);
                     }
                     asm .lw(T0, FP, -nt, T1)
-                        .or(A0, T0, A0);
+                            .or(A0, T0, A0);
                     asm.label(end);
                 }
                 default -> unreachable();
             }
-            expr = bin;
+            if (needVisit) visit(oper, nt + 4);
         }
         return nt;
     }
 
     public int visit(Expr.Unary node, int nt) {
-        visit(node.rhs, nt);
-        switch (node.op) {
-            case NOT -> {
-                if (node.rhs.type instanceof Type.Float) {
-                    asm .fmv_w_x(FT0, ZERO)
-                        .feq(A0, FT0, FA0);
-                } else {
-                    asm .seqz(A0, A0);
+        visit(node.operand, nt);
+        for (var op : node.operators) {
+            switch (op) {
+                case NOT -> {
+                    if (node.operand.type instanceof Type.Float) {
+                        asm.fmv_w_x(FT0, ZERO)
+                                .feq(A0, FT0, FA0);
+                    } else {
+                        asm.seqz(A0, A0);
+                    }
                 }
-            }
-            case ADD -> {
-                // skip
-            }
-            case SUB -> {
-                if (node.rhs.type instanceof Type.Float) {
-                    asm.fneg(FA0, FA0);
-                } else {
-                    asm.negw(A0, A0);
+                case ADD -> {
+                    // skip
                 }
-            }
-            default -> {
-                unreachable();
+                case SUB -> {
+                    if (node.operand.type instanceof Type.Float) {
+                        asm.fneg(FA0, FA0);
+                    } else {
+                        asm.negw(A0, A0);
+                    }
+                }
+                default -> {
+                    unreachable();
+                }
             }
         }
         return nt;
@@ -649,7 +630,7 @@ public class RiscVCGen extends AstVisitor {
                     m += 4;
                 }
                 case Type.Array _, Type.Pointer _ -> {
-                    m = Symbol.Func.align(m, 8) + 8;
+                    m = Symbol.FuncSymbol.align(m, 8) + 8;
                     ms[i] = m;
                     asm.sd(A0, FP, -m, T0);
                     m += 8;
@@ -664,12 +645,12 @@ public class RiscVCGen extends AstVisitor {
                 case Type.Int _, Type.Float _ -> {
                     m = ms[i];
                     asm .lw(A0, FP, -m, T0)
-                        .sw(A0, SP, -func.getIndex(param), T0);
+                            .sw(A0, SP, -func.getIndex(param), T0);
                 }
                 case Type.Array _, Type.Pointer _ -> {
                     m = ms[i];
                     asm .ld(A0, FP, -m, T0)
-                        .sd(A0, SP, -func.getIndex(param), T0);
+                            .sd(A0, SP, -func.getIndex(param), T0);
                 }
                 default -> unreachable();
             }
@@ -682,47 +663,44 @@ public class RiscVCGen extends AstVisitor {
         return nt;
     }
 
-    public int visit(Expr.VarAccess node, int nt) { 
+    public int visit(Expr.VarAccess node, int nt) {
         var sym = currentST.resolve(node.name);
         var st = currentST;
         while (!sym.declared) {
             st = st.getParent();
             sym = st.resolve(node.name);
         }
-        switch (sym.kind) {
-            case Var.Kind.GLOBAL -> {
-                switch (sym.type) {
-                    case Type.Int _, Type.Float _ -> {
-                        asm .la(A0, sym.label);
-                        if (node.type instanceof Type.Float) 
-                            asm.flw(FA0, A0, 0);
-                        else
-                            asm.lw(A0, A0, 0);
-                    }
-                    case Type.Array _, Type.Pointer _ -> {
-                        asm .la(A0, sym.label);
-                    }
-                    default -> unreachable();
+        if (sym.isGlobal) {
+            switch (sym.type) {
+                case Type.Int _, Type.Float _ -> {
+                    asm .la(A0, sym.label);
+                    if (node.type instanceof Type.Float)
+                        asm.flw(FA0, A0, 0);
+                    else
+                        asm.lw(A0, A0, 0);
                 }
+                case Type.Array _, Type.Pointer _ -> {
+                    asm .la(A0, sym.label);
+                }
+                default -> unreachable();
             }
-            case Var.Kind.LOCAL -> {
-                switch (sym.type) {
-                    case Type.Int _, Type.Float _ -> {
-                        if (node.type instanceof Type.Float) 
-                            asm.flw(FA0, FP, -currentFunc.getIndex(sym), T0);
-                        else
-                            asm.lw(A0, FP, -currentFunc.getIndex(sym), T0);
-                    }
-                    case Type.Array _, Type.Pointer _ -> {
-                        int index = currentFunc.getIndex(sym);
-                        if (index <= 0) {
-                            asm.ld(A0, FP, -index, T0);
-                        } else {
-                            asm.addi(A0, FP, -index, T0);
-                        }
-                    }
-                    default -> unreachable();
+        } else {
+            switch (sym.type) {
+                case Type.Int _, Type.Float _ -> {
+                    if (node.type instanceof Type.Float)
+                        asm.flw(FA0, FP, -currentFunc.getIndex(sym), T0);
+                    else
+                        asm.lw(A0, FP, -currentFunc.getIndex(sym), T0);
                 }
+                case Type.Array _, Type.Pointer _ -> {
+                    int index = currentFunc.getIndex(sym);
+                    if (index <= 0) {
+                        asm.ld(A0, FP, -index, T0);
+                    } else {
+                        asm.addi(A0, FP, -index, T0);
+                    }
+                }
+                default -> unreachable();
             }
         }
         return nt;
@@ -743,70 +721,67 @@ public class RiscVCGen extends AstVisitor {
             default -> unreachable();
         };
         if (node.indexes.size() > 1 && type instanceof Type.Array t) {
-            int addr = Symbol.Func.align(nt, 8) + 8;
+            int addr = Symbol.FuncSymbol.align(nt, 8) + 8;
             for (int i = 1; i < node.indexes.size(); i++) {
                 asm .li(T0, t.getDimension(i-1))
-                    .mul(A0, T0, A0)
-                    .sd(A0, FP, -addr, T0);
+                        .mul(A0, T0, A0)
+                        .sd(A0, FP, -addr, T0);
                 var index = node.indexes.get(i);
                 visit(index, addr+8);
                 asm .ld(T0, FP, -addr, T1)
-                    .add(A0, T0, A0);
+                        .add(A0, T0, A0);
             }
         }
         asm.slli(A0, A0, 2);
-        switch (sym.kind) {
-            case Var.Kind.GLOBAL -> {
+        if (sym.isGlobal) {
+            if (node.type instanceof Type.Array) {
+                assert type instanceof Type.Array;
+                var t = (Type.Array) type;
+                asm .li(T0, t.getDimension(node.indexes.size()-1))
+                        .mul(A0, T0, A0)
+                        .la(T0, sym.label)
+                        .add(A0, A0, T0);
+            } else {
+                asm .la(T0, sym.label)
+                        .add(T0, A0, T0);
+                if (node.type instanceof Type.Float)
+                    asm.flw(FA0, T0, 0);
+                else
+                    asm.lw(A0, T0, 0);
+            }
+        } else {
+            int index = currentFunc.getIndex(sym);
+            if (index <= 0) {
                 if (node.type instanceof Type.Array) {
                     assert type instanceof Type.Array;
                     var t = (Type.Array) type;
                     asm .li(T0, t.getDimension(node.indexes.size()-1))
-                        .mul(A0, T0, A0)
-                        .la(T0, sym.label)
-                        .add(A0, A0, T0);
+                            .mul(A0, T0, A0)
+                            .ld(T0, FP, -index, T1)
+                            .add(A0, T0, A0);
                 } else {
-                    asm .la(T0, sym.label)
-                        .add(T0, A0, T0);
-                    if (node.type instanceof Type.Float) 
+                    asm .ld(T0, FP, -index, T1)
+                            .add(T0, T0, A0);
+                    if (node.type instanceof Type.Float)
                         asm.flw(FA0, T0, 0);
                     else
                         asm.lw(A0, T0, 0);
                 }
-            }
-            case Var.Kind.LOCAL -> {
-                int index = currentFunc.getIndex(sym);
-                if (index <= 0) {
-                    if (node.type instanceof Type.Array) {
-                        assert type instanceof Type.Array;
-                        var t = (Type.Array) type;
-                        asm .li(T0, t.getDimension(node.indexes.size()-1))
-                            .mul(A0, T0, A0)
-                            .ld(T0, FP, -index, T1)
-                            .add(A0, T0, A0);
-                    } else {
-                        asm .ld(T0, FP, -index, T1)
-                            .add(T0, T0, A0);
-                        if (node.type instanceof Type.Float) 
-                            asm.flw(FA0, T0, 0);
-                        else
-                            asm.lw(A0, T0, 0);
-                    }
-                } else {
-                    if (node.type instanceof Type.Array) {
-                        assert type instanceof Type.Array;
-                        var t = (Type.Array) type;
-                        asm .li(T0, t.getDimension(node.indexes.size()-1))
+            } else {
+                if (node.type instanceof Type.Array) {
+                    assert type instanceof Type.Array;
+                    var t = (Type.Array) type;
+                    asm .li(T0, t.getDimension(node.indexes.size()-1))
                             .mul(A0, T0, A0)
                             .addi(T0, FP, -index, T1)
-                            .add(A0, T0, A0); 
-                    } else {
-                        asm .addi(T0, FP, -index, T1)
+                            .add(A0, T0, A0);
+                } else {
+                    asm .addi(T0, FP, -index, T1)
                             .add(T0, T0, A0);
-                        if (node.type instanceof Type.Float) 
-                            asm.flw(FA0, T0, 0);
-                        else
-                            asm.lw(A0, T0, 0);
-                    }
+                    if (node.type instanceof Type.Float)
+                        asm.flw(FA0, T0, 0);
+                    else
+                        asm.lw(A0, T0, 0);
                 }
             }
         }
@@ -815,19 +790,18 @@ public class RiscVCGen extends AstVisitor {
 
     public int visit(Expr.Literal node, int nt) {
         asm.li(A0, node.getComptimeValue());
-        if (node.type instanceof Type.Float) 
+        if (node.type instanceof Type.Float)
             asm.fmv_w_x(FA0, A0);
         return nt;
     }
 
     public int visit(Expr.Cast node, int nt) {
         visit(node.value, nt);
-        if (node.fromType instanceof Type.Float && node.toType instanceof Type.Int) {
-            asm.fcvt_w_s(A0, FA0);
-        } 
-        if (node.fromType instanceof Type.Int && node.toType instanceof Type.Float) {
-            asm.fcvt_s_w(FA0, A0);
-        } 
+        switch (node.kind) {
+            case Int2Float -> asm.fcvt_s_w(FA0, A0);
+            case Float2Int -> asm.fcvt_w_s(A0, FA0);
+            case Decay, DecayAll -> requires(node.value.type instanceof Type.Array);
+        }
         return nt;
     }
 }

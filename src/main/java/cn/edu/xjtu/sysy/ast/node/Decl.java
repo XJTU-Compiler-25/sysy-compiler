@@ -5,7 +5,6 @@ import cn.edu.xjtu.sysy.symbol.SymbolTable;
 import cn.edu.xjtu.sysy.symbol.Type;
 import org.antlr.v4.runtime.Token;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** 声明基类 */
@@ -31,9 +30,9 @@ public abstract sealed class Decl extends Node {
         public Stmt.Block body;
 
         public Type retType;
-        public Symbol.Func resolution;
+        public Symbol.FuncSymbol resolution;
         public SymbolTable.Local symbolTable;
-        public List<Symbol.Var> allVars;
+        public List<Symbol.VarSymbol> allVars;
 
         public FuncDef(Token start, Token end, String name, String retTypeName, List<VarDef> params, Stmt.Block body) {
             super(start, end);
@@ -96,8 +95,8 @@ public abstract sealed class Decl extends Node {
      其（元素）值均被初始化为 0 或 0.0。
      */
     public static final class VarDef extends Decl {
-        public Symbol.Var.Kind kind;
         public String name;
+        public boolean isGlobal;
         public String baseType;
         /**
          * dimensions 应该是 NotNull 的
@@ -111,31 +110,31 @@ public abstract sealed class Decl extends Node {
          * 在 Annotating 中将 dimensions 求值后与 baseType 构建 Type
          */
         public Type type;
-        public Symbol.Var resolution;
+        public Symbol.VarSymbol resolution;
 
         public VarDef(
                 Token start,
                 Token end,
-                Symbol.Var.Kind kind,
                 String name,
+                boolean isGlobal,
                 String baseType,
                 boolean isConst,
                 Expr init) {
-            this(start, end, kind, name, baseType, List.of(), isConst, init);
+            this(start, end, name, isGlobal, baseType, List.of(), isConst, init);
         }
 
         public VarDef(
                 Token start,
                 Token end,
-                Symbol.Var.Kind kind,
                 String name,
+                boolean isGlobal,
                 String baseType,
                 List<Expr> dimensions,
                 boolean isConst,
                 Expr init) {
             super(start, end);
-            this.kind = kind;
             this.name = name;
+            this.isGlobal = isGlobal;
             this.baseType = baseType;
             this.dimensions = dimensions;
             this.isConst = isConst;

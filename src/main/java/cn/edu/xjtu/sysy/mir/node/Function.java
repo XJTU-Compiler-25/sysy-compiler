@@ -4,25 +4,28 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 public final class Function extends User {
     public Module module;
 
     public String name;
-    public Type returnType;
+    public Type.Function funcType;
     public ArrayList<BasicBlock> blocks = new ArrayList<>();
+    // 函数的参数不应该被无用变量删除消掉，所以 use 一下
+    public HashMap<String, Use<Var>> params = new HashMap<>();
     public BasicBlock entry;
     private int tempValueCounter = 0;
 
     // 下面都是用于分析的信息
     public ArrayList<Var> localVars = new ArrayList<>();
 
-    public Function(Module module, String name, Type returnType) {
+    public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
         this.module = module;
         this.name = name;
-        this.returnType = returnType;
+        this.funcType = funcType;
     }
 
     public Module getModule() {
@@ -33,22 +36,30 @@ public final class Function extends User {
         return tempValueCounter++;
     }
 
-    public BasicBlock addNewBlock(String label) {
-        var block = new BasicBlock(this, label);
-        blocks.add(block);
+    public BasicBlock addNewBlock() {
+        var block = new BasicBlock(this);
+        addBlock(block);
         return block;
     }
 
-    public BasicBlock newBlock(String label) {
-        return new BasicBlock(this, label);
+    public String newBlockLabel() {
+        return "bb" + blocks.size();
     }
 
     public void addBlock(BasicBlock block) {
         blocks.add(block);
+        block.label = newBlockLabel();
     }
 
     public void removeBlock(BasicBlock block) {
         blocks.remove(block);
+    }
+
+    public Var addNewParam(String name, Type type) {
+        var param = new Var(name, type, false);
+        params.put(name, use(param));
+        localVars.add(param);
+        return param;
     }
 
     public Var addNewLocalVar(String name, Type type) {
@@ -65,11 +76,15 @@ public final class Function extends User {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Function ").append(name).append("(type = ").append(returnType)
-                .append(", entryBlock = ").append(entry.label).append("):\nLocal Vars:\n")
-                .append(localVars.stream().map(Var::shortName)
+        sb.append("Function ").append(name)
+                .append(" (")
+                .append(params.values().stream().map(v -> v.value.name + ": " + v.value.varType)
                         .collect(Collectors.joining(", ")))
-                .append("\nBlocks:\n")
+                .append(") -> ").append(funcType.returnType)
+                .append(" (entry = ").append(entry.label).append(", locals = {")
+                .append(localVars.stream().map(it -> it.name + ": " + it.varType)
+                        .collect(Collectors.joining(", ")))
+                .append("}) \n")
                 .append(blocks.stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n")));
         return sb.toString();
