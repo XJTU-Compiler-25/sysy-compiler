@@ -21,7 +21,7 @@ public final class Module {
 
     // 全局变量的初值必须是常量表达式，所以直接取 compTimeValue 即可
     public Var newGlobalVar(Symbol.VarSymbol symbol, ImmediateValue init) {
-        var globalVar = new Var(symbol.name, symbol.type, true);
+        var globalVar = new Var(symbol.name, symbol.type, true, false);
         globalVars.put(symbol.name, globalVar);
         globalVarInitValues.put(globalVar, init);
         return globalVar;

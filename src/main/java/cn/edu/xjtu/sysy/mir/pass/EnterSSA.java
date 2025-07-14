@@ -121,8 +121,7 @@ public final class EnterSSA extends ModuleVisitor {
         var vars = function.localVars;
 
         incomingVals.clear();
-        for (var var : vars) incomingVals.put(var, ImmediateValues.Undefined);
-        for (var param : function.params.values()) incomingVals.put(param.value, param.value);
+        for (var var : vars) incomingVals.put(var, var.isParam ? var : ImmediateValues.Undefined);
 
         // 从 entry 向后继方向 DFS
         visited.clear();

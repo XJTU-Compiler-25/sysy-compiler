@@ -4,7 +4,6 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.stream.Collectors;
 
 public final class Function extends User {
@@ -13,12 +12,8 @@ public final class Function extends User {
     public String name;
     public Type.Function funcType;
     public ArrayList<BasicBlock> blocks = new ArrayList<>();
-    // 函数的参数不应该被无用变量删除消掉，所以 use 一下
-    public HashMap<String, Use<Var>> params = new HashMap<>();
     public BasicBlock entry;
     private int tempValueCounter = 0;
-
-    // 下面都是用于分析的信息
     public ArrayList<Var> localVars = new ArrayList<>();
 
     public Function(Module module, String name, Type.Function funcType) {
@@ -56,14 +51,13 @@ public final class Function extends User {
     }
 
     public Var addNewParam(String name, Type type) {
-        var param = new Var(name, type, false);
-        params.put(name, use(param));
+        var param = new Var(name, type, false, true);
         localVars.add(param);
         return param;
     }
 
     public Var addNewLocalVar(String name, Type type) {
-        var localVar = new Var(name, type, false);
+        var localVar = new Var(name, type, false, false);
         localVars.add(localVar);
         return localVar;
     }
@@ -78,7 +72,8 @@ public final class Function extends User {
         StringBuilder sb = new StringBuilder();
         sb.append("Function ").append(name)
                 .append(" (")
-                .append(params.values().stream().map(v -> v.value.name + ": " + v.value.varType)
+                .append(localVars.stream().filter(it -> it.isParam)
+                        .map(v -> v.name + ": " + v.varType)
                         .collect(Collectors.joining(", ")))
                 .append(") -> ").append(funcType.returnType)
                 .append(" (entry = ").append(entry.label).append(", locals = {")

@@ -13,7 +13,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
  * 建议通过 {@link InstructionHelper} 构造指令
  * 请注意整数运算指令都是 signed 的
  */
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({"rawtypes", "unchecked"})
 public abstract sealed class Instruction extends User {
     private final BasicBlock block;
 
@@ -96,6 +96,25 @@ public abstract sealed class Instruction extends User {
             params.put(var, use(value));
         }
 
+        public void replaceTarget(BasicBlock target) {
+            this.target.replaceValue(target);
+        }
+
+        public void overwriteParams(HashMap<Var, Use> params) {
+            for (var entry : params.entrySet()) {
+                var var = entry.getKey();
+                var value = entry.getValue().value;
+                this.params.compute(var, (_, use) -> {
+                    if (use == null) return use(value);
+                    else if (!(value instanceof BlockArgument)) {
+                        use.replaceValue(value);
+                        return use;
+                    }
+                    else return use;
+                });
+            }
+        }
+
         @Override
         public String toString() {
             return "jmp " + target.value.label + "(" +
@@ -124,6 +143,42 @@ public abstract sealed class Instruction extends User {
         public void putParam(BasicBlock block, Var var, Value value) {
             if (block == trueTarget.value) trueParams.put(var, use(value));
             if (block == falseTarget.value) falseParams.put(var, use(value));
+        }
+
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            if (oldTarget == trueTarget.value) trueTarget.replaceValue(newTarget);
+            if (oldTarget == falseTarget.value) falseTarget.replaceValue(newTarget);
+        }
+
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
+            if (block == trueTarget.value) {
+                for (var entry : params.entrySet()) {
+                    var var = entry.getKey();
+                    var value = entry.getValue().value;
+                    trueParams.compute(var, (_, use) -> {
+                        if (use == null) return use(value);
+                        else if (!(value instanceof BlockArgument)) {
+                            use.replaceValue(value);
+                            return use;
+                        }
+                        else return use;
+                    });
+                }
+            }
+            if (block == falseTarget.value) {
+                for (var entry : params.entrySet()) {
+                    var var = entry.getKey();
+                    var value = entry.getValue().value;
+                    falseParams.compute(var, (_, use) -> {
+                        if (use == null) return use(value);
+                        else if (!(value instanceof BlockArgument)) {
+                            use.replaceValue(value);
+                            return use;
+                        }
+                        else return use;
+                    });
+                }
+            }
         }
 
         @Override

@@ -83,7 +83,7 @@ public final class TestSolution {
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
                             MirPassGroups.makePassGroup(em).process(module);
-                            // System.out.println(module);
+                            System.out.println(module);
 
                             String riscVCode = CompileToRiscV(ast);
                             File out = new File(f.getParent(), f.getName() + ".s");

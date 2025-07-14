@@ -1,4 +1,11 @@
 int main() {
-    int final= - 432031867600896.000000;
-    if (final <=0.000001 && final>= -0.000001) {}
+    int a = getint();
+    int i = 2;
+    if (a) {
+        i = 1;
+        if (!a) {
+            i = 3;
+        }
+    }
+    putint(i);
 }

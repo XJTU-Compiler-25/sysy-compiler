@@ -42,6 +42,11 @@ public final class BasicBlock extends Value {
         this.isStronglyConnected = false;
     }
 
+    public void dispose() {
+        instructions.forEach(Instruction::dispose);
+        terminator.dispose();
+    }
+
     public Function getFunction() {
         return function;
     }
@@ -91,12 +96,6 @@ public final class BasicBlock extends Value {
             case Instruction.Br br -> List.of(br.trueTarget.value, br.falseTarget.value);
             case Instruction.Ret _,  Instruction.RetV _ -> List.of();
         };
-    }
-
-    public List<BasicBlock> getDomChildren() {
-        return function.blocks.stream()
-                .filter(it -> it.idom == this)
-                .toList();
     }
 
 }

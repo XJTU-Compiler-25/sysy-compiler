@@ -10,9 +10,10 @@ public final class MirPassGroups {
 
     public static PassGroup<Module> makePassGroup(ErrManager em) {
         return new PassGroup<>(em,
-                //GarbageBlockElimination::new,
                 DominanceAnalysis::new,
-                EnterSSA::new
+                EnterSSA::new,
+                ConstFold::new,
+                DeadCodeElimination::new
         );
     }
 }
