@@ -1,14 +1,10 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
-
-import java.util.HashMap;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
@@ -41,14 +37,9 @@ public abstract sealed class Instruction extends User {
     @Override
     public abstract String toString();
 
-    // 若label为-1表示没有定义
+    /** 若label为-1表示没有定义 */
     public boolean hasNoDef() {
         return label == -1;
-    }
-
-    // 检查右边的表达式是否相同
-    public boolean equalRVal(Instruction other) {
-        return getClass() == other.getClass() && used.equals(other.used);
     }
 
     // 基本块结束指令
@@ -96,6 +87,7 @@ public abstract sealed class Instruction extends User {
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
             this.target = target;
+            use(target);
         }
 
         @Override
@@ -117,6 +109,7 @@ public abstract sealed class Instruction extends User {
             this.condition = use(condition);
             this.trueTarget = trueTarget;
             this.falseTarget = falseTarget;
+            use(trueTarget); use(falseTarget);
         }
 
         @Override
@@ -441,7 +434,7 @@ public abstract sealed class Instruction extends User {
         public Use rhs;
 
         FDiv(BasicBlock block, int label, Value lhs, Value rhs) {
-            super(block, label, Types.Int);
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }
@@ -457,7 +450,7 @@ public abstract sealed class Instruction extends User {
         public Use rhs;
 
         FMod(BasicBlock block, int label, Value lhs, Value rhs) {
-            super(block, label, Types.Int);
+            super(block, label, Types.Float);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
         }

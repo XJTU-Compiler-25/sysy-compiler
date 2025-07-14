@@ -33,7 +33,6 @@ public final class DominanceAnalysis extends ModuleVisitor {
         predCache.clear();
         var entry = function.entry;
         var blocks = function.blocks;
-
         // 计算支配性
         boolean changed = true;
         while (changed) {
@@ -41,7 +40,6 @@ public final class DominanceAnalysis extends ModuleVisitor {
             for (var block : blocks) {
                 // entry 的 dom 不需要更新，小剪枝
                 if (block == entry) continue;
-
                 var preds = getPredBlocks(block);
 
                 // 除了 entry 肯定是有至少一个 pred 的

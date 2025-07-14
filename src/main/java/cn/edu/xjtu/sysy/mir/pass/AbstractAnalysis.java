@@ -15,8 +15,9 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Use;
+import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.node.Use;
 
 public abstract class AbstractAnalysis<T> extends ModuleVisitor {
 
@@ -38,7 +39,9 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
 
             @Override
-            public List<Instruction> getOrderedInstrs(List<Instruction> instrs) {
+            public List<Instruction> getOrderedInstrs(BasicBlock block) {
+                List<Instruction> instrs = new ArrayList<>(block.instructions);
+                instrs.add(block.terminator);
                 return instrs;
             }
         },
@@ -60,15 +63,18 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
 
             @Override
-            public List<Instruction> getOrderedInstrs(List<Instruction> instrs) {
-                return instrs.reversed();
+            public List<Instruction> getOrderedInstrs(BasicBlock block) {
+                List<Instruction> instrs = new ArrayList<>(block.instructions);
+                instrs.add(block.terminator);
+                Collections.reverse(instrs);
+                return instrs;
             }
         };
 
         public abstract List<BasicBlock> getSuccBlocksOf(BasicBlock block);
         public abstract List<BasicBlock> getPredBlocksOf(BasicBlock block);
         public abstract List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks); 
-        public abstract List<Instruction> getOrderedInstrs(List<Instruction> instrs);
+        public abstract List<Instruction> getOrderedInstrs(BasicBlock block);
 
         private static List<BasicBlock> topoSort(List<BasicBlock> cfg) {
             List<BasicBlock> result = new ArrayList<>();
@@ -133,7 +139,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         return flowBeforeBlock.get(block);
     }
 
-    public T getFlowBefore(Use<Instruction> instr) {
+    public T getFlowBefore(Instruction instr) {
         return flowBeforeInstr.get(instr);
     }
 
@@ -141,7 +147,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         return flowAfterBlock.get(block);
     }
 
-    public T getFlowAfter(Use<Instruction> instr) {
+    public T getFlowAfter(Instruction instr) {
         return flowAfterInstr.get(instr);
     }
 
@@ -155,7 +161,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     protected abstract void merge(T dst, T src1, T src2);
 
     /** 单条语句的转换函数 */
-    protected abstract void flowThrough(Use<Instruction> instr, T in, T out);
+    protected abstract void flowThrough(Instruction instr, T in, T out);
 
     /** 初始化每个基本块 */
     protected void init(List<BasicBlock> blocks) {
@@ -189,6 +195,10 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     protected boolean flowThrough(BasicBlock b) {
         T in = flowBeforeBlock.get(b);
         T out = flowAfterBlock.get(b);
+        /* 如果b在一个size > 1的强连通分量或者在自环中
+         * i.e. b可能在一个循环结构中
+         * 执行是否已经到达不动点的检测
+         */
         if (b.isStronglyConnected) {
             T newOut = initial();
             flowThrough(b, in, newOut);
@@ -198,18 +208,20 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             copy(out, newOut);
             return true;
         }
+        // 在顺序结构中，直接返回true
         flowThrough(b, in, out);
         return true;
     }
 
     /** 基本块的转换函数 */
-    protected void flowThrough(BasicBlock b, T in, T out) {
-        var instrs = direction.getOrderedInstrs(b.instructions);
+    protected void flowThrough(BasicBlock block, T in, T out) {
+        var instrs = direction.getOrderedInstrs(block);
         var inFlow = in;
         var outFlow = initial();
+        // 按顺序遍历每条指令，进行分析
         for (var instr : instrs) {
             flowBeforeInstr.put(instr, inFlow);
-            flowThrough(instr.getBlock(), inFlow, outFlow);
+            flowThrough(instr, inFlow, outFlow);
             flowAfterInstr.put(instr, outFlow);
 
             inFlow = outFlow;

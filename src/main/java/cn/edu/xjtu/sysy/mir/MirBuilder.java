@@ -75,7 +75,7 @@ public final class MirBuilder implements ErrManaged {
 
         for (var funcDef : funcs) {
             visit(funcDef);
-
+            /*
             if (funcDef.resolution.name.equals("main")) {
                 var main = funcDef.resolution.address;
                 var globalInitBB = main.newBlock("init-globals");
@@ -93,7 +93,7 @@ public final class MirBuilder implements ErrManaged {
                 globalInitBB.setTerminator(helper.jmp(main.entry));
                 main.entry = globalInitBB;
                 main.blocks.addFirst(globalInitBB);
-            }
+            } */
         }
 
         return mod;
