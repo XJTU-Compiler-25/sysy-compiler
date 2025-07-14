@@ -1,10 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
 import java.util.Collections;
-
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -12,15 +8,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+
+/** 可用表达式分析 */
 public class AvailableExpression
         extends AbstractAnalysis<Map<AvailableExpression.Expr, Set<Instruction>>> {
-
+    
+    /** 表达式类 */
     public record Expr(Instruction data) {
         @Override
         public int hashCode() {
             return data.getClass().hashCode() << 8 + data.used.size();
         }
 
+        /** 只要Instruction类相同，且运算元顺序和内容都相同，就算做是一个表达式 */
         @Override
         public boolean equals(Object other) {
             if (this == other) return true;
@@ -85,8 +87,10 @@ public class AvailableExpression
             out.put(key, new HashSet<>(in.get(key)));
         }
         gen(in, instr).forEach(e -> {
-            if (out.containsKey(e)) out.get(e).add(e.data);
-            else out.put(e, new HashSet<>(Collections.singleton(e.data)));
+            if (out.containsKey(e)) 
+                out.get(e).add(e.data);
+            else 
+                out.put(e, new HashSet<>(Collections.singleton(e.data)));
         });
         kill(out, instr).collect(Collectors.toList()).forEach(out::remove);
     }
@@ -104,8 +108,8 @@ public class AvailableExpression
             return in.keySet().stream()
                     .filter(
                             x ->
-                                    x.data instanceof Instruction.Load load
-                                            && load.address.value.equals(store.address.value));
+                                x.data instanceof Instruction.Load load
+                                        && load.address.value.equals(store.address.value));
         }
         return Stream.empty();
     }

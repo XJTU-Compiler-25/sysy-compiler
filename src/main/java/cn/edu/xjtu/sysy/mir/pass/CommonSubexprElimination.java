@@ -2,7 +2,6 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
@@ -32,7 +31,7 @@ public class CommonSubexprElimination extends ModuleVisitor {
             var in = analysis.getFlowBefore(instr);
             var other = in.get(new AvailableExpression.Expr(instr));
             if (other == null) continue;
-            // TODO: 对于set size > 1的情况，需要添加phi结点
+            // TODO: 对于set size > 1的情况，则存在多条控制流计算了这个expression，可以插入基本块参数
             instr.replaceAllUsesWith(other.iterator().next());
             elim.add(instr);
         }

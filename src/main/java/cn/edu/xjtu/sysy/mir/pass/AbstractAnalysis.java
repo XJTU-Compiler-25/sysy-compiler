@@ -15,9 +15,7 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.node.Use;
 
 public abstract class AbstractAnalysis<T> extends ModuleVisitor {
 
@@ -71,11 +69,24 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             }
         };
 
+        /** 按照当前方向获取后续块 */
         public abstract List<BasicBlock> getSuccBlocksOf(BasicBlock block);
+        
+        /** 按照当前方向获取前导块。
+         * TODO: 还没有cache */
         public abstract List<BasicBlock> getPredBlocksOf(BasicBlock block);
+        
+        /** 按照当前方向获取排序好的基本块，
+         * 并对基本块标记是否在一个size大于1的强连通分量中或者存在自环 
+         * i.e. 这个基本块可能在一个循环里。
+         * see {@link BasicBlock#isStronglyConnected}
+         */
         public abstract List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks); 
+        
+        /** 按照当前方向获取排序好的指令列表 */
         public abstract List<Instruction> getOrderedInstrs(BasicBlock block);
 
+        /** 对基本块进行拓扑排序 */
         private static List<BasicBlock> topoSort(List<BasicBlock> cfg) {
             List<BasicBlock> result = new ArrayList<>();
             Map<BasicBlock, Integer> dfn = new HashMap<>();
@@ -86,7 +97,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
             return result;
         }
         
-        //* tarjan算法求解强连通分量 */
+        /** tarjan算法求解强连通分量 */
         private static void dfs(BasicBlock block,
                             Map<BasicBlock, Integer> dfn, Map<BasicBlock, Integer> low, 
                             Stack<BasicBlock> stack, List<BasicBlock> result) {                
