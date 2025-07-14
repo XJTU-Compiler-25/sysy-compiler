@@ -5,7 +5,6 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 import cn.edu.xjtu.sysy.riscv.Directives.FuncSize;
 import cn.edu.xjtu.sysy.riscv.Directives.Word;
 import cn.edu.xjtu.sysy.riscv.Directives.Zero;
-import cn.edu.xjtu.sysy.riscv.Global.Func;
 import cn.edu.xjtu.sysy.riscv.Global.Obj;
 import cn.edu.xjtu.sysy.riscv.Instr.Auipc;
 import cn.edu.xjtu.sysy.riscv.Instr.Branch;
@@ -137,9 +136,9 @@ public class RiscVWriter {
 
     private RiscVWriter type(Symbol sym) {
         switch (sym) {
-            case Symbol.Var it ->
+            case Symbol.VarSymbol it ->
                     directives.add(new Directives.Type(it.label, Directives.Type.SymType.Object));
-            case Symbol.Func it ->
+            case Symbol.FuncSymbol it ->
                     directives.add(new Directives.Type(it.label, Directives.Type.SymType.Function));
         }
         return this;
@@ -150,7 +149,7 @@ public class RiscVWriter {
         return this;
     }
 
-    public void defVarData(Symbol.Var sym) {
+    public void defVarData(Symbol.VarSymbol sym) {
         this.global(sym.label)
             .data()
             .align(sym.type)
@@ -161,7 +160,7 @@ public class RiscVWriter {
         values = new ArrayList<>();
     }
 
-    public void defVarBss(Symbol.Var sym) {
+    public void defVarBss(Symbol.VarSymbol sym) {
         this.global(sym.label)
             .bss()
             .align(sym.type)
@@ -172,13 +171,13 @@ public class RiscVWriter {
         values = new ArrayList<>();
     }
 
-    public void defFunc(Symbol.Func sym) {
+    public void defFunc(Symbol.FuncSymbol sym) {
         this.align(1)
             .global(sym.label)
             .text()
             .type(sym);
         var size = new FuncSize(sym.label);
-        funcDefs.add(new Func(sym.label, directives, instrs, size));
+        funcDefs.add(new Global.Func(sym.label, directives, instrs, size));
         directives = new ArrayList<>();
         instrs = new ArrayList<>();
     }

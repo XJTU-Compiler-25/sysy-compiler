@@ -1,6 +1,8 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import java.io.PrintStream;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
@@ -140,22 +142,22 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     @Override
     public void visit(Expr.Binary node) {
-        printf("[Expr.Binary | type = %s, comptimeValue = %s, op = %s, lhs = \n", node.type, node.getComptimeValue(), node.op);
+        var opers = node.operands;
+        var ops = node.operators;
+        printf("[Expr.Binary | type = %s, comptimeValue = %s, operators = [%s], operands = [\n", node.type, node.getComptimeValue(),
+                ops.stream().map(it -> it.text).collect(Collectors.joining(", ")));
         incIndent();
-        visit(node.lhs);
-        decIndent();
-        println(", rhs = ");
-        incIndent();
-        visit(node.rhs);
+        opers.forEach(this::visit);
         decIndent();
         println("]");
     }
 
     @Override
     public void visit(Expr.Unary node) {
-        printf("[Expr.Unary | type = %s, comptimeValue = %s, op = %s, rhs = \n", node.type, node.getComptimeValue(), node.op);
+        printf("[Expr.Unary | type = %s, comptimeValue = %s, operators = [%s], operand = \n", node.type, node.getComptimeValue(),
+                node.operators.stream().map(it -> it.text).collect(Collectors.joining(", ")));
         incIndent();
-        visit(node.rhs);
+        visit(node.operand);
         decIndent();
         println("]");
     }

@@ -1,7 +1,5 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
-import java.util.Stack;
-
 import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.ast.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
@@ -126,27 +124,11 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     }
 
     public void visit(Expr.Binary node) {
-        Stack<Expr.Binary> binaries = new Stack<>();
-        Expr expr = node;
-        while (expr instanceof Expr.Binary it) {
-            binaries.push(it);
-            expr = it.lhs;
-        }
-        visit(expr);
-        while (!binaries.isEmpty()) {
-            var bin = binaries.pop();
-            visit(bin.rhs);
-            process(bin);
-        }
-    }
-
-    /* 由于递归改迭代，visit(Binary)只会调用一次，后续操作请通过这个函数进行。 */
-    public void process(Expr.Binary node) {
-        // pass
+        node.operands.forEach(this::visit);
     }
 
     public void visit(Expr.Unary node) {
-        visit(node.rhs);
+        visit(node.operand);
     }
 
     public void visit(Expr.RawArray node) {
@@ -181,4 +163,5 @@ public abstract class AstVisitor extends Pass<CompUnit> {
     public void visit(Expr.Cast node) {
         visit(node.value);
     }
+
 }

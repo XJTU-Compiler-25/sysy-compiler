@@ -1,6 +1,5 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
-import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
@@ -17,7 +16,7 @@ public class VarCollector extends AstVisitor {
         super(errManager);
     }
 
-    private List<Symbol.Var> vars;
+    private List<Symbol.VarSymbol> vars;
 
     @Override
     public void visit(Decl.FuncDef node) {

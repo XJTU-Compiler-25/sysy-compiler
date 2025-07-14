@@ -69,7 +69,9 @@ public final class DominanceAnalysis extends ModuleVisitor {
                     // block 是 从 pred 到 (block 的 idom) 的 每个节点 的 支配边界
                     while (cur != idom) {
                         cur.df.add(block);
-                        cur = cur.idom;
+                        var ci = cur.idom;
+                        if (ci == null) break;
+                        else cur = ci;
                     }
                 }
             }

@@ -15,7 +15,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 /** 计算栈帧大小以及每个变量在栈帧的相对位置 */
 public class StackCalculator extends AstVisitor {
     SymbolTable currentST = null;
-    Symbol.Func currentFunc = null;
+    Symbol.FuncSymbol currentFunc = null;
     int currentMx = 0;
     
     public StackCalculator() {
@@ -83,7 +83,7 @@ public class StackCalculator extends AstVisitor {
     public int visit(Stmt.Assign node, int nt) {
         updateMax(nt);
         visit(node.target, nt);
-        visit(node.value, Symbol.Func.align(nt, 8) + 16);
+        visit(node.value, Symbol.FuncSymbol.align(nt, 8) + 16);
         return nt;
     }
 
@@ -140,23 +140,17 @@ public class StackCalculator extends AstVisitor {
 
     public int visit(Expr.Binary node, int nt) {
         updateMax(nt);
-        Stack<Expr.Binary> binaries = new Stack<>();
-        Expr expr = node;
-        while (expr instanceof Expr.Binary it) {
-            binaries.push(it);
-            expr = it.lhs;
-        }
-        visit(expr, nt);
-        while (!binaries.isEmpty()) {
-            var bin = binaries.pop();
-            visit(bin.rhs, nt+4);
-        }
+        var opers = node.operands;
+        var ops = node.operators;
+        var first = opers.getFirst();
+        visit(first, nt);
+        for (var oper : opers) visit(oper, nt + 4);
         return nt;
     }
 
     public int visit(Expr.Unary node, int nt) {
         updateMax(nt);
-        visit(node.rhs, nt);
+        visit(node.operand, nt);
         return nt;
     }
     
@@ -175,7 +169,7 @@ public class StackCalculator extends AstVisitor {
         for (var arg : node.args) {
             visit(arg, m);
             if (arg.type instanceof Type.Int || arg.type instanceof Type.Float) m += 4;
-            else m = Symbol.Func.align(m, 8) + 16;
+            else m = Symbol.FuncSymbol.align(m, 8) + 16;
         }
         return nt;
     }
@@ -195,7 +189,7 @@ public class StackCalculator extends AstVisitor {
         visit(node.indexes.get(0), nt+4);
         if (node.indexes.size() > 1) {
             for (int i = 1; i < node.indexes.size(); i++) {
-                visit(node.indexes.get(i), Symbol.Func.align(nt+4, 8) + 16);
+                visit(node.indexes.get(i), Symbol.FuncSymbol.align(nt+4, 8) + 16);
             }
         }
         return nt;
