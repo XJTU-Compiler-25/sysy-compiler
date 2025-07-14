@@ -6,10 +6,10 @@ import java.util.stream.Stream;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Use;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.mir.node.Var;
 
+/** 活跃变量分析 */
 public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
 
     public LivenessVariable(ErrManager errManager) {
@@ -35,25 +35,25 @@ public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
     }
 
     @Override
-    protected void flowThrough(Use<Instruction> instr, Set<Value> in, Set<Value> out) {
+    protected void flowThrough(Instruction instr, Set<Value> in, Set<Value> out) {
         out.clear();
         out.addAll(in);
         gen(instr).forEach(out::add);
         kill(instr).forEach(out::remove);
     }
 
-    private Stream<Value> gen(Use<Instruction> instr) {
-        return instr.value.used.stream().map(it -> it.value).filter(it ->
+    private Stream<Value> gen(Instruction instr) {
+        return instr.used.stream().map(it -> it.value).filter(it ->
             it instanceof Instruction || it instanceof Var
         );
     }
 
-    private Stream<Value> kill(Use<Instruction> instr) {
-        if (instr.value instanceof Instruction.Store store) {
+    private Stream<Value> kill(Instruction instr) {
+        if (instr instanceof Instruction.Store store) {
             return Stream.of(store.address.value);
         }
-        if (instr.value.hasNoDef()) return Stream.empty();
-        return Stream.of(instr.value);
+        if (instr.hasNoDef()) return Stream.empty();
+        return Stream.of(instr);
     }
 
 }

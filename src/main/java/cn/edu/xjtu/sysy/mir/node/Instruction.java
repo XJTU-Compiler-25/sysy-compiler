@@ -1,13 +1,12 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
+import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
+import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
@@ -41,14 +40,9 @@ public abstract sealed class Instruction extends User {
     @Override
     public abstract String toString();
 
-    // 若label为-1表示没有定义
+    /** 若label为-1表示没有定义 */
     public boolean hasNoDef() {
         return label == -1;
-    }
-
-    // 检查右边的表达式是否相同
-    public boolean equalRVal(Instruction other) {
-        return getClass() == other.getClass() && used.equals(other.used);
     }
 
     // 基本块结束指令

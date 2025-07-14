@@ -1,22 +1,33 @@
 package cn.edu.xjtu.sysy.mir;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
+
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.Undefined;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.ZeroInit;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseArrayOf;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 import cn.edu.xjtu.sysy.util.Placeholder;
-
-import java.util.ArrayDeque;
-import java.util.Arrays;
-
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 /**
  * Middle IR Builder
