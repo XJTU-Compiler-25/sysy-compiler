@@ -16,6 +16,13 @@ public final class Function extends User {
     private int tempValueCounter = 0;
     public ArrayList<Var> localVars = new ArrayList<>();
 
+    // 以下都为分析用的字段
+
+    public boolean isAtMostCalledOnce;
+
+    // 是否没有副作用
+    public boolean isPure;
+
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
         this.module = module;
@@ -69,19 +76,18 @@ public final class Function extends User {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Function ").append(name)
-                .append(" (")
-                .append(localVars.stream().filter(it -> it.isParam)
+        String sb = "Function " + name +
+                " (" +
+                localVars.stream().filter(it -> it.isParam)
                         .map(v -> v.name + ": " + v.varType)
-                        .collect(Collectors.joining(", ")))
-                .append(") -> ").append(funcType.returnType)
-                .append(" (entry = ").append(entry.label).append(", locals = {")
-                .append(localVars.stream().map(it -> it.name + ": " + it.varType)
-                        .collect(Collectors.joining(", ")))
-                .append("}) \n")
-                .append(blocks.stream().map(BasicBlock::toString)
-                        .collect(Collectors.joining("\n")));
-        return sb.toString();
+                        .collect(Collectors.joining(", ")) +
+                ") -> " + funcType.returnType +
+                " (entry = " + entry.label + ", locals = {" +
+                localVars.stream().map(it -> it.name + ": " + it.varType)
+                        .collect(Collectors.joining(", ")) +
+                "}) \n" +
+                blocks.stream().map(BasicBlock::toString)
+                        .collect(Collectors.joining("\n"));
+        return sb;
     }
 }

@@ -29,12 +29,11 @@ public final class Module {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Global Variables:\n")
-                .append(globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
-                        .collect(Collectors.joining(", ")))
-                .append("\nFunctions:\n")
-                .append(functions.values().stream().map(Function::toString).collect(Collectors.joining("\n")));
-        return sb.toString();
+        String sb = "Global Variables:\n" +
+                globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
+                        .collect(Collectors.joining(", ")) +
+                "\nFunctions:\n" +
+                functions.values().stream().map(Function::toString).collect(Collectors.joining("\n"));
+        return sb;
     }
 }

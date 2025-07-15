@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashSet;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
@@ -17,26 +18,29 @@ public class DeadCodeElimination extends ModuleVisitor {
 
     @Override
     public void visit(Function function) {
-        super.visit(function);
-
+        // 删除未使用的指令
+        removeUnusedInstructions(function);
+        // 简化控制流，以便后续能识别出更多的死代码
+        new CFGSimplify(errManager).visit(function);
+        // 删除未使用的块参数，需要在删除空基本块后运行，否则可能在跳转关系变化后漏删
+        removeUnusedBlockArguments(function);
         // 删除无用的局部变量
-        function.localVars.removeIf(it -> !it.isParam && it.usedBy.isEmpty());
-
-        // 删除空基本块
-        // 删除没有前驱的基本块
-        removeEmptyBlocks(function);
-        removeUnreachableBlocks(function);
+        removeUnusedLocalVars(function);
     }
 
-    @Override
-    public void visit(BasicBlock block) {
+    private static void removeUnusedInstructions(Function function) {
+        function.blocks.forEach(DeadCodeElimination::removeUnusedInstructions);
+    }
+
+    private static void removeUnusedInstructions(BasicBlock block) {
         var instrs = block.instructions;
         var reachable = new HashSet<Instruction>();
         // 终结指令是可达的
         reachable.add(block.terminator);
         // 有副作用的指令是可达的
         for (var it : instrs) {
-            if (it instanceof Store || it instanceof Call || it instanceof CallExternal) reachable.add(it);
+            if (it instanceof Store || (it instanceof Call call && !call.function.isPure)
+                    || it instanceof CallExternal) reachable.add(it);
         }
 
         var worklist = new ArrayDeque<>(reachable);
@@ -56,13 +60,19 @@ public class DeadCodeElimination extends ModuleVisitor {
                 inst.dispose();
             }
         }
+    }
 
+    private static void removeUnusedBlockArguments(Function function) {
+        function.blocks.forEach(DeadCodeElimination::removeUnusedBlockArguments);
+    }
+
+    private static void removeUnusedBlockArguments(BasicBlock block) {
         // 删除无用的 block argument
         for (var iter = block.args.entrySet().iterator(); iter.hasNext(); ) {
             var entry = iter.next();
             var var = entry.getKey();
             var blockArg = entry.getValue();
-            if (!blockArg.usedBy.isEmpty()) continue;
+            if (!blockArg.hasNoUse()) continue;
 
             iter.remove();
             for (var use : block.usedBy) {
@@ -74,72 +84,18 @@ public class DeadCodeElimination extends ModuleVisitor {
                         var fp = it.falseParams.remove(var);
                         if (fp != null) fp.dispose();
                     }
-                    case Jmp it -> it.params.remove(var).dispose();
+                    case Jmp it -> {
+                        var p = it.params.remove(var);
+                        if (p != null) p.dispose();
+                    }
                     default -> unreachable();
                 }
             }
         }
     }
 
-    private void removeEmptyBlocks(Function function) {
-        // 由于删除一个块可能会使别的块也变得可删除，可能需要多次运行
-        boolean changed = true;
-        while(changed) {
-            changed = false;
-            for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
-                var block = iterator.next();
-
-                // 单后继才能删除
-                if (!(block.terminator instanceof Instruction.Jmp jmp)) continue;
-                if (!block.instructions.isEmpty()) continue;
-
-                // 没有 phi，一定可以删除，有 phi 而只有单个前驱，也可以删除
-                var args = block.args;
-                var predTerms = block.usedBy.stream()
-                        .map(it -> it.user)
-                        .filter(it -> it instanceof Instruction.Terminator)
-                        .map(it -> (Instruction.Terminator) it)
-                        .toList();
-                if (args.isEmpty() || predTerms.size() == 1) {
-                    iterator.remove();
-                    var succ = jmp.target.value;
-                    var params = jmp.params;
-                    predTerms.forEach(term -> {
-                        switch (term) {
-                            case Br it -> {
-                                it.overwriteParams(block, params);
-                                it.replaceTarget(block, succ);
-                            }
-                            case Jmp it -> {
-                                it.overwriteParams(params);
-                                it.replaceTarget(succ);
-                            }
-                            default -> unreachable();
-                        }
-                    });
-                    // 如果被删的是入口块，需要更新入口块
-                    if (block == function.entry) function.entry = succ;
-                    // 清空 block 的所有 use
-                    block.dispose();
-                }
-            }
-        }
-    }
-
-    private void removeUnreachableBlocks(Function function) {
-        var reachable = new HashSet<BasicBlock>();
-        reachable.add(function.entry);
-
-        // 从入口块开始，遍历所有可达的块
-        dfs(function.entry, reachable);
-
-        function.blocks.retainAll(reachable);
-    }
-
-    private void dfs(BasicBlock entry, HashSet<BasicBlock> visited) {
-        for (BasicBlock succ : entry.getSuccBlocks()) {
-            if (visited.add(succ)) dfs(succ, visited);
-        }
+    private static void removeUnusedLocalVars(Function function) {
+        function.localVars.removeIf(it -> !it.isParam && it.hasNoUse());
     }
 
 }

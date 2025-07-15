@@ -73,7 +73,7 @@ public final class BasicBlock extends Value {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append('^').append(label).append(" (")
-                .append(args.entrySet().stream().map(v -> v.getKey().name + " -> " + v.getValue().shortName())
+                .append(args.keySet().stream().map(it -> it.name)
                         .collect(Collectors.joining(", ")))
                 .append("):\n")
                 .append(instructions.stream().map(it -> it.toString() + "\n")
@@ -82,20 +82,38 @@ public final class BasicBlock extends Value {
         return sb.toString();
     }
 
+    public List<Instruction.Terminator> getPredTerminators() {
+        var result = new ArrayList<Instruction.Terminator>(usedBy.size());
+        for (var use : usedBy) if (use.user instanceof Instruction.Terminator term) result.add(term);
+        return result;
+    }
+
     public List<BasicBlock> getPredBlocks() {
-        return usedBy.stream()
-                .map(it -> it.user)
-                .filter(it -> it instanceof Instruction.Terminator)
-                .map(it -> ((Instruction.Terminator) it).getBlock())
-                .toList();
+        var result = new ArrayList<BasicBlock>(usedBy.size());
+        for (var use : usedBy) if (use.user instanceof Instruction.Terminator term) result.add(term.getBlock());
+        return result;
     }
 
     public List<BasicBlock> getSuccBlocks() {
         return switch (terminator) {
-            case Instruction.Jmp jmp -> List.of(jmp.target.value);
-            case Instruction.Br br -> List.of(br.trueTarget.value, br.falseTarget.value);
+            case Instruction.Jmp jmp -> List.of(jmp.getTarget());
+            case Instruction.Br br -> br.getTargets();
             case Instruction.Ret _,  Instruction.RetV _ -> List.of();
         };
+    }
+
+    public boolean dominates(BasicBlock other) {
+        // 自己支配自己
+        if (this == other) return true;
+        // entry 不被任何块支配
+        if (idom == null) return false;
+
+        // 通过支配树判断
+        while (other != null) {
+            if (other == this) return true;
+            other = other.idom;
+        }
+        return false;
     }
 
 }

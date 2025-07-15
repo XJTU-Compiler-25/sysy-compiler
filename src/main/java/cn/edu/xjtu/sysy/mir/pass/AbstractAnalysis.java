@@ -1,14 +1,10 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 import java.util.Stack;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
@@ -16,6 +12,7 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 public abstract class AbstractAnalysis<T> extends ModuleVisitor {
 
@@ -245,18 +242,13 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     public void visit(Function function) {
         var blocks = direction.getOrderedBlocks(function.blocks);
         init(blocks);
-        Queue<BasicBlock> worklist = new ArrayDeque<>(blocks);
-        Set<BasicBlock> inWorklist = new HashSet<>(blocks);
+        var worklist = new Worklist<>(blocks);
         while (!worklist.isEmpty()) {
             var e = worklist.poll();
-            inWorklist.remove(e);
             meet(e);
             boolean changed = flowThrough(e);
             if (changed) {
-                for (var succ : direction.getSuccBlocksOf(e)) {
-                    // 如果不在worklist里，添加到worklist
-                    if (inWorklist.add(e)) worklist.add(succ);
-                }
+                for (var succ : direction.getSuccBlocksOf(e)) worklist.add(succ);
             }
         }
     }
@@ -267,7 +259,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
 
     public void printResult(Function function) {
         for (var block : function.blocks) {
-            System.out.println("%s:".formatted(block.label));
+            System.out.printf("%s:%n", block.label);
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));
                 System.out.println(instr);

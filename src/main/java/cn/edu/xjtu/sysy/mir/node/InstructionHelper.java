@@ -194,15 +194,14 @@ public final class InstructionHelper {
     }
 
     public Instruction neg(Value lhs) {
-        return switch (lhs.type) {
-            case Type.Int _ -> sub(ImmediateValues.iZero, lhs);
-            case Type.Float _ -> {
-                var instr = new Instruction.FNeg(block, getNewIndex(), lhs);
-                block.addInstruction(instr);
-                yield instr;
-            }
-            default -> Assertions.unsupported(lhs.type);
+        var lType = lhs.type;
+        Instruction instr = switch (lType) {
+            case Type.Int _ -> new Instruction.INeg(block, getNewIndex(), lhs);
+            case Type.Float _ -> new Instruction.FNeg(block, getNewIndex(), lhs);
+            default -> Assertions.unsupported(lType);
         };
+        block.addInstruction(instr);
+        return instr;
     }
 
     public Instruction shl(Value lhs, Value rhs) {

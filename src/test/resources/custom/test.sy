@@ -1,11 +1,9 @@
 int main() {
+    int b = 1 + 2 * 3 / 4;
+    float c = 1.0 + 2.0 * 3.0 / 4.0;
     int a = getint();
-    int i = 2;
-    if (a) {
-        i = 1;
-        if (!a) {
-            i = 3;
-        }
+    while(a) {
+        putint(b);
+        putfloat(c);
     }
-    putint(i);
 }

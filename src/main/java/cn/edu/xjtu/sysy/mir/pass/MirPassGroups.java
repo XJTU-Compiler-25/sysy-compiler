@@ -12,8 +12,11 @@ public final class MirPassGroups {
         return new PassGroup<>(em,
                 DominanceAnalysis::new,
                 EnterSSA::new,
-                ConstFold::new,
+                OncePurenessAnalysis::new,
+                InstCombine::new,
                 DeadCodeElimination::new
+                // CommonSubexprElimination::new
+
         );
     }
 }

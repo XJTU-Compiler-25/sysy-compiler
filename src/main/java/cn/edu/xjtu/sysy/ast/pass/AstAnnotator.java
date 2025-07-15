@@ -335,7 +335,10 @@ public final class AstAnnotator extends AstVisitor {
         var params = resolution.params;
         var args = node.args;
         var paramsCount = params.size();
-        if (args.size() != paramsCount) err(node, "Argument count does not match");
+        if (args.size() != paramsCount) {
+            err(node, "Argument count does not match");
+            return;
+        }
 
         var arrayTolerant = resolution.isExternal;
         for (int i = 0; i < paramsCount; i++)

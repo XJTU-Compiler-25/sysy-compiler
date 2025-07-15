@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.mir.pass;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
@@ -41,9 +42,8 @@ public final class EnterSSA extends ModuleVisitor {
         var vars = function.localVars;
         for (var iterator = vars.iterator(); iterator.hasNext(); ) {
             var var = iterator.next();
-            var usedBy = var.usedBy;
             // 没有被使用的变量直接删除
-            if (usedBy.isEmpty()) iterator.remove();
+            if (var.hasNoUse()) iterator.remove();
         }
     }
 
@@ -68,35 +68,24 @@ public final class EnterSSA extends ModuleVisitor {
         for (var use : var.usedBy) if (use.user instanceof Instruction.Store store) defs.add(store.getBlock());
 
         var blocksToInsert = new HashSet<BasicBlock>();
-        var worklist = new ArrayDeque<>(defs);
-        // 为了方便快速查询是否已经在 worklist 中
-        var worklistSet = new HashSet<>(defs);
+        var worklist = new Worklist<>(defs);
 
         while (!worklist.isEmpty()) {
             var currentBlock = worklist.poll();
-            worklistSet.remove(currentBlock);
 
             for (var dfBlock : currentBlock.df) {
                 if (!blocksToInsert.contains(dfBlock)) {
                     blocksToInsert.add(dfBlock);
                     // phi 也是一个 def
-                    if (!worklistSet.contains(dfBlock)) {
-                        worklist.add(dfBlock);
-                        worklistSet.add(dfBlock);
-                    }
+                    worklist.add(dfBlock);
                 }
             }
         }
 
         for (var block : blocksToInsert) {
             block.addBlockArgument(var);
-            for (var predBlock : block.getPredBlocks()) {
-                switch (predBlock.terminator) {
-                    case Instruction.Jmp jmp -> jmp.putParam(var, ImmediateValues.Undefined);
-                    case Instruction.Br br -> br.putParam(block, var, ImmediateValues.Undefined);
-                    default -> unsupported(predBlock.terminator);
-                }
-            }
+            for (var predBlock : block.getPredBlocks())
+                predBlock.terminator.putParam(block, var, ImmediateValues.Undefined);
         }
     }
 
@@ -159,13 +148,13 @@ public final class EnterSSA extends ModuleVisitor {
         switch (block.terminator) {
             case Instruction.Jmp jmp -> {
                 jmp.params.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
-                renamingRecursive(jmp.target.value);
+                renamingRecursive(jmp.getTarget());
             }
             case Instruction.Br br -> {
                 br.trueParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
                 br.falseParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
-                renamingRecursive(br.trueTarget.value);
-                renamingRecursive(br.falseTarget.value);
+                renamingRecursive(br.getTrueTarget());
+                renamingRecursive(br.getFalseTarget());
             }
             default -> {}
         }

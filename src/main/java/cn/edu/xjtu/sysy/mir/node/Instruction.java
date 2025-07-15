@@ -2,11 +2,14 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
+
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
@@ -50,6 +53,18 @@ public abstract sealed class Instruction extends User {
         Terminator(BasicBlock block) {
             super(block, -1, Types.Void);
         }
+
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            unsupported(this);
+        }
+
+        public void putParam(BasicBlock block, Var var, Value value) {
+            unsupported(this);
+        }
+
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
+            unsupported(this);
+        }
     }
 
     // 带值返回 return
@@ -83,36 +98,57 @@ public abstract sealed class Instruction extends User {
 
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
-        public Use<BasicBlock> target;
+        private final Use<BasicBlock> target;
         // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
-        public HashMap<Var, Use> params = new HashMap<>();
+        public final HashMap<Var, Use> params = new HashMap<>();
 
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
             this.target = use(target);
         }
 
-        public void putParam(Var var, Value value) {
-            params.put(var, use(value));
+        public BasicBlock getTarget() {
+            return target.value;
         }
 
-        public void replaceTarget(BasicBlock target) {
-            this.target.replaceValue(target);
+        public void replaceTarget(BasicBlock newTarget) {
+            target.replaceValue(newTarget);
+        }
+
+        @Override
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            Assertions.requires(oldTarget == getTarget());
+            replaceTarget(newTarget);
+        }
+
+        public void putParam(Var var, Value value) {
+            params.compute(var, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        @Override
+        public void putParam(BasicBlock block, Var var, Value value) {
+            Assertions.requires(block == getTarget());
+            putParam(var, value);
         }
 
         public void overwriteParams(HashMap<Var, Use> params) {
             for (var entry : params.entrySet()) {
                 var var = entry.getKey();
                 var value = entry.getValue().value;
-                this.params.compute(var, (_, use) -> {
-                    if (use == null) return use(value);
-                    else if (!(value instanceof BlockArgument)) {
-                        use.replaceValue(value);
-                        return use;
-                    }
-                    else return use;
-                });
+                if (!(value instanceof BlockArgument)) putParam(var, value);
             }
+        }
+
+        @Override
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
+            Assertions.requires(block == getTarget());
+            overwriteParams(params);
         }
 
         @Override
@@ -127,11 +163,11 @@ public abstract sealed class Instruction extends User {
 
     // 分支 branch
     public static final class Br extends Terminator {
-        public Use condition;
-        public Use<BasicBlock> trueTarget;
-        public Use<BasicBlock> falseTarget;
-        public HashMap<Var, Use> trueParams = new HashMap<>();
-        public HashMap<Var, Use> falseParams = new HashMap<>();
+        private final Use condition;
+        private final Use<BasicBlock> trueTarget;
+        private final Use<BasicBlock> falseTarget;
+        public final HashMap<Var, Use> trueParams = new HashMap<>();
+        public final HashMap<Var, Use> falseParams = new HashMap<>();
 
         Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
@@ -140,44 +176,72 @@ public abstract sealed class Instruction extends User {
             this.falseTarget = use(falseTarget);
         }
 
-        public void putParam(BasicBlock block, Var var, Value value) {
-            if (block == trueTarget.value) trueParams.put(var, use(value));
-            if (block == falseTarget.value) falseParams.put(var, use(value));
+        public Value getCondition() {
+            return condition.value;
         }
 
+        public void replaceCondition(Value newCondition) {
+            condition.replaceValue(newCondition);
+        }
+
+        public BasicBlock getTrueTarget() {
+            return trueTarget.value;
+        }
+
+        public BasicBlock getFalseTarget() {
+            return falseTarget.value;
+        }
+
+        public List<BasicBlock> getTargets() {
+            return List.of(getTrueTarget(), getFalseTarget());
+        }
+
+        public void replaceTrueTarget(BasicBlock newTarget) {
+            trueTarget.replaceValue(newTarget);
+        }
+
+        public void replaceFalseTarget(BasicBlock newTarget) {
+            falseTarget.replaceValue(newTarget);
+        }
+
+        @Override
         public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
-            if (oldTarget == trueTarget.value) trueTarget.replaceValue(newTarget);
-            if (oldTarget == falseTarget.value) falseTarget.replaceValue(newTarget);
+            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
+            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
         }
 
+        public void putTrueParam(Var var, Value value) {
+            trueParams.compute(var, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        public void putFalseParam(Var var, Value value) {
+            falseParams.compute(var, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        @Override
+        public void putParam(BasicBlock block, Var var, Value value) {
+            if (block == trueTarget.value) putTrueParam(var, value);
+            if (block == falseTarget.value) putFalseParam(var, value);
+        }
+
+        @Override
         public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
-            if (block == trueTarget.value) {
-                for (var entry : params.entrySet()) {
-                    var var = entry.getKey();
-                    var value = entry.getValue().value;
-                    trueParams.compute(var, (_, use) -> {
-                        if (use == null) return use(value);
-                        else if (!(value instanceof BlockArgument)) {
-                            use.replaceValue(value);
-                            return use;
-                        }
-                        else return use;
-                    });
-                }
-            }
-            if (block == falseTarget.value) {
-                for (var entry : params.entrySet()) {
-                    var var = entry.getKey();
-                    var value = entry.getValue().value;
-                    falseParams.compute(var, (_, use) -> {
-                        if (use == null) return use(value);
-                        else if (!(value instanceof BlockArgument)) {
-                            use.replaceValue(value);
-                            return use;
-                        }
-                        else return use;
-                    });
-                }
+            for (var entry : params.entrySet()) {
+                var var = entry.getKey();
+                var value = entry.getValue().value;
+                if (!(value instanceof BlockArgument)) putParam(block, var, value);
             }
         }
 
@@ -469,6 +533,20 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("%s = imod %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+        }
+    }
+
+    public static final class INeg extends Instruction {
+        public Use lhs;
+
+        INeg(BasicBlock block, int label, Value lhs) {
+            super(block, label, Types.Int);
+            this.lhs = use(lhs);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = ineg %s", this.shortName(), lhs.value.shortName());
         }
     }
 

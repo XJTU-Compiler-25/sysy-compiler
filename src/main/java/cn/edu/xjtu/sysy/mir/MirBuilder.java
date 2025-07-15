@@ -263,8 +263,13 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.While node) {
+        var condBB = new BasicBlock(curFunc);
         var loopBB = new BasicBlock(curFunc);
         var mergeBB = new BasicBlock(curFunc);
+
+        curFunc.addBlock(condBB);
+        helper.jmp(condBB);
+        helper.changeBlock(condBB);
 
         visitCond(node.cond, loopBB, mergeBB);
 
@@ -273,12 +278,12 @@ public final class MirBuilder implements ErrManaged {
 
         curFunc.addBlock(loopBB);
         helper.changeBlock(loopBB);
+
         visit(node.body);
+        if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(condBB);
 
         loopBlocks.removeLast();
         loopExits.removeLast();
-        // 需要重新求值 condVal，但是，比如直接写一个 break 在结尾的时候就不需要
-        if (helper.getBlock() != null && !helper.hasTerminator()) visitCond(node.cond, loopBB, mergeBB);
 
         curFunc.addBlock(mergeBB);
         helper.changeBlock(mergeBB);
