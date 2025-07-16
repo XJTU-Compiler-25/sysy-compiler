@@ -1,11 +1,11 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.util.Worklist;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.HashSet;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
@@ -39,17 +39,21 @@ public class DeadCodeElimination extends ModuleVisitor {
         reachable.add(block.terminator);
         // 有副作用的指令是可达的
         for (var it : instrs) {
-            if (it instanceof Store || (it instanceof Call call && !call.function.isPure)
-                    || it instanceof CallExternal) reachable.add(it);
+            if (it instanceof Store
+                    || (it instanceof Call call && !call.function.isPure)
+                    || it instanceof CallExternal)
+                reachable.add(it);
         }
 
-        var worklist = new ArrayDeque<>(reachable);
+        var worklist = new Worklist<>(reachable);
 
         while (!worklist.isEmpty()) {
             var inst = worklist.poll();
             for (var use : inst.used) {
-                if (use.value instanceof Instruction instr && reachable.add(instr))
+                if (use.value instanceof Instruction instr) {
+                    reachable.add(instr);
                     worklist.add(instr);
+                }
             }
         }
 
@@ -70,22 +74,21 @@ public class DeadCodeElimination extends ModuleVisitor {
         // 删除无用的 block argument
         for (var iter = block.args.entrySet().iterator(); iter.hasNext(); ) {
             var entry = iter.next();
-            var var = entry.getKey();
             var blockArg = entry.getValue();
-            if (!blockArg.hasNoUse()) continue;
+            if (!blockArg.notUsed()) continue;
 
             iter.remove();
             for (var use : block.usedBy) {
                 var term = (Instruction.Terminator) use.user;
                 switch (term) {
                     case Br it -> {
-                        var tp = it.trueParams.remove(var);
+                        var tp = it.trueParams.remove(blockArg);
                         if (tp != null) tp.dispose();
-                        var fp = it.falseParams.remove(var);
+                        var fp = it.falseParams.remove(blockArg);
                         if (fp != null) fp.dispose();
                     }
                     case Jmp it -> {
-                        var p = it.params.remove(var);
+                        var p = it.params.remove(blockArg);
                         if (p != null) p.dispose();
                     }
                     default -> unreachable();
@@ -95,7 +98,7 @@ public class DeadCodeElimination extends ModuleVisitor {
     }
 
     private static void removeUnusedLocalVars(Function function) {
-        function.localVars.removeIf(it -> !it.isParam && it.hasNoUse());
+        function.localVars.removeIf(Value::notUsed);
     }
 
 }

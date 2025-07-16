@@ -1,6 +1,10 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
+
+import java.util.Arrays;
 
 public final class ImmediateValues {
 
@@ -29,11 +33,35 @@ public final class ImmediateValues {
         else return new ImmediateValue.FloatConst(value);
     }
 
-    public static final ImmediateValue.Undefined Undefined = new ImmediateValue.Undefined();
+    public static ImmediateValue.Undefined undefined() {
+        return new ImmediateValue.Undefined();
+    }
+
     public static final ImmediateValue.ZeroInit ZeroInit = new ImmediateValue.ZeroInit();
 
-    public static ImmediateValue.SparseArrayInit sparseArrayOf(Type type, int[] indexes, Value[] values) {
-        return new ImmediateValue.SparseArrayInit(type, indexes, values);
+    public static ImmediateValue.DenseArray denseArrayOf(Type type, Value[] values) {
+        return new ImmediateValue.DenseArray(type, values);
+    }
+
+    public static ImmediateValue.SparseArray sparseArrayOf(Type type, int capacity, int[] indexes, Value[] values) {
+        return new ImmediateValue.SparseArray(type, capacity, indexes, values);
+    }
+
+    public static ImmediateValue.DenseArray zeroedDenseArray(Type type) {
+        var arrType = (Type.Array) type;
+        var values = new Value[arrType.elementCount];
+        var elemType = arrType.elementType;
+        if (elemType == Types.Int) Arrays.fill(values, iZero);
+        else if (elemType == Types.Float) Arrays.fill(values, fZero);
+        else Assertions.unsupported(elemType);
+        return new ImmediateValue.DenseArray(type, values);
+    }
+
+    public static ImmediateValue.DenseArray sparseToDense(ImmediateValue.SparseArray sparseArray) {
+        var values = sparseArray.values;
+        var denseValues = new Value[sparseArray.size];
+        values.forEach((index, value) -> denseValues[index] = value);
+        return new ImmediateValue.DenseArray(sparseArray.type, denseValues);
     }
 
 }

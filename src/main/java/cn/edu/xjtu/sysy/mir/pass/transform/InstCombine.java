@@ -1,9 +1,10 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
@@ -92,7 +93,7 @@ public final class InstCombine extends ModuleVisitor {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
                     if (rVal != 0) yield intConst(lVal / rVal);
-                    // 除 0 留给运行时行为
+                        // 除 0 留给运行时行为
                     else yield null;
                 } else yield null;
             }
@@ -101,7 +102,7 @@ public final class InstCombine extends ModuleVisitor {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
                     if (rVal != 0) yield intConst(lVal % rVal);
-                    // 除 0 留给运行时行为
+                        // 除 0 留给运行时行为
                     else yield null;
                 } else yield null;
             }
@@ -319,6 +320,12 @@ public final class InstCombine extends ModuleVisitor {
                     yield lVal ^ rVal ? iTrue : iFalse;
                 } else yield null;
             }
+            case Not it -> {
+                if (it.rhs.value instanceof IntConst rConst) {
+                    var rVal = rConst.value != 0;
+                    yield rVal ? iFalse : iTrue;
+                } else yield null;
+            }
 
             // intrinsic
             case FAbs it -> {
@@ -352,9 +359,7 @@ public final class InstCombine extends ModuleVisitor {
 
     private void combineInst(Instruction inst) {
         switch (inst) {
-            // 诸如 jmp br store 之类不能被折叠为常量值的就不做
-            case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _ -> { }
-            // 工作列表里没有加 terminator
+            case Call _, CallExternal _, Alloca _, Load _, Store _ -> { }
             case Terminator _ -> unreachable();
             // 数学运算
             case IAdd it -> {
@@ -368,7 +373,7 @@ public final class InstCombine extends ModuleVisitor {
                     if (lVal == 0) {
                         it.replaceAllUsesWith(rhs);
                         it.dispose();
-                    } else if (rhs instanceof IAdd inner) {
+                    } else if (rhs instanceof IAdd inner && inner.onlyOneUse()) {
                         var innerLhs = inner.lhs.value;
                         var innerRhs = inner.rhs.value;
                         if (innerLhs instanceof IntConst innerLConst) {
@@ -386,7 +391,7 @@ public final class InstCombine extends ModuleVisitor {
                     if (rVal == 0) {
                         it.replaceAllUsesWith(lhs);
                         it.dispose();
-                    } else if (lhs instanceof IAdd inner) {
+                    } else if (lhs instanceof IAdd inner && inner.onlyOneUse()) {
                         var innerLhs = inner.lhs.value;
                         var innerRhs = inner.rhs.value;
                         if (innerLhs instanceof IntConst innerLConst) {
@@ -398,6 +403,40 @@ public final class InstCombine extends ModuleVisitor {
                             rUse.replaceValue(intConst(innerRVal + rVal));
                             lUse.replaceValue(innerLhs);
                         }
+                    }
+                }
+            }
+            case GetElemPtr it -> {
+                var base = it.basePtr.value;
+                var indices = it.indices;
+                var indexLen = indices.length;
+                // 合并 GEP
+                if (base instanceof GetElemPtr inner) {
+                    var innerBase = inner.basePtr.value;
+                    var innerIndices = inner.indices;
+                    var innerIndexLen = innerIndices.length;
+                    if (indices[0].value.equals(iZero)) {
+                        // 外层的第一维是 0，则直接在外层的 indices 前面连接内层的 indices
+                        it.basePtr.replaceValue(innerBase);
+                        var newIndices = new Use[innerIndexLen + indexLen - 1];
+                        for (int i = 0; i < innerIndexLen; i++) {
+                            newIndices[i] = it.use(innerIndices[i].value);
+                        }
+                        indices[0].dispose();
+                        if (indexLen > 1) System.arraycopy(indices, 1, newIndices, innerIndexLen, indexLen);
+                        it.indices = newIndices;
+                    } else if (indices[0].value instanceof IntConst firstIndex
+                            && innerIndices[0].value instanceof IntConst innerLastIndex) {
+                        // 外层的第一维不是 0，但内层的最后一维也是常数，则累加该维并连接其余 indices
+                        it.basePtr.replaceValue(innerBase);
+                        var newIndices = new Use[innerIndexLen + indexLen - 1];
+                        for (int i = 0; i < innerIndexLen - 1; i++) {
+                            newIndices[i] = it.use(innerIndices[i].value);
+                        }
+                        newIndices[innerIndexLen - 1] = it.use(intConst(firstIndex.value + innerLastIndex.value));
+                        indices[0].dispose();
+                        if (indexLen > 1) System.arraycopy(indices, 1, newIndices, innerIndexLen, indexLen);
+                        it.indices = newIndices;
                     }
                 }
             }

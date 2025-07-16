@@ -1,9 +1,10 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
 import java.util.HashMap;
 import java.util.HashSet;

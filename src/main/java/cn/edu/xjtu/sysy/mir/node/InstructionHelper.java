@@ -249,11 +249,13 @@ public final class InstructionHelper {
         return instr;
     }
 
-    // !value = value == 0
     public Instruction not(Value lhs) {
-        Assertions.requires(lhs.type == Types.Int,
-                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
-        return eq(lhs, ImmediateValues.iZero);
+        var lType = lhs.type;
+        Assertions.requires(lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lType));
+        var instr = new Instruction.Not(block, getNewIndex(), lhs);
+        block.addInstruction(instr);
+        return instr;
     }
 
     public Instruction xor(Value lhs, Value rhs) {

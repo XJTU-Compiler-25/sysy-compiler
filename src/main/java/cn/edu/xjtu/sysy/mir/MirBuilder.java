@@ -12,20 +12,14 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.Undefined;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.ZeroInit;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseArrayOf;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
@@ -91,16 +85,17 @@ public final class MirBuilder implements ErrManaged {
                 case Float floatVal -> floatConst(floatVal);
                 default -> {
                     err("global variable initial value must be a constant expression, but got: " + node);
-                    yield Undefined;
+                    yield undefined();
                 }
             };
         } else if (node instanceof Expr.Array arr) {
-            return sparseArrayOf(node.type,
+            var arrType = (Type.Array) arr.type;
+            return sparseArrayOf(arrType, arrType.elementCount,
                     arr.indexes.stream().mapToInt(Integer::intValue).toArray(),
                     arr.elements.stream().map(this::foldGlobalInit).toArray(Value[]::new));
         } else {
             err("global variable initial value must be a constant expression, but got: " + node);
-            return Undefined;
+            return undefined();
         }
     }
 
@@ -445,9 +440,10 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Array node) {
+        var type = (Type.Array) node.type;
         var values = node.elements.stream().map(this::visit).toArray(Value[]::new);
         var indexes = node.indexes.stream().mapToInt(Integer::intValue).toArray();
-        return sparseArrayOf(node.type, indexes, values);
+        return sparseArrayOf(type, type.elementCount, indexes, values);
     }
 
     public Value visit(Expr.Cast node) {

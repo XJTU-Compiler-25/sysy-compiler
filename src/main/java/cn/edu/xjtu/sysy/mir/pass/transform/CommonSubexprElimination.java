@@ -1,4 +1,4 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,6 +7,8 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.pass.AvailableExpression;
+import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
 public class CommonSubexprElimination extends ModuleVisitor {
     

@@ -16,7 +16,7 @@ public final class Assertions {
     }
 
     public static <T> T unreachable() {
-        throw new AssertionError("Unreachable code");
+        return fail("Unreachable code");
     }
 
     public static <T> T unreachable(String msg) {
@@ -33,6 +33,10 @@ public final class Assertions {
 
     public static <T> T todo(String message) {
         throw new UnsupportedOperationException(message);
+    }
+
+    public static <T> T fail(String message) {
+        throw new AssertionError(message);
     }
 
 }

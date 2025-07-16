@@ -95,6 +95,7 @@ public abstract sealed class Type {
     // 从实现来看更像 matrix
     public static final class Array extends Type {
         public final Scalar elementType;
+        public final int elementCount;
 
         /**
          * 各维度的长度反序存放，如 int[4][2] = Array(int, [2, 4])
@@ -106,6 +107,7 @@ public abstract sealed class Type {
             super(calcSize(elementType.size, dimensions));
             this.elementType = elementType;
             this.dimensions = dimensions;
+            this.elementCount = calcSize(1, dimensions);
         }
 
         private static int calcSize(int baseSize, int[] dimensionLens) {

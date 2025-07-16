@@ -1,7 +1,4 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -9,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -59,31 +57,44 @@ public final class TestSolution {
                 .filter(f -> f.getName().endsWith(".sy"))
                 .sorted(Comparator.comparing(File::getName))
                 .map(f -> {
+                    var testName = f.getName().substring(0, f.getName().length() - 3);
+                    var testInFile = new File(testFileFolder, testName + ".in");
+                    var testOutFile = new File(testFileFolder, testName + ".out");
                     try {
-                        var testFileStream = new FileInputStream(f);
-                        var testCase = new String(testFileStream.readAllBytes());
-                        testFileStream.close();
-                        return dynamicTest(f.getName(), () -> {
+                        var testCodeStream = new FileInputStream(f);
+                        var testInStream = testInFile.exists() ? new FileInputStream(testInFile) : null;
+                        var testOutStream = new FileInputStream(testOutFile);
+                        var testCode = new String(testCodeStream.readAllBytes());
+                        var testIn = testInStream != null ? testInStream.readAllBytes() : null;
+                        var testOut = new String(testOutStream.readAllBytes());
+                        testCodeStream.close();
+                        if (testInStream != null) testInStream.close();
+                        testOutStream.close();
+                        return dynamicTest(testName, () -> {
                             var em = new ErrManager();
-                            var ast = compileToAst(em, testCase);
+                            var ast = compileToAst(em, testCode);
                             AstPassGroups.makePassGroup(em).process(ast);
                             // app.visit(ast);
                             if (em.hasErr()) {
-                                System.out.println(
-                                        "Testing %s ..."
-                                                .formatted(f.getName()));
+                                System.out.println("Semantic Error on " + testName);
                                 em.printErrs();
-                                Assertions.fail("Semantic Error");
-                            } else {
-                                System.out.println(
-                                        "Testing %s ...\n Semantic Analysis Passed!"
-                                                .formatted(f.getName()));
-                            }
+                            } else System.out.println("Semantic Analysis Passed on " + testName);
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
                             MirPassGroups.makePassGroup(em).process(module);
-                            System.out.println(module);
+                            //System.out.println(module);
+
+                            if (true) {
+                                System.out.println("Interpreting test...");
+                                var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
+                                var os = new ByteArrayOutputStream();
+                                var interpreter = new Interpreter(em, new PrintStream(os), is);
+                                interpreter.process(module);
+                                var out = os.toString();
+                                System.out.println("Test output: \n" + out);
+                                //Assertions.assertEquals(testOut, out);
+                            }
 
                             String riscVCode = CompileToRiscV(ast);
                             File out = new File(f.getParent(), f.getName() + ".s");

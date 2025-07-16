@@ -1,13 +1,11 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
-
-import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /*
  * EnterSSA 假设 DominanceAnalysis 已经完成
@@ -43,7 +41,7 @@ public final class EnterSSA extends ModuleVisitor {
         for (var iterator = vars.iterator(); iterator.hasNext(); ) {
             var var = iterator.next();
             // 没有被使用的变量直接删除
-            if (var.hasNoUse()) iterator.remove();
+            if (var.notUsed()) iterator.remove();
         }
     }
 
@@ -83,9 +81,9 @@ public final class EnterSSA extends ModuleVisitor {
         }
 
         for (var block : blocksToInsert) {
-            block.addBlockArgument(var);
-            for (var predBlock : block.getPredBlocks())
-                predBlock.terminator.putParam(block, var, ImmediateValues.Undefined);
+            var arg = block.addBlockArgument(var);
+            for (var predTerm : block.getPredTerminators())
+                predTerm.putParam(block, arg, ImmediateValues.undefined());
         }
     }
 
@@ -104,20 +102,15 @@ public final class EnterSSA extends ModuleVisitor {
      * 如果当前指令是 store，找到对应的 alloca L，更新版本 IncomingVals[L]=V 并删除这条 store
      * 将没有访问过的后继基本块加入 worklist
      */
-    private final HashMap<Var, Value> incomingVals = new HashMap<>();
-    private final HashSet<BasicBlock> visited = new HashSet<>();
     private void renaming(Function function) {
-        var vars = function.localVars;
-
-        incomingVals.clear();
-        for (var var : vars) incomingVals.put(var, var.isParam ? var : ImmediateValues.Undefined);
-
+        var entryIncomingVals = new HashMap<Var, Value>();
+        for (var var : function.localVars) entryIncomingVals.put(var, ImmediateValues.undefined());
+        for (var var : function.params) entryIncomingVals.put(var, var);
         // 从 entry 向后继方向 DFS
-        visited.clear();
-        renamingRecursive(function.entry);
+        renamingRecursive(function.entry, new HashSet<>(), entryIncomingVals);
     }
 
-    private void renamingRecursive(BasicBlock block) {
+    private void renamingRecursive(BasicBlock block, HashSet<BasicBlock> visited, HashMap<Var, Value> incomingVals) {
         if (visited.contains(block)) return;
         visited.add(block);
 
@@ -147,14 +140,14 @@ public final class EnterSSA extends ModuleVisitor {
 
         switch (block.terminator) {
             case Instruction.Jmp jmp -> {
-                jmp.params.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
-                renamingRecursive(jmp.getTarget());
+                jmp.params.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
+                renamingRecursive(jmp.getTarget(), visited, new HashMap<>(incomingVals));
             }
             case Instruction.Br br -> {
-                br.trueParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
-                br.falseParams.forEach((var, value) -> value.replaceValue(incomingVals.get(var)));
-                renamingRecursive(br.getTrueTarget());
-                renamingRecursive(br.getFalseTarget());
+                br.trueParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
+                br.falseParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
+                renamingRecursive(br.getTrueTarget(), visited, new HashMap<>(incomingVals));
+                renamingRecursive(br.getFalseTarget(), visited, new HashMap<>(incomingVals));
             }
             default -> {}
         }

@@ -14,9 +14,10 @@ public final class Function extends User {
     public ArrayList<BasicBlock> blocks = new ArrayList<>();
     public BasicBlock entry;
     private int tempValueCounter = 0;
-    public ArrayList<Var> localVars = new ArrayList<>();
+    public ArrayList<Var> params = new ArrayList<>();
 
     // 以下都为分析用的字段
+    public ArrayList<Var> localVars = new ArrayList<>();
 
     public boolean isAtMostCalledOnce;
 
@@ -59,7 +60,7 @@ public final class Function extends User {
 
     public Var addNewParam(String name, Type type) {
         var param = new Var(name, type, false, true);
-        localVars.add(param);
+        params.add(param);
         return param;
     }
 
@@ -76,10 +77,9 @@ public final class Function extends User {
 
     @Override
     public String toString() {
-        String sb = "Function " + name +
+        return "Function " + name +
                 " (" +
-                localVars.stream().filter(it -> it.isParam)
-                        .map(v -> v.name + ": " + v.varType)
+                params.stream().map(v -> v.name + ": " + v.varType)
                         .collect(Collectors.joining(", ")) +
                 ") -> " + funcType.returnType +
                 " (entry = " + entry.label + ", locals = {" +
@@ -88,6 +88,5 @@ public final class Function extends User {
                 "}) \n" +
                 blocks.stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n"));
-        return sb;
     }
 }

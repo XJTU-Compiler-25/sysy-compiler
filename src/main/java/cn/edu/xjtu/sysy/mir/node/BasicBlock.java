@@ -67,13 +67,13 @@ public final class BasicBlock extends Value {
 
     @Override
     public String shortName() {
-        return label;
+        return "^" + label;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append('^').append(label).append(" (")
-                .append(args.keySet().stream().map(it -> it.name)
+        sb.append(shortName()).append(" (")
+                .append(args.values().stream().map(it -> it.var.name)
                         .collect(Collectors.joining(", ")))
                 .append("):\n")
                 .append(instructions.stream().map(it -> it.toString() + "\n")

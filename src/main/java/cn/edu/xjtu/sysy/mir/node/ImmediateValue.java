@@ -3,7 +3,9 @@ package cn.edu.xjtu.sysy.mir.node;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 
 /**
  * 立即的值
@@ -40,6 +42,11 @@ public abstract sealed class ImmediateValue extends Value {
         String buildStringRepresent() {
             return Integer.toString(value);
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof IntConst iConst && value == iConst.value;
+        }
     }
 
     public static final class FloatConst extends ImmediateValue {
@@ -54,6 +61,11 @@ public abstract sealed class ImmediateValue extends Value {
         String buildStringRepresent() {
             return Float.toString(value);
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof FloatConst fConst && value == fConst.value;
+        }
     }
 
     public static final class Undefined extends ImmediateValue {
@@ -64,6 +76,11 @@ public abstract sealed class ImmediateValue extends Value {
         @Override
         String buildStringRepresent() {
             return "undef";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return false;
         }
     }
 
@@ -78,12 +95,12 @@ public abstract sealed class ImmediateValue extends Value {
         }
     }
 
-    public static final class DenseArrayInit extends ImmediateValue {
-        public ImmediateValue[] values;
+    public static final class DenseArray extends ImmediateValue {
+        public Value[] values;
 
-        DenseArrayInit(ImmediateValue[] values, Type type) {
+        DenseArray(Type type, Value[] values) {
             super(Types.ptrOf(type));
-            this.values = values;
+            this.values = Arrays.copyOf(values, values.length);
         }
 
         @Override
@@ -91,7 +108,8 @@ public abstract sealed class ImmediateValue extends Value {
             var sb = new StringBuilder();
             sb.append("[ ");
             for (int i = 0, maxLen = values.length; i < maxLen; i++) {
-                sb.append(values[i].shortName());
+                var value = values[i];
+                sb.append(value != null ? value.shortName() : "null");
                 if (i != maxLen - 1) sb.append(", ");
             }
             sb.append(" ]");
@@ -99,11 +117,13 @@ public abstract sealed class ImmediateValue extends Value {
         }
     }
 
-    public static final class SparseArrayInit extends ImmediateValue {
+    public static final class SparseArray extends ImmediateValue {
         public HashMap<Integer, Value> values = new HashMap<>();
+        public int size;
 
-        SparseArrayInit(Type type, int[] indexes, Value[] values) {
+        SparseArray(Type type, int capacity, int[] indexes, Value[] values) {
             super(Types.ptrOf(type));
+            this.size = capacity;
             for (int i = 0, maxLen = indexes.length; i < maxLen; i++) this.values.put(indexes[i], values[i]);
         }
 

@@ -4,6 +4,8 @@ import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.Arrays;
 
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+
 public final class Types {
 
     private Types() {}
@@ -23,7 +25,7 @@ public final class Types {
         return switch (type) {
             case Type.Scalar s -> arrayOf(s, size);
             case Type.Array a -> arrayOf(a, size);
-            default -> Assertions.unsupported(type);
+            default -> unsupported(type);
         };
     }
 
@@ -54,6 +56,46 @@ public final class Types {
     // 将指针指向的大小固定，使之成为数组
     public static Type.Array fixed(Type.Pointer ptr, int size) {
         return arrayOf(ptr.baseType, size);
+    }
+
+    public static int[] strides(Type t) {
+        return switch (t) {
+            case Type.Pointer ptr -> strides(ptr);
+            case Type.Array array -> strides(array);
+            default -> unsupported(t);
+        };
+    }
+
+    public static int[] strides(Type.Pointer ptr) {
+        var base = ptr.baseType;
+        return switch (base) {
+            case Type.Array array -> {
+                var dims = array.dimensions;
+                var len = dims.length;
+                var strides = new int[len + 1];
+                int accmu = 1;
+                for (int i = 0; i < len; ++i) {
+                    strides[len - i] = accmu;
+                    accmu *= array.dimensions[i];
+                }
+                strides[0] = accmu;
+                yield strides;
+            }
+            default -> new int[] { 1 };
+        };
+    }
+
+
+    public static int[] strides(Type.Array array) {
+        var dims = array.dimensions;
+        var len = dims.length;
+        var strides = new int[len];
+        int accmu = 1;
+        for (int i = 0; i < len; ++i) {
+            strides[len - 1 - i] = accmu;
+            accmu *= array.dimensions[i];
+        }
+        return strides;
     }
 
 }
