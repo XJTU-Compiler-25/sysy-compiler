@@ -45,4 +45,12 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, ImmediateV
         }
     }
 
+    public final boolean notUsed() {
+        return usedBy.isEmpty();
+    }
+
+    public final boolean onlyOneUse() {
+        return usedBy.size() == 1;
+    }
+
 }

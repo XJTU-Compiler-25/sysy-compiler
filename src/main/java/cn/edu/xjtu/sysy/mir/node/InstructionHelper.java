@@ -194,15 +194,14 @@ public final class InstructionHelper {
     }
 
     public Instruction neg(Value lhs) {
-        return switch (lhs.type) {
-            case Type.Int _ -> sub(ImmediateValues.iZero, lhs);
-            case Type.Float _ -> {
-                var instr = new Instruction.FNeg(block, getNewIndex(), lhs);
-                block.addInstruction(instr);
-                yield instr;
-            }
-            default -> Assertions.unsupported(lhs.type);
+        var lType = lhs.type;
+        Instruction instr = switch (lType) {
+            case Type.Int _ -> new Instruction.INeg(block, getNewIndex(), lhs);
+            case Type.Float _ -> new Instruction.FNeg(block, getNewIndex(), lhs);
+            default -> Assertions.unsupported(lType);
         };
+        block.addInstruction(instr);
+        return instr;
     }
 
     public Instruction shl(Value lhs, Value rhs) {
@@ -250,11 +249,13 @@ public final class InstructionHelper {
         return instr;
     }
 
-    // !value = value == 0
     public Instruction not(Value lhs) {
-        Assertions.requires(lhs.type == Types.Int,
-                String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
-        return eq(lhs, ImmediateValues.iZero);
+        var lType = lhs.type;
+        Assertions.requires(lType == Types.Int,
+                String.format("invalid type: typeof lhs(%s) = %s", lhs, lType));
+        var instr = new Instruction.Not(block, getNewIndex(), lhs);
+        block.addInstruction(instr);
+        return instr;
     }
 
     public Instruction xor(Value lhs, Value rhs) {

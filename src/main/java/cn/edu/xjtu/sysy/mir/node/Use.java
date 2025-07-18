@@ -42,7 +42,5 @@ public final class Use<V extends Value> {
     public void dispose() {
         user.removeUsed(this);
         value.removeUse(this);
-        user = null;
-        value = null;
     }
 }

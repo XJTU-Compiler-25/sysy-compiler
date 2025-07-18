@@ -2,18 +2,21 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
+
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
  * 建议通过 {@link InstructionHelper} 构造指令
  * 请注意整数运算指令都是 signed 的
  */
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({"rawtypes", "unchecked", "unused"})
 public abstract sealed class Instruction extends User {
     private final BasicBlock block;
 
@@ -33,8 +36,8 @@ public abstract sealed class Instruction extends User {
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
-        //return "%" + label;
-        return "%" + label + ": " + type;
+        return "%" + label;
+        //return "%" + label + ": " + type;
     }
 
     @Override
@@ -49,6 +52,18 @@ public abstract sealed class Instruction extends User {
     public abstract sealed static class Terminator extends Instruction {
         Terminator(BasicBlock block) {
             super(block, -1, Types.Void);
+        }
+
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            unsupported(this);
+        }
+
+        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+            unsupported(this);
+        }
+
+        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+            unsupported(this);
         }
     }
 
@@ -83,24 +98,65 @@ public abstract sealed class Instruction extends User {
 
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
-        public Use<BasicBlock> target;
+        private final Use<BasicBlock> target;
         // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
-        public HashMap<Var, Use> params = new HashMap<>();
+        public final HashMap<BlockArgument, Use> params = new HashMap<>();
 
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
             this.target = use(target);
         }
 
-        public void putParam(Var var, Value value) {
-            params.put(var, use(value));
+        public BasicBlock getTarget() {
+            return target.value;
+        }
+
+        public void replaceTarget(BasicBlock newTarget) {
+            target.replaceValue(newTarget);
+        }
+
+        @Override
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            Assertions.requires(oldTarget == getTarget());
+            replaceTarget(newTarget);
+        }
+
+        public void putParam(BlockArgument arg, Value value) {
+            params.compute(arg, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        @Override
+        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+            Assertions.requires(block == getTarget());
+            putParam(var, value);
+        }
+
+        public void overwriteParams(HashMap<BlockArgument, Use> params) {
+            for (var entry : params.entrySet()) {
+                var var = entry.getKey();
+                var value = entry.getValue().value;
+                if (!(value instanceof BlockArgument)) putParam(var, value);
+            }
+        }
+
+        @Override
+        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+            Assertions.requires(block == getTarget());
+            overwriteParams(params);
         }
 
         @Override
         public String toString() {
             return "jmp " + target.value.label + "(" +
                     params.entrySet().stream()
-                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .map(entry -> entry.getKey().var.name
+                                    + "= " + entry.getValue().value.shortName())
                             .collect(Collectors.joining(", ")) +
                     ')';
         }
@@ -108,11 +164,11 @@ public abstract sealed class Instruction extends User {
 
     // 分支 branch
     public static final class Br extends Terminator {
-        public Use condition;
-        public Use<BasicBlock> trueTarget;
-        public Use<BasicBlock> falseTarget;
-        public HashMap<Var, Use> trueParams = new HashMap<>();
-        public HashMap<Var, Use> falseParams = new HashMap<>();
+        private final Use condition;
+        private final Use<BasicBlock> trueTarget;
+        private final Use<BasicBlock> falseTarget;
+        public final HashMap<BlockArgument, Use> trueParams = new HashMap<>();
+        public final HashMap<BlockArgument, Use> falseParams = new HashMap<>();
 
         Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
@@ -121,20 +177,86 @@ public abstract sealed class Instruction extends User {
             this.falseTarget = use(falseTarget);
         }
 
-        public void putParam(BasicBlock block, Var var, Value value) {
-            if (block == trueTarget.value) trueParams.put(var, use(value));
-            if (block == falseTarget.value) falseParams.put(var, use(value));
+        public Value getCondition() {
+            return condition.value;
+        }
+
+        public void replaceCondition(Value newCondition) {
+            condition.replaceValue(newCondition);
+        }
+
+        public BasicBlock getTrueTarget() {
+            return trueTarget.value;
+        }
+
+        public BasicBlock getFalseTarget() {
+            return falseTarget.value;
+        }
+
+        public List<BasicBlock> getTargets() {
+            return List.of(getTrueTarget(), getFalseTarget());
+        }
+
+        public void replaceTrueTarget(BasicBlock newTarget) {
+            trueTarget.replaceValue(newTarget);
+        }
+
+        public void replaceFalseTarget(BasicBlock newTarget) {
+            falseTarget.replaceValue(newTarget);
+        }
+
+        @Override
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
+            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
+        }
+
+        public void putTrueParam(BlockArgument arg, Value value) {
+            trueParams.compute(arg, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        public void putFalseParam(BlockArgument arg, Value value) {
+            falseParams.compute(arg, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        @Override
+        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+            if (block == trueTarget.value) putTrueParam(var, value);
+            if (block == falseTarget.value) putFalseParam(var, value);
+        }
+
+        @Override
+        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+            for (var entry : params.entrySet()) {
+                var var = entry.getKey();
+                var value = entry.getValue().value;
+                if (!(value instanceof BlockArgument)) putParam(block, var, value);
+            }
         }
 
         @Override
         public String toString() {
             return "br " + condition.value.shortName() + ", " + trueTarget.value.label + "(" +
                     trueParams.entrySet().stream()
-                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .map(param -> param.getKey().var.name
+                                    + "= " + param.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.label + "(" +
                     falseParams.entrySet().stream()
-                            .map(param -> param.getKey().name + ": " + param.getValue().value.shortName())
+                            .map(param -> param.getKey().var.name
+                                    + "= " + param.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -417,6 +539,20 @@ public abstract sealed class Instruction extends User {
         }
     }
 
+    public static final class INeg extends Instruction {
+        public Use lhs;
+
+        INeg(BasicBlock block, int label, Value lhs) {
+            super(block, label, Types.Int);
+            this.lhs = use(lhs);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = ineg %s", this.shortName(), lhs.value.shortName());
+        }
+    }
+
     public static final class FAdd extends Instruction {
         public Use lhs;
         public Use rhs;
@@ -616,6 +752,20 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("%s = xor %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+        }
+    }
+
+    public static final class Not extends Instruction {
+        public Use rhs;
+
+        Not(BasicBlock block, int label, Value rhs) {
+            super(block, label, Types.Int);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = not %s", this.shortName(), rhs.value.shortName());
         }
     }
 

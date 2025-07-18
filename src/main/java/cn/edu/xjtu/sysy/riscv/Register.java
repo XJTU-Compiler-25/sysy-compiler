@@ -4,7 +4,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 public sealed interface Register {
     /** 整数寄存器 */
-    public static enum Int implements Register {
+    enum Int implements Register {
         A0("a0"), A1("a1"), A2("a2"), A3("a3"), A4("a4"), A5("a5"), A6("a6"),
         A7("a7"),
         T0("t0"), T1("t1"), T2("t2"), T3("t3"), T4("t4"), T5("t5"), T6("t6"),
@@ -37,7 +37,7 @@ public sealed interface Register {
     }
 
     /** 浮点数寄存器 */
-    public static enum Float implements Register {
+    enum Float implements Register {
         FT0("ft0"), FT1("ft1"), FT2("ft2"), FT3("ft3"), FT4("ft4"), FT5("ft5"), 
         FT6("ft6"), FT7("ft7"), FT8("ft8"), FT9("ft9"), FT10("ft10"), FT11("ft11"), 
         FS0("fs0"), FS1("fs1"), FS2("fs2"), FS3("fs3"), FS4("fs4"), FS5("fs5"), 

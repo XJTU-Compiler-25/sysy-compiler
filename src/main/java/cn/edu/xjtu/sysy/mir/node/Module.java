@@ -21,7 +21,7 @@ public final class Module {
 
     // 全局变量的初值必须是常量表达式，所以直接取 compTimeValue 即可
     public Var newGlobalVar(Symbol.VarSymbol symbol, ImmediateValue init) {
-        var globalVar = new Var(symbol.name, symbol.type, true);
+        var globalVar = new Var(symbol.name, symbol.type, true, false);
         globalVars.put(symbol.name, globalVar);
         globalVarInitValues.put(globalVar, init);
         return globalVar;
@@ -29,12 +29,11 @@ public final class Module {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Global Variables:\n")
-                .append(globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
-                        .collect(Collectors.joining(", ")))
-                .append("\nFunctions:\n")
-                .append(functions.values().stream().map(Function::toString).collect(Collectors.joining("\n")));
-        return sb.toString();
+        String sb = "Global Variables:\n" +
+                globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
+                        .collect(Collectors.joining(", ")) +
+                "\nFunctions:\n" +
+                functions.values().stream().map(Function::toString).collect(Collectors.joining("\n"));
+        return sb;
     }
 }

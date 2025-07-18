@@ -3,7 +3,7 @@ package cn.edu.xjtu.sysy.riscv;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 public sealed interface Instr {
-    public record Reg(Op op, Register.Int rd, Register.Int rs1, Register.Int rs2)
+    record Reg(Op op, Register.Int rd, Register.Int rs1, Register.Int rs2)
             implements Instr {
         public enum Op {
             ADD("add"),
@@ -35,7 +35,7 @@ public sealed interface Instr {
             REMW("remw"),
             REMUW("remuw");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -53,7 +53,7 @@ public sealed interface Instr {
         }
     }
 
-    public record RegZ(Op op, Register.Int rd, Register.Int rs1)
+    record RegZ(Op op, Register.Int rd, Register.Int rs1)
             implements Instr {
         public enum Op {
             MV("mv"),
@@ -64,7 +64,7 @@ public sealed interface Instr {
             NEG("neg"),
             NEGW("negw");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -82,7 +82,7 @@ public sealed interface Instr {
         }
     }
 
-    public record FUnary(Op op, Register.Float rd, Register.Float rs1)
+    record FUnary(Op op, Register.Float rd, Register.Float rs1)
             implements Instr {
         public enum Op {
             FMV("fmv.s"),
@@ -90,7 +90,7 @@ public sealed interface Instr {
             FABS("fabs.s"),
             FSQRT("fsqrt.s");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -108,14 +108,14 @@ public sealed interface Instr {
         }
     }
 
-    public record Fclass(Register.Int rd, Register.Float rs) implements Instr {
+    record Fclass(Register.Int rd, Register.Float rs) implements Instr {
         @Override
         public String toString() {
             return String.format("fclass.s %s, %s", rd, rs);
         }
     }
 
-    public record FBinary(Op op, Register.Float rd, Register.Float rs1, Register.Float rs2)
+    record FBinary(Op op, Register.Float rd, Register.Float rs1, Register.Float rs2)
             implements Instr {
         public enum Op {
             FADD("fadd.s"),
@@ -128,7 +128,7 @@ public sealed interface Instr {
             FSGNJN("fsgnjn.s"),
             FSGNJX("fsgnjx.s");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -146,14 +146,14 @@ public sealed interface Instr {
         }
     }
 
-    public record FComp(Op op, Register.Int rd, Register.Float rs1, Register.Float rs2)
+    record FComp(Op op, Register.Int rd, Register.Float rs1, Register.Float rs2)
             implements Instr {
         public enum Op {
             FEQ("feq.s"),
             FLT("flt.s"),
             FLE("fle.s");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -171,7 +171,7 @@ public sealed interface Instr {
         }
     }
 
-    public record FMulAdd(Op op, Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3)
+    record FMulAdd(Op op, Register.Float rd, Register.Float rs1, Register.Float rs2, Register.Float rs3)
             implements Instr {
         public enum Op {
             FMADD("fmadd.s"),
@@ -179,7 +179,7 @@ public sealed interface Instr {
             FNMSUB("fnmsub.s"),
             FNMADD("fnmadd.s");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -197,7 +197,7 @@ public sealed interface Instr {
         }
     }
 
-    public record FloatCvt(Op op, Register.Int rd, Register.Float rs)
+    record FloatCvt(Op op, Register.Int rd, Register.Float rs)
             implements Instr {
         public enum Op {
             FCVT_W_S("fcvt.w.s"),
@@ -205,7 +205,7 @@ public sealed interface Instr {
             FCVT_LU_S("fcvt.lu.s"),
             FCVT_WU_S("fcvt.wu.s");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -223,7 +223,7 @@ public sealed interface Instr {
         }
     }
 
-    public record FloatIntMv(Register.Int rd, Register.Float rs)
+    record FloatIntMv(Register.Int rd, Register.Float rs)
             implements Instr {
 
         @Override
@@ -232,7 +232,7 @@ public sealed interface Instr {
         }
     }
 
-    public record IntCvt(Op op, Register.Float rd, Register.Int rs)
+    record IntCvt(Op op, Register.Float rd, Register.Int rs)
             implements Instr {
         public enum Op {
             FCVT_S_W("fcvt.s.w"),
@@ -240,7 +240,7 @@ public sealed interface Instr {
             FCVT_S_LU("fcvt.s.lu"),
             FCVT_S_WU("fcvt.s.wu");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -258,7 +258,7 @@ public sealed interface Instr {
         }
     }
 
-    public record IntFloatMv(Register.Float rd, Register.Int rs)
+    record IntFloatMv(Register.Float rd, Register.Int rs)
             implements Instr {
 
         @Override
@@ -267,7 +267,7 @@ public sealed interface Instr {
         }
     }
 
-    public record Imm(Op op, Register.Int rd, Register.Int rs1, int imm)
+    record Imm(Op op, Register.Int rd, Register.Int rs1, int imm)
             implements Instr {
         public Imm {
             switch (op) {
@@ -298,7 +298,7 @@ public sealed interface Instr {
             SLTI("slti"),
             SLTIU("sltiu");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -316,7 +316,7 @@ public sealed interface Instr {
         }
     }
 
-    public record Load(Op op, Register.Int rd, Register.Int rs1, int imm)
+    record Load(Op op, Register.Int rd, Register.Int rs1, int imm)
             implements Instr {
         public Load {
             Assertions.requires(-2048 <= imm && imm < 2048, "Immediate incompatible in %s".formatted(op));
@@ -331,7 +331,7 @@ public sealed interface Instr {
             LWU("lwu"),
             LD("ld");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -349,14 +349,14 @@ public sealed interface Instr {
         }
     }
 
-    public record Flw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
+    record Flw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
         @Override
         public String toString() {
             return String.format("flw %s, %d(%s)", rd, imm, rs1);
         }
     }
 
-    public record Store(Op op, Register.Int rs2, Register.Int rs1, int imm)
+    record Store(Op op, Register.Int rs2, Register.Int rs1, int imm)
             implements Instr {
         public Store {
             Assertions.requires(-2048 <= imm && imm < 2048, "Immediate incompatible in %s".formatted(op));
@@ -368,7 +368,7 @@ public sealed interface Instr {
             SW("sw"),
             SD("sd");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -386,28 +386,28 @@ public sealed interface Instr {
         }
     }
 
-    public record Fsw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
+    record Fsw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
         @Override
         public String toString() {
             return String.format("fsw %s, %d(%s)", rd, imm, rs1);
         }
     }
 
-    public record Sw_global(Register.Int rd, Label label, Register.Int tmp) implements Instr {
+    record Sw_global(Register.Int rd, Label label, Register.Int tmp) implements Instr {
         @Override
         public String toString() {
             return String.format("sw %s, %s, %s", rd, label, tmp);
         }
     }
 
-    public record Fsw_global(Register.Float rd, Label label, Register.Int tmp) implements Instr {
+    record Fsw_global(Register.Float rd, Label label, Register.Int tmp) implements Instr {
         @Override
         public String toString() {
             return String.format("fsw %s, %s, %s", rd, label, tmp);
         }
     }
 
-    public record Branch(Op op, Register.Int rs1, Register.Int rs2, Label label)
+    record Branch(Op op, Register.Int rs1, Register.Int rs2, Label label)
             implements Instr {
         public enum Op {
             BEQ("beq"),
@@ -421,7 +421,7 @@ public sealed interface Instr {
             BLEU("bleu"),
             BGT("bgt");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -439,7 +439,7 @@ public sealed interface Instr {
         }
     }
 
-    public record BranchZ(Op op, Register.Int rs1, Label label)
+    record BranchZ(Op op, Register.Int rs1, Label label)
             implements Instr {
         public enum Op {
             BEQZ("beqz"),
@@ -449,7 +449,7 @@ public sealed interface Instr {
             BLEZ("blez"),
             BNEZ("bnez");
 
-            protected final String op;
+            private final String op;
 
             Op(String op) {
                 this.op = op;
@@ -467,7 +467,7 @@ public sealed interface Instr {
         }
     }
 
-    public record Jal(Register.Int rd, Label label) implements Instr {
+    record Jal(Register.Int rd, Label label) implements Instr {
 
         @Override
         public String toString() {
@@ -475,7 +475,7 @@ public sealed interface Instr {
         }
     }
 
-    public record Call(Label label) implements Instr {
+    record Call(Label label) implements Instr {
 
         @Override
         public String toString() {
@@ -483,7 +483,7 @@ public sealed interface Instr {
         }
     }
 
-    public record Jalr(Register.Int rd, Register.Int rs1, int imm) implements Instr {
+    record Jalr(Register.Int rd, Register.Int rs1, int imm) implements Instr {
 
         public Jalr {
             Assertions.requires(-2048 <= imm && imm < 2048, "Immediate incompatible in JALR");
@@ -495,68 +495,68 @@ public sealed interface Instr {
         }
     }
 
-    public record LocalLabel(Label label) implements Instr {
+    record LocalLabel(Label label) implements Instr {
         @Override
         public String toString() {
             return String.format("%s", label);
         }
     }
 
-    public record Auipc(Register.Int rd, int immu) implements Instr {
+    record Auipc(Register.Int rd, int immu) implements Instr {
         @Override
         public String toString() {
             return String.format("auipc %s, %d", rd, immu);
         }
     }
 
-    public record Lui(Register.Int rd, int immu) implements Instr {
+    record Lui(Register.Int rd, int immu) implements Instr {
         @Override
         public String toString() {
             return String.format("lui %s, %d", rd, immu);
         }
     }
 
-    public record Ecall() implements Instr {}
+    record Ecall() implements Instr {}
 
-    public record Li(Register.Int rd, int imm) implements Instr {
+    record Li(Register.Int rd, int imm) implements Instr {
         @Override
         public String toString() {
             return String.format("li %s, %d", rd, imm);
         }
     }
 
-    public record Li_globl(Register.Int rd, Label imm) implements Instr {
+    record Li_globl(Register.Int rd, Label imm) implements Instr {
         @Override
         public String toString() {
             return String.format("li %s, $%s", rd, imm);
         }
     }
 
-    public record La(Register.Int rd, Label label) implements Instr {
+    record La(Register.Int rd, Label label) implements Instr {
         @Override
         public String toString() {
             return String.format("la %s, %s", rd, label);
         }
     }
 
-    public record J(Label label) implements Instr {
+    record J(Label label) implements Instr {
         @Override
         public String toString() {
             return String.format("j %s", label);
         }
     }
 
-    public record Jr(Register.Int rs) implements Instr {
+    record Jr(Register.Int rs) implements Instr {
         @Override
         public String toString() {
             return String.format("jr %s", rs);
         }
     }
 
-    public record Ret() implements Instr {
+    record Ret() implements Instr {
         @Override
         public String toString() {
-            return String.format("ret");
+            return "ret";
         }
     } 
 }
