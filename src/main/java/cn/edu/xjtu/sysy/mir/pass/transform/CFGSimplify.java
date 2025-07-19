@@ -29,23 +29,32 @@ public final class CFGSimplify extends ModuleVisitor {
             for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
                 var block = iterator.next();
 
+                // 不删入口块
+                if (block == function.entry) continue;
                 // 单后继才能删除
                 if (!(block.terminator instanceof Instruction.Jmp jmp)) continue;
                 if (!block.instructions.isEmpty()) continue;
 
-                // 没有 phi，一定可以删除，有 phi 而只有单个前驱，也可以删除
-                var args = block.args;
+                var params = jmp.params;
                 var predTerms = block.getPredTerminators();
-                if (args.isEmpty() || predTerms.size() == 1) {
+                var succ = jmp.getTarget();
+                // 删除自环可能会改变程序语义，不删
+                if (succ != block
+                        // 没有 phi，一定可以删除，有 phi 而只有单个前驱，也可以删除
+                        && (block.args.isEmpty()
+                            || predTerms.size() == 1)) {
                     iterator.remove();
-                    var succ = jmp.getTarget();
-                    var params = jmp.params;
                     for (var term : predTerms) {
-                        term.overwriteParams(block, params);
                         term.replaceTarget(block, succ);
+                        term.overwriteParams(succ, params);
                     }
-                    // 如果被删的是入口块，需要更新入口块
-                    if (block == function.entry) function.entry = succ;
+
+                    // 将本块的参数都换成后继块的参数
+                    block.args.forEach((var, arg) -> {
+                        var succArg = succ.getBlockArgument(var);
+                        if (succArg == null) succArg = succ.addBlockArgument(var);
+                        arg.replaceAllUsesWith(succArg);
+                    });
                     // 清空 block 的所有 use
                     block.dispose();
                 }

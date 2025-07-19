@@ -15,8 +15,8 @@ public final class BasicBlock extends Value {
     public String label;
 
     private final Function function;
-    public HashMap<Var, BlockArgument> args;
-    public ArrayList<Instruction> instructions;
+    public final HashMap<Var, BlockArgument> args = new HashMap<>();
+    public ArrayList<Instruction> instructions = new ArrayList<>();
     public Instruction.Terminator terminator;
 
     // 以下都为分析用的字段
@@ -37,8 +37,6 @@ public final class BasicBlock extends Value {
         super(Types.Void);
         this.function = function;
         this.label = label;
-        this.args = new HashMap<>();
-        this.instructions = new ArrayList<>();
         this.isStronglyConnected = false;
     }
 
@@ -65,21 +63,21 @@ public final class BasicBlock extends Value {
         return arg;
     }
 
+    public BlockArgument getBlockArgument(Var var) {
+        return args.get(var);
+    }
+
     @Override
     public String shortName() {
         return "^" + label;
     }
 
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(shortName()).append(" (")
-                .append(args.values().stream().map(it -> it.var.name)
-                        .collect(Collectors.joining(", ")))
-                .append("):\n")
-                .append(instructions.stream().map(it -> it.toString() + "\n")
-                        .collect(Collectors.joining()));
-        if (terminator != null) sb.append(terminator);
-        return sb.toString();
+        return shortName() + " (" +
+                args.values().stream().map(it -> it.var.name)
+                        .collect(Collectors.joining(", ")) +
+                "):\n" + instructions.stream().map(it -> it.toString() + "\n")
+                        .collect(Collectors.joining()) + terminator;
     }
 
     public List<Instruction.Terminator> getPredTerminators() {

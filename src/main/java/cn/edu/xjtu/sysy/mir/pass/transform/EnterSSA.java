@@ -83,7 +83,7 @@ public final class EnterSSA extends ModuleVisitor {
         for (var block : blocksToInsert) {
             var arg = block.addBlockArgument(var);
             for (var predTerm : block.getPredTerminators())
-                predTerm.putParam(block, arg, ImmediateValues.undefined());
+                predTerm.putParam(block, arg.var, ImmediateValues.undefined());
         }
     }
 
@@ -103,11 +103,12 @@ public final class EnterSSA extends ModuleVisitor {
      * 将没有访问过的后继基本块加入 worklist
      */
     private void renaming(Function function) {
+        var entry = function.entry;
         var entryIncomingVals = new HashMap<Var, Value>();
         for (var var : function.localVars) entryIncomingVals.put(var, ImmediateValues.undefined());
-        for (var var : function.params) entryIncomingVals.put(var, var);
+        for (var var : function.params) entryIncomingVals.put(var, entry.addBlockArgument(var));
         // 从 entry 向后继方向 DFS
-        renamingRecursive(function.entry, new HashSet<>(), entryIncomingVals);
+        renamingRecursive(entry, new HashSet<>(), entryIncomingVals);
     }
 
     private void renamingRecursive(BasicBlock block, HashSet<BasicBlock> visited, HashMap<Var, Value> incomingVals) {
@@ -140,12 +141,12 @@ public final class EnterSSA extends ModuleVisitor {
 
         switch (block.terminator) {
             case Instruction.Jmp jmp -> {
-                jmp.params.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
+                jmp.params.forEach((var, use) -> use.replaceValue(incomingVals.get(var)));
                 renamingRecursive(jmp.getTarget(), visited, new HashMap<>(incomingVals));
             }
             case Instruction.Br br -> {
-                br.trueParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
-                br.falseParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(arg.var)));
+                br.trueParams.forEach((var, use) -> use.replaceValue(incomingVals.get(var)));
+                br.falseParams.forEach((var, use) -> use.replaceValue(incomingVals.get(var)));
                 renamingRecursive(br.getTrueTarget(), visited, new HashMap<>(incomingVals));
                 renamingRecursive(br.getFalseTarget(), visited, new HashMap<>(incomingVals));
             }

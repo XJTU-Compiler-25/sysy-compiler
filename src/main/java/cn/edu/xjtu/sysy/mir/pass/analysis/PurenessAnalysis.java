@@ -7,9 +7,9 @@ import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Var;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-// 分析函数的纯性及是否最多被调用一次
-public class OncePurenessAnalysis extends ModuleVisitor {
-    public OncePurenessAnalysis(ErrManager errManager) {
+// 分析函数的纯性
+public class PurenessAnalysis extends ModuleVisitor {
+    public PurenessAnalysis(ErrManager errManager) {
         super(errManager);
     }
 

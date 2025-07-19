@@ -58,11 +58,11 @@ public abstract sealed class Instruction extends User {
             unsupported(this);
         }
 
-        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+        public void putParam(BasicBlock block, Var var, Value value) {
             unsupported(this);
         }
 
-        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
             unsupported(this);
         }
     }
@@ -100,7 +100,7 @@ public abstract sealed class Instruction extends User {
     public static final class Jmp extends Terminator {
         private final Use<BasicBlock> target;
         // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
-        public final HashMap<BlockArgument, Use> params = new HashMap<>();
+        public final HashMap<Var, Use> params = new HashMap<>();
 
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
@@ -121,8 +121,8 @@ public abstract sealed class Instruction extends User {
             replaceTarget(newTarget);
         }
 
-        public void putParam(BlockArgument arg, Value value) {
-            params.compute(arg, (_, use) -> {
+        public void putParam(Var var, Value value) {
+            params.compute(var, (_, use) -> {
                 if (use == null) return use(value);
                 else {
                     use.replaceValue(value);
@@ -132,12 +132,12 @@ public abstract sealed class Instruction extends User {
         }
 
         @Override
-        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+        public void putParam(BasicBlock block, Var var, Value value) {
             Assertions.requires(block == getTarget());
             putParam(var, value);
         }
 
-        public void overwriteParams(HashMap<BlockArgument, Use> params) {
+        public void overwriteParams(HashMap<Var, Use> params) {
             for (var entry : params.entrySet()) {
                 var var = entry.getKey();
                 var value = entry.getValue().value;
@@ -146,7 +146,7 @@ public abstract sealed class Instruction extends User {
         }
 
         @Override
-        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
             Assertions.requires(block == getTarget());
             overwriteParams(params);
         }
@@ -155,7 +155,7 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "jmp " + target.value.label + "(" +
                     params.entrySet().stream()
-                            .map(entry -> entry.getKey().var.name
+                            .map(entry -> entry.getKey().name
                                     + "= " + entry.getValue().value.shortName())
                             .collect(Collectors.joining(", ")) +
                     ')';
@@ -167,8 +167,8 @@ public abstract sealed class Instruction extends User {
         private final Use condition;
         private final Use<BasicBlock> trueTarget;
         private final Use<BasicBlock> falseTarget;
-        public final HashMap<BlockArgument, Use> trueParams = new HashMap<>();
-        public final HashMap<BlockArgument, Use> falseParams = new HashMap<>();
+        public final HashMap<Var, Use> trueParams = new HashMap<>();
+        public final HashMap<Var, Use> falseParams = new HashMap<>();
 
         Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
@@ -211,8 +211,8 @@ public abstract sealed class Instruction extends User {
             if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
         }
 
-        public void putTrueParam(BlockArgument arg, Value value) {
-            trueParams.compute(arg, (_, use) -> {
+        public void putTrueParam(Var var, Value value) {
+            trueParams.compute(var, (_, use) -> {
                 if (use == null) return use(value);
                 else {
                     use.replaceValue(value);
@@ -221,8 +221,8 @@ public abstract sealed class Instruction extends User {
             });
         }
 
-        public void putFalseParam(BlockArgument arg, Value value) {
-            falseParams.compute(arg, (_, use) -> {
+        public void putFalseParam(Var var, Value value) {
+            falseParams.compute(var, (_, use) -> {
                 if (use == null) return use(value);
                 else {
                     use.replaceValue(value);
@@ -232,13 +232,13 @@ public abstract sealed class Instruction extends User {
         }
 
         @Override
-        public void putParam(BasicBlock block, BlockArgument var, Value value) {
+        public void putParam(BasicBlock block, Var var, Value value) {
             if (block == trueTarget.value) putTrueParam(var, value);
             if (block == falseTarget.value) putFalseParam(var, value);
         }
 
         @Override
-        public void overwriteParams(BasicBlock block, HashMap<BlockArgument, Use> params) {
+        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
             for (var entry : params.entrySet()) {
                 var var = entry.getKey();
                 var value = entry.getValue().value;
@@ -250,12 +250,12 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "br " + condition.value.shortName() + ", " + trueTarget.value.label + "(" +
                     trueParams.entrySet().stream()
-                            .map(param -> param.getKey().var.name
+                            .map(param -> param.getKey().name
                                     + "= " + param.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.label + "(" +
                     falseParams.entrySet().stream()
-                            .map(param -> param.getKey().var.name
+                            .map(param -> param.getKey().name
                                     + "= " + param.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";

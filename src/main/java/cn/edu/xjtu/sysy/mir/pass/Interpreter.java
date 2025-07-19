@@ -102,10 +102,11 @@ public final class Interpreter extends ModuleVisitor {
                     var newSF = new HashMap<Value, ImmediateValue>();
                     var callee = it.function;
                     var params = callee.params;
+                    var entry = callee.entry;
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
                         var arg = it.args[i].value;
-                        newSF.put(param, toImm(arg));
+                        newSF.put(entry.getBlockArgument(param), toImm(arg));
                     }
                     retAddrs.push(it);
                     stackframes.push(oldSF);
@@ -190,8 +191,10 @@ public final class Interpreter extends ModuleVisitor {
                     currentBlock = null;
                 }
                 case Jmp it -> {
-                    it.params.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
-                    currentBlock = it.getTarget();
+                    var target = it.getTarget();
+                    it.params.forEach((var, use) ->
+                            stackframe.put(target.getBlockArgument(var), toImm(use.value)));
+                    currentBlock = target;
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
