@@ -2,8 +2,10 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Placeholder;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public final class Function extends User {
@@ -23,6 +25,8 @@ public final class Function extends User {
 
     // 是否没有副作用
     public boolean isPure;
+
+    public ArrayList<Loop> loops = new ArrayList<>();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -70,6 +74,10 @@ public final class Function extends User {
         return localVar;
     }
 
+    public void addLoop(Loop loop) {
+        loops.add(loop);
+    }
+
     @Override
     public String shortName() {
         return name;
@@ -89,4 +97,37 @@ public final class Function extends User {
                 blocks.stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n"));
     }
+
+    // 获取调用该函数的函数列表
+    public List<Function> getCallers() {
+        var result = new ArrayList<Function>(usedBy.size());
+        for (var use : usedBy) if (use.user instanceof Instruction.Call it) result.add(it.getFunction());
+        return result;
+    }
+
+    public List<Instruction.Call> getCallerInstrs() {
+        var result = new ArrayList<Instruction.Call>(usedBy.size());
+        for (var use : usedBy) if (use.user instanceof Instruction.Call it) result.add(it);
+        return result;
+    }
+
+    // 如果跳转目标支配跳转源，则认为是一个 back edge
+    public List<Instruction.Terminator> getBackEdges() {
+        var result = new ArrayList<Instruction.Terminator>();
+        for (var block : blocks) {
+            switch(block.terminator) {
+                case Instruction.Jmp it -> {
+                    if (it.getTarget().dominates(it.getBlock())) result.add(it);
+                }
+                case Instruction.Br it -> {
+                    var source = it.getBlock();
+                    if (it.getTrueTarget().dominates(source)) result.add(it);
+                    if (it.getFalseTarget().dominates(source)) result.add(it);
+                }
+                default -> { }
+            }
+        }
+        return result;
+    }
+
 }

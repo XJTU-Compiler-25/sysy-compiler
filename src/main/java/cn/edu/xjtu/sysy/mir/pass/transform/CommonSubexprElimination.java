@@ -7,7 +7,7 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.pass.AvailableExpression;
+import cn.edu.xjtu.sysy.mir.pass.analysis.AvailableExpression;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
 public class CommonSubexprElimination extends ModuleVisitor {

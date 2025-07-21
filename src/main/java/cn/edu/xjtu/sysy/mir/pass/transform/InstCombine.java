@@ -41,18 +41,22 @@ public final class InstCombine extends ModuleVisitor {
         foldBranch(block);
     }
 
-    // 尝试把常量驱动的 br 转为 jmp
+    // 尝试把 br 转为 jmp
     private void foldBranch(BasicBlock block) {
         if (block.terminator instanceof Instruction.Br br) {
             if (br.getCondition() instanceof ImmediateValue iv) {
                 if (iv != iZero) {
                     helper.changeBlock(block);
-                    helper.jmp(br.getTrueTarget()).overwriteParams(br.trueParams);
+                    var target = br.getTrueTarget();
+                    var jmp = helper.jmp(target);
+                    br.trueParams.forEach((var, use) -> jmp.putParam(var, use.value));
                     helper.changeBlock(null);
                     br.dispose();
                 } else {
                     helper.changeBlock(block);
-                    helper.jmp(br.getFalseTarget()).overwriteParams(br.falseParams);
+                    var target = br.getFalseTarget();
+                    var jmp = helper.jmp(target);
+                    br.falseParams.forEach((var, use) -> jmp.putParam(var, use.value));
                     helper.changeBlock(null);
                     br.dispose();
                 }

@@ -69,16 +69,24 @@ public final class Types {
     public static int[] strides(Type.Pointer ptr) {
         var base = ptr.baseType;
         return switch (base) {
-            case Type.Array array -> {
-                var dims = array.dimensions;
+            case Type.Array it -> {
+                var dims = it.dimensions;
                 var len = dims.length;
                 var strides = new int[len + 1];
                 int accmu = 1;
                 for (int i = 0; i < len; ++i) {
                     strides[len - i] = accmu;
-                    accmu *= array.dimensions[i];
+                    accmu *= it.dimensions[i];
                 }
                 strides[0] = accmu;
+                yield strides;
+            }
+            case Type.Pointer it -> {
+                var s = strides(it);
+                var len = s.length;
+                var strides = new int[len + 1];
+                System.arraycopy(s, 0, strides, 0, len);
+                strides[len] = 1;
                 yield strides;
             }
             default -> new int[] { 1 };

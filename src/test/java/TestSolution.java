@@ -74,7 +74,7 @@ public final class TestSolution {
                             var em = new ErrManager();
                             var ast = compileToAst(em, testCode);
                             AstPassGroups.makePassGroup(em).process(ast);
-                            // app.visit(ast);
+                            //app.visit(ast);
                             if (em.hasErr()) {
                                 System.out.println("Semantic Error on " + testName);
                                 em.printErrs();
@@ -83,7 +83,7 @@ public final class TestSolution {
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
                             MirPassGroups.makePassGroup(em).process(module);
-                            //System.out.println(module);
+                            System.out.println(module);
 
                             if (true) {
                                 System.out.println("Interpreting test...");

@@ -88,6 +88,7 @@ public final class Interpreter extends ModuleVisitor {
     private ImmediateValue toImm(Value value) {
         if (value instanceof ImmediateValue imm) return imm;
         if (value instanceof Var var && var.isGlobal) return globals.get(var);
+        if (value instanceof BlockArgument arg) value = arg.var;
         var val = stackframe.get(value);
         if (val != null) return val;
         throw new NoSuchElementException("Undefined value: " + value.shortName());
@@ -100,13 +101,12 @@ public final class Interpreter extends ModuleVisitor {
                 case Call it -> {
                     var oldSF = stackframe;
                     var newSF = new HashMap<Value, ImmediateValue>();
-                    var callee = it.function;
+                    var callee = it.getFunction();
                     var params = callee.params;
-                    var entry = callee.entry;
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
                         var arg = it.args[i].value;
-                        newSF.put(entry.getBlockArgument(param), toImm(arg));
+                        newSF.put(param, toImm(arg));
                     }
                     retAddrs.push(it);
                     stackframes.push(oldSF);
@@ -192,8 +192,7 @@ public final class Interpreter extends ModuleVisitor {
                 }
                 case Jmp it -> {
                     var target = it.getTarget();
-                    it.params.forEach((var, use) ->
-                            stackframe.put(target.getBlockArgument(var), toImm(use.value)));
+                    it.params.forEach((var, use) -> stackframe.put(var, toImm(use.value)));
                     currentBlock = target;
                 }
                 case Br it -> {
@@ -230,7 +229,7 @@ public final class Interpreter extends ModuleVisitor {
                                 offset += getInt(indices[i].value) * strides[i];
                             stackframe.put(it, toImm(base.values[offset]));
                         }
-                        default -> unreachable();
+                        default -> unsupported(addr);
                     }
                 }
                 case Store it -> {
@@ -240,7 +239,7 @@ public final class Interpreter extends ModuleVisitor {
                         case Var var -> {
                             if (var.isGlobal) globals.put(var, value);
                             else if (var.isParam) stackframe.put(it, value);
-                            else unreachable();
+                            else unsupported(addr);
                         }
                         case GetElemPtr gep -> {
                             var bv = gep.basePtr.value;

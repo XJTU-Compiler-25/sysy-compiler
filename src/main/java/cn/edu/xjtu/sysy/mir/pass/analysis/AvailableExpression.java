@@ -1,4 +1,4 @@
-package cn.edu.xjtu.sysy.mir.pass;
+package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.Collections;
 import java.util.HashMap;

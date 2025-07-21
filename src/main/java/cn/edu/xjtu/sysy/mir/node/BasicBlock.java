@@ -21,23 +21,25 @@ public final class BasicBlock extends Value {
 
     // 以下都为分析用的字段
 
+    // 在几层循环里面
+    public int loopDepth = 0;
+
     /** 这个基本块是否属于一个size > 1的强连通分量 */
-    public boolean isStronglyConnected;
+    public boolean isStronglyConnected = false;
 
     // 该块的直接支配者（支配者树上的父节点）
     public BasicBlock idom;
     // 支配边界
     public HashSet<BasicBlock> df;
 
-    public BasicBlock(Function function) {
-        this(function, null);
+    public BasicBlock(Function function, int loopDepth) {
+        this(function);
+        this.loopDepth = loopDepth;
     }
 
-    public BasicBlock(Function function, String label) {
+    public BasicBlock(Function function) {
         super(Types.Void);
         this.function = function;
-        this.label = label;
-        this.isStronglyConnected = false;
     }
 
     public void dispose() {
@@ -98,6 +100,10 @@ public final class BasicBlock extends Value {
             case Instruction.Br br -> br.getTargets();
             case Instruction.Ret _,  Instruction.RetV _ -> List.of();
         };
+    }
+
+    public boolean strictlyDominates(BasicBlock other) {
+        return this != other && this.dominates(other);
     }
 
     public boolean dominates(BasicBlock other) {

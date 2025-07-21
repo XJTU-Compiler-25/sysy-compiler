@@ -61,10 +61,6 @@ public abstract sealed class Instruction extends User {
         public void putParam(BasicBlock block, Var var, Value value) {
             unsupported(this);
         }
-
-        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
-            unsupported(this);
-        }
     }
 
     // 带值返回 return
@@ -135,20 +131,6 @@ public abstract sealed class Instruction extends User {
         public void putParam(BasicBlock block, Var var, Value value) {
             Assertions.requires(block == getTarget());
             putParam(var, value);
-        }
-
-        public void overwriteParams(HashMap<Var, Use> params) {
-            for (var entry : params.entrySet()) {
-                var var = entry.getKey();
-                var value = entry.getValue().value;
-                if (!(value instanceof BlockArgument)) putParam(var, value);
-            }
-        }
-
-        @Override
-        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
-            Assertions.requires(block == getTarget());
-            overwriteParams(params);
         }
 
         @Override
@@ -238,15 +220,6 @@ public abstract sealed class Instruction extends User {
         }
 
         @Override
-        public void overwriteParams(BasicBlock block, HashMap<Var, Use> params) {
-            for (var entry : params.entrySet()) {
-                var var = entry.getKey();
-                var value = entry.getValue().value;
-                if (!(value instanceof BlockArgument)) putParam(block, var, value);
-            }
-        }
-
-        @Override
         public String toString() {
             return "br " + condition.value.shortName() + ", " + trueTarget.value.label + "(" +
                     trueParams.entrySet().stream()
@@ -265,20 +238,28 @@ public abstract sealed class Instruction extends User {
     // 函数调用
 
     public static final class Call extends Instruction {
-        public Function function;
+        private Use<Function> function;
         public Use[] args;
 
         Call(BasicBlock block, int label, Function function, Value... args) {
             super(block, label, function.funcType.returnType);
-            this.function = function;
+            this.function = use(function);
             var argLen = args.length;
             this.args = new Use[argLen];
             for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
         }
 
+        public void setFunction(Function newFunc) {
+            function.replaceValue(newFunc);
+        }
+
+        public Function getFunction() {
+            return function.value;
+        }
+
         @Override
         public String toString() {
-            return "%" + this.label + " = call " + function.name + "(" +
+            return "%" + this.label + " = call " + function.value.name + "(" +
                     Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }

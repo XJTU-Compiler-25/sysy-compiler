@@ -1,13 +1,1 @@
-int main() {
-    int b = 1 + 2 * 3 / 4;
-    float c = 1.0 + 2.0 * 3.0 / 4.0;
-    int a = getint();
-    while (a) {
-        putint(b);
-        putch(32);
-        putfloat(c);
-        putch(13);
-        putch(10);
-        a = 0;
-    }
-}
+int main() { }

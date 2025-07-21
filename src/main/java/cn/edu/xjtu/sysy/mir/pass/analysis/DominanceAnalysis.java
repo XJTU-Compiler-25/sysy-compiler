@@ -16,8 +16,8 @@ public final class DominanceAnalysis extends ModuleVisitor {
     }
 
     // 由于 pred 是立即计算的，还是稍微 cache 一下
-    private final HashMap<BasicBlock, List<BasicBlock>> predCache = new HashMap<>();
-    private List<BasicBlock> getPredBlocks(BasicBlock block) {
+    private static final HashMap<BasicBlock, List<BasicBlock>> predCache = new HashMap<>();
+    private static List<BasicBlock> getPredBlocks(BasicBlock block) {
         if (predCache.containsKey(block)) return predCache.get(block);
         var preds = block.getPredBlocks();
         predCache.put(block, preds);
@@ -26,11 +26,11 @@ public final class DominanceAnalysis extends ModuleVisitor {
 
     @Override
     public void visit(Module module) {
-        module.functions.values().forEach(this::calcDominance);
+        for (Function function : module.functions.values()) calcDominance(function);
         predCache.clear();
     }
 
-    private void calcDominance(Function function) {
+    private static void calcDominance(Function function) {
         predCache.clear();
         var entry = function.entry;
         var blocks = function.blocks;
@@ -43,7 +43,7 @@ public final class DominanceAnalysis extends ModuleVisitor {
                 if (block == entry) continue;
                 var preds = getPredBlocks(block);
 
-                // 除了 entry 肯定是有至少一个 pred 的
+                if (preds.isEmpty()) continue;
                 var newDom = preds.getFirst();
                 // 自己的 dom 就是所有 pred 在支配树上共同祖先
                 for (var pred : preds) newDom = lca(pred, newDom);
@@ -77,7 +77,7 @@ public final class DominanceAnalysis extends ModuleVisitor {
         }
     }
 
-    private BasicBlock lca(BasicBlock a, BasicBlock b) {
+    private static BasicBlock lca(BasicBlock a, BasicBlock b) {
         if (a == b) return a;
         if (a == null) return b;
         if (b == null) return a;
