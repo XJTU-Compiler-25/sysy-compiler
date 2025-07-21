@@ -54,7 +54,7 @@ public final class Interpreter extends ModuleVisitor {
             globals.put(var, init);
         });
 
-        var main = module.functions.get("main");
+        var main = module.getFunction("main");
         visit(main);
         var mainRet = stackframe.get(iZero);
         out.println(mainRet);

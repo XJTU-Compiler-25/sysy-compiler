@@ -7,21 +7,16 @@ import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 
 public final class PassGroup<T> implements ErrManaged {
-    private final Pass<T>[] passes;
+    private final Pass<T, ?>[] passes;
     private final ErrManager errManager;
 
     @SafeVarargs
     @SuppressWarnings("unchecked")
-    public PassGroup(ErrManager errManager, Function<ErrManager, Pass<T>>... passSuppliers) {
+    public PassGroup(ErrManager errManager, Function<ErrManager, Pass<T, ?>>... passSuppliers) {
         this.errManager = errManager;
-        this.passes = (Pass<T>[]) Arrays.stream(passSuppliers)
+        this.passes = (Pass<T, ?>[]) Arrays.stream(passSuppliers)
                 .map(it -> it.apply(errManager))
                 .toArray(Pass[]::new);
-    }
-
-    @SafeVarargs
-    public PassGroup(Function<ErrManager, Pass<T>>... passSuppliers) {
-        this(new ErrManager(), passSuppliers);
     }
 
     @Override

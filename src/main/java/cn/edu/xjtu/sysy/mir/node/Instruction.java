@@ -135,7 +135,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "jmp " + target.value.label + "(" +
+            return "jmp " + target.value.shortName() + "(" +
                     params.entrySet().stream()
                             .map(entry -> entry.getKey().name
                                     + "= " + entry.getValue().value.shortName())
@@ -221,12 +221,12 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "br " + condition.value.shortName() + ", " + trueTarget.value.label + "(" +
+            return "br " + condition.value.shortName() + ", " + trueTarget.value.shortName() + "(" +
                     trueParams.entrySet().stream()
                             .map(param -> param.getKey().name
                                     + "= " + param.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.label + "(" +
+                    + "), " + falseTarget.value.shortName() + "(" +
                     falseParams.entrySet().stream()
                             .map(param -> param.getKey().name
                                     + "= " + param.getValue().value.shortName())

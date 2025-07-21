@@ -3,7 +3,8 @@ package cn.edu.xjtu.sysy;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
 
-public abstract class Pass<T> implements ErrManaged {
+// T: to process, R: result
+public abstract class Pass<T, R> implements ErrManaged {
     protected final ErrManager errManager;
 
     public Pass(ErrManager errManager) {
@@ -11,7 +12,7 @@ public abstract class Pass<T> implements ErrManaged {
     }
 
     public Pass() {
-        this.errManager = ErrManager.GLOBAL;
+        this(ErrManager.GLOBAL);
     }
 
     @Override
@@ -19,5 +20,5 @@ public abstract class Pass<T> implements ErrManaged {
         return errManager;
     }
 
-    public abstract void process(T obj);
+    public abstract R process(T obj);
 }

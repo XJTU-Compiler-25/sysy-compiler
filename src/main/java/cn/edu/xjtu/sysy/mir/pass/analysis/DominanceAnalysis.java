@@ -6,34 +6,21 @@ import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 
 public final class DominanceAnalysis extends ModuleVisitor {
     public DominanceAnalysis(ErrManager errManager) {
         super(errManager);
     }
 
-    // 由于 pred 是立即计算的，还是稍微 cache 一下
-    private static final HashMap<BasicBlock, List<BasicBlock>> predCache = new HashMap<>();
-    private static List<BasicBlock> getPredBlocks(BasicBlock block) {
-        if (predCache.containsKey(block)) return predCache.get(block);
-        var preds = block.getPredBlocks();
-        predCache.put(block, preds);
-        return preds;
-    }
-
     @Override
     public void visit(Module module) {
-        for (Function function : module.functions.values()) calcDominance(function);
-        predCache.clear();
+        for (Function function : module.getFunctions()) calcDominance(function);
     }
 
     private static void calcDominance(Function function) {
-        predCache.clear();
         var entry = function.entry;
-        var blocks = function.blocks;
+        var blocks = function.getTopoSortedBlocks();
         // 计算支配性
         boolean changed = true;
         while (changed) {
@@ -41,10 +28,10 @@ public final class DominanceAnalysis extends ModuleVisitor {
             for (var block : blocks) {
                 // entry 的 dom 不需要更新，小剪枝
                 if (block == entry) continue;
-                var preds = getPredBlocks(block);
+                var preds = block.preds;
 
                 if (preds.isEmpty()) continue;
-                var newDom = preds.getFirst();
+                var newDom = preds.iterator().next();
                 // 自己的 dom 就是所有 pred 在支配树上共同祖先
                 for (var pred : preds) newDom = lca(pred, newDom);
 
@@ -59,7 +46,7 @@ public final class DominanceAnalysis extends ModuleVisitor {
         for (var block : blocks) block.df = new HashSet<>();
 
         for (var block : blocks) {
-            var preds = getPredBlocks(block);
+            var preds = block.preds;
             // 支配边界是控制流合并的结果，只有当有多个支配者时块才可能是支配边界
             if (preds.size() > 1) {
                 var idom = block.idom;

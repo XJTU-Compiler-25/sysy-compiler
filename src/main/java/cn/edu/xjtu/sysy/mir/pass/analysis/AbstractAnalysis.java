@@ -1,11 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
@@ -13,25 +8,26 @@ import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.util.CFGUtils;
 import cn.edu.xjtu.sysy.util.Worklist;
 
-public abstract class AbstractAnalysis<T> extends ModuleVisitor {
+public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
 
     public enum AnalysisDirection {
         FORWARD {
             @Override
-            public List<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-                return block.getSuccBlocks();
+            public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+                return block.succs;
             }
 
             @Override
-            public List<BasicBlock> getPredBlocksOf(BasicBlock block) {
-                return block.getPredBlocks();
+            public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+                return block.preds;
             }
 
             @Override
-            public List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks)  {
-                return topoSort(blocks);
+            public List<BasicBlock> getOrderedBlocks(BasicBlock entry)  {
+                return CFGUtils.getReversePostOrderedBlocks(entry);
             }
 
             @Override
@@ -43,19 +39,17 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         },
         BACKWARD {
             @Override
-            public List<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-                return block.getPredBlocks();
+            public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+                return block.preds;
             }
             @Override
-            public List<BasicBlock> getPredBlocksOf(BasicBlock block) {
-                return block.getSuccBlocks();
+            public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+                return block.succs;
             }
 
             @Override
-            public List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks)  {
-                List<BasicBlock> order = topoSort(blocks);
-                Collections.reverse(order);
-                return order;
+            public List<BasicBlock> getOrderedBlocks(BasicBlock entry)  {
+                return CFGUtils.getPostOrderedBlocks(entry);
             }
 
             @Override
@@ -68,65 +62,17 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
         };
 
         /** 按照当前方向获取后续块 */
-        public abstract List<BasicBlock> getSuccBlocksOf(BasicBlock block);
+        public abstract Set<BasicBlock> getSuccBlocksOf(BasicBlock block);
         
-        /** 按照当前方向获取前导块。
-         * TODO: 还没有cache */
-        public abstract List<BasicBlock> getPredBlocksOf(BasicBlock block);
+        /** 按照当前方向获取前导块。*/
+        public abstract Set<BasicBlock> getPredBlocksOf(BasicBlock block);
         
-        /** 按照当前方向获取排序好的基本块，
-         * 并对基本块标记是否在一个size大于1的强连通分量中或者存在自环 
-         * i.e. 这个基本块可能在一个循环里。
-         * see {@link BasicBlock#isStronglyConnected}
-         */
-        public abstract List<BasicBlock> getOrderedBlocks(List<BasicBlock> blocks); 
+        /** 按照当前方向获取排序好的基本块 */
+        public abstract List<BasicBlock> getOrderedBlocks(BasicBlock entry);
         
         /** 按照当前方向获取排序好的指令列表 */
         public abstract List<Instruction> getOrderedInstrs(BasicBlock block);
 
-        /** 对基本块进行拓扑排序 */
-        private static List<BasicBlock> topoSort(List<BasicBlock> cfg) {
-            List<BasicBlock> result = new ArrayList<>();
-            Map<BasicBlock, Integer> dfn = new HashMap<>();
-            Map<BasicBlock, Integer> low = new HashMap<>();
-            Stack<BasicBlock> stack = new Stack<>();
-            dfs(cfg.getFirst(), dfn, low, stack, result);
-            
-            return result;
-        }
-        
-        /** tarjan算法求解强连通分量 */
-        private static void dfs(BasicBlock block,
-                            Map<BasicBlock, Integer> dfn, Map<BasicBlock, Integer> low, 
-                            Stack<BasicBlock> stack, List<BasicBlock> result) {                
-            dfn.put(block, dfn.size());
-            low.put(block, low.size());
-            stack.push(block);
-            result.add(block);                    
-            for (BasicBlock succ : block.getSuccBlocks()) {
-                // 自环的情况
-                if (succ.equals(block)) {
-                    block.isStronglyConnected = true;
-                }
-                if (!dfn.containsKey(succ)) {
-                    dfs(succ, dfn, low, stack, result);
-                    low.put(block, Integer.min(low.get(block), low.get(succ)));
-                } else if (stack.contains(succ)) {
-                    low.put(block, Integer.min(low.get(block), dfn.get(succ)));
-                }
-            }
-            if (dfn.get(block).equals(low.get(block))) {
-                var v = stack.pop();
-                // 如果是大小为1的强连通分量，忽略它
-                if (v.equals(block)) return;
-                // 否则进行标记（存在循环）
-                v.isStronglyConnected = true;
-                while (!v.equals(block)) {
-                    v = stack.pop();
-                    v.isStronglyConnected = true;
-                }
-            }
-        }
     }
 
     protected final Map<Instruction, T> flowBeforeInstr;
@@ -208,7 +154,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
          * i.e. b可能在一个循环结构中
          * 执行是否已经到达不动点的检测
          */
-        if (b.isStronglyConnected) {
+        if (b.loopDepth > 0) {
             T newOut = initial();
             flowThrough(b, in, newOut);
             if (newOut.equals(out)) {
@@ -241,7 +187,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
 
     @Override
     public void visit(Function function) {
-        var blocks = direction.getOrderedBlocks(function.blocks);
+        var blocks = direction.getOrderedBlocks(function.entry);
         init(blocks);
         var worklist = new Worklist<>(blocks);
         while (!worklist.isEmpty()) {
@@ -255,12 +201,12 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor {
     }
 
     public void printResult(Module module) {
-        module.functions.values().forEach(this::printResult);
+        module.getFunctions().forEach(this::printResult);
     }
 
     public void printResult(Function function) {
-        for (var block : function.blocks) {
-            System.out.printf("%s:%n", block.label);
+        for (var block : function.getTopoSortedBlocks()) {
+            System.out.printf("bb%s:%n", block.order);
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));
                 System.out.println(instr);

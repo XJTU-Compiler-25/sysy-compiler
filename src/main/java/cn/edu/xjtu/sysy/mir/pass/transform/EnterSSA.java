@@ -82,7 +82,7 @@ public final class EnterSSA extends ModuleVisitor {
 
         for (var block : blocksToInsert) {
             var arg = block.addBlockArgument(var);
-            for (var predTerm : block.getPredTerminators())
+            for (var predTerm : block.predTerms)
                 predTerm.putParam(block, arg.var, ImmediateValues.undefined());
         }
     }

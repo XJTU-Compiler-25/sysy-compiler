@@ -37,31 +37,6 @@ public final class InstCombine extends ModuleVisitor {
                 inst.replaceAllUsesWith(result);
             } else combineInst(inst); // 常量折叠没有成功，尝试一下模式识别
         }
-
-        foldBranch(block);
-    }
-
-    // 尝试把 br 转为 jmp
-    private void foldBranch(BasicBlock block) {
-        if (block.terminator instanceof Instruction.Br br) {
-            if (br.getCondition() instanceof ImmediateValue iv) {
-                if (iv != iZero) {
-                    helper.changeBlock(block);
-                    var target = br.getTrueTarget();
-                    var jmp = helper.jmp(target);
-                    br.trueParams.forEach((var, use) -> jmp.putParam(var, use.value));
-                    helper.changeBlock(null);
-                    br.dispose();
-                } else {
-                    helper.changeBlock(block);
-                    var target = br.getFalseTarget();
-                    var jmp = helper.jmp(target);
-                    br.falseParams.forEach((var, use) -> jmp.putParam(var, use.value));
-                    helper.changeBlock(null);
-                    br.dispose();
-                }
-            }
-        }
     }
 
     private Value foldConstant(Instruction inst) {

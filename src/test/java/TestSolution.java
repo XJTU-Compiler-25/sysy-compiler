@@ -66,12 +66,11 @@ public final class TestSolution {
                         var testOutStream = new FileInputStream(testOutFile);
                         var testCode = new String(testCodeStream.readAllBytes());
                         var testIn = testInStream != null ? testInStream.readAllBytes() : null;
-                        var testOut = new String(testOutStream.readAllBytes());
                         testCodeStream.close();
                         if (testInStream != null) testInStream.close();
                         testOutStream.close();
                         return dynamicTest(testName, () -> {
-                            var em = new ErrManager();
+                            var em = ErrManager.GLOBAL;
                             var ast = compileToAst(em, testCode);
                             AstPassGroups.makePassGroup(em).process(ast);
                             //app.visit(ast);

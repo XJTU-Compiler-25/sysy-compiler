@@ -1,10 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.mir.util.CFGUtils;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
-import cn.edu.xjtu.sysy.util.Placeholder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,7 +14,7 @@ public final class Function extends User {
 
     public String name;
     public Type.Function funcType;
-    public ArrayList<BasicBlock> blocks = new ArrayList<>();
+    public HashSet<BasicBlock> blocks = new HashSet<>();
     public BasicBlock entry;
     private int tempValueCounter = 0;
     public ArrayList<Var> params = new ArrayList<>();
@@ -27,6 +28,10 @@ public final class Function extends User {
     public boolean isPure;
 
     public ArrayList<Loop> loops = new ArrayList<>();
+
+    public ArrayList<Instruction.Call> callSites = new ArrayList<>();
+    public HashSet<Function> callers = new HashSet<>();
+    public HashSet<Function> callees = new HashSet<>();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -49,13 +54,9 @@ public final class Function extends User {
         return block;
     }
 
-    public String newBlockLabel() {
-        return "bb" + blocks.size();
-    }
-
     public void addBlock(BasicBlock block) {
         blocks.add(block);
-        block.label = newBlockLabel();
+        block.order = blocks.size();
     }
 
     public void removeBlock(BasicBlock block) {
@@ -90,44 +91,16 @@ public final class Function extends User {
                 params.stream().map(v -> v.name + ": " + v.varType)
                         .collect(Collectors.joining(", ")) +
                 ") -> " + funcType.returnType +
-                " (entry = " + entry.label + ", locals = {" +
+                " (entry = " + entry.order + ", locals = {" +
                 localVars.stream().map(it -> it.name + ": " + it.varType)
                         .collect(Collectors.joining(", ")) +
                 "}) \n" +
-                blocks.stream().map(BasicBlock::toString)
+                getTopoSortedBlocks().stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n"));
     }
 
-    // 获取调用该函数的函数列表
-    public List<Function> getCallers() {
-        var result = new ArrayList<Function>(usedBy.size());
-        for (var use : usedBy) if (use.user instanceof Instruction.Call it) result.add(it.getFunction());
-        return result;
-    }
-
-    public List<Instruction.Call> getCallerInstrs() {
-        var result = new ArrayList<Instruction.Call>(usedBy.size());
-        for (var use : usedBy) if (use.user instanceof Instruction.Call it) result.add(it);
-        return result;
-    }
-
-    // 如果跳转目标支配跳转源，则认为是一个 back edge
-    public List<Instruction.Terminator> getBackEdges() {
-        var result = new ArrayList<Instruction.Terminator>();
-        for (var block : blocks) {
-            switch(block.terminator) {
-                case Instruction.Jmp it -> {
-                    if (it.getTarget().dominates(it.getBlock())) result.add(it);
-                }
-                case Instruction.Br it -> {
-                    var source = it.getBlock();
-                    if (it.getTrueTarget().dominates(source)) result.add(it);
-                    if (it.getFalseTarget().dominates(source)) result.add(it);
-                }
-                default -> { }
-            }
-        }
-        return result;
+    public List<BasicBlock> getTopoSortedBlocks() {
+        return CFGUtils.getReversePostOrderedBlocks(entry);
     }
 
 }

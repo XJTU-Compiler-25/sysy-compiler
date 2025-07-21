@@ -6,35 +6,34 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
-public abstract class ModuleVisitor extends Pass<Module> {
+public abstract class ModuleVisitor<R> extends Pass<Module, R> {
     public ModuleVisitor(ErrManager errManager) {
         super(errManager);
     }
 
+    public ModuleVisitor() { super(); }
+
     @Override
-    public void process(Module module) {
+    public R process(Module module) {
         visit(module);
+        return null;
     }
 
     public void visit(Module module) {
-        module.functions.values().forEach(this::visit);
+        for (var function : module.getFunctions()) visit(function);
     }
 
     public void visit(Function function) {
-        function.blocks.forEach(this::visit);
+        for (var basicBlock : function.getTopoSortedBlocks()) visit(basicBlock);
     }
 
     public void visit(BasicBlock block) {
-        block.instructions.forEach(this::visit);
+        for (var instruction : block.instructions) visit(instruction);
         visit(block.terminator);
     }
 
-    public void visit(Instruction instruction) {
-        Placeholder.pass();
-    }
+    public void visit(Instruction instruction) { }
 
-    private void visit(Instruction.Terminator terminator) {
-        Placeholder.pass();
-    }
+    private void visit(Instruction.Terminator terminator) { }
 
 }

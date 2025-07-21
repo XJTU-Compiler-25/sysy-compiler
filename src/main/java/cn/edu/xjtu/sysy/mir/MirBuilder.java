@@ -258,9 +258,10 @@ public final class MirBuilder implements ErrManaged {
         var loopDepth = loops.size();
         var preheaderBB = new BasicBlock(curFunc, loopDepth);
         var headerBB = new BasicBlock(curFunc, loopDepth + 1);
+        var bodyBB = new BasicBlock(curFunc, loopDepth + 1);
         var latchBB = new BasicBlock(curFunc, loopDepth + 1);
         var exitBB = new BasicBlock(curFunc, loopDepth);
-        var loop = Loop.of(loops.peekLast(), preheaderBB, headerBB, exitBB);
+        var loop = Loop.of(loops.peekLast(), preheaderBB, headerBB, bodyBB, exitBB);
         curFunc.addLoop(loop);
 
         helper.jmp(preheaderBB);
@@ -271,13 +272,17 @@ public final class MirBuilder implements ErrManaged {
 
         curFunc.addBlock(headerBB);
         helper.changeBlock(headerBB);
+        helper.jmp(bodyBB);
         loops.addLast(loop);
+
+        curFunc.addBlock(bodyBB);
+        helper.changeBlock(bodyBB);
         visit(node.body);
         if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(latchBB);
 
         curFunc.addBlock(latchBB);
         helper.changeBlock(latchBB);
-        visitCond(node.cond, headerBB, exitBB);
+        visitCond(node.cond, bodyBB, exitBB);
 
         curFunc.addBlock(exitBB);
         helper.changeBlock(exitBB);

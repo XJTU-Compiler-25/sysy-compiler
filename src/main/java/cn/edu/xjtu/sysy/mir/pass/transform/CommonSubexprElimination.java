@@ -23,7 +23,7 @@ public class CommonSubexprElimination extends ModuleVisitor {
     public void visit(Function function) {
         analysis.visit(function);
         analysis.printResult(function);
-        function.blocks.forEach(this::visit);
+        function.getTopoSortedBlocks().forEach(this::visit);
     }
 
     @Override

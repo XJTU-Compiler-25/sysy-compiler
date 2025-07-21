@@ -8,18 +8,16 @@ import cn.edu.xjtu.sysy.mir.node.Var;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.util.Worklist;
 
-import java.util.Collection;
-import java.util.HashSet;
-
 // 分析函数的纯性
 public class PurenessAnalysis extends ModuleVisitor {
+    public PurenessAnalysis() {}
     public PurenessAnalysis(ErrManager errManager) {
         super(errManager);
     }
 
     @Override
     public void visit(Module module) {
-        var functions = module.functions.values();
+        var functions = module.getFunctions();
         // 需要遍历 caller 的函数
         var worklist = new Worklist<Function>();
 
@@ -28,7 +26,7 @@ public class PurenessAnalysis extends ModuleVisitor {
 
         // 第一趟遍历，仅通过函数本身的指令是否有副作用来判断纯性
         outer: for (var function : functions) {
-            for (var block : function.blocks) {
+            for (var block : function.getTopoSortedBlocks()) {
                 for (var instruction : block.instructions) {
                     switch (instruction) {
                         // 外部函数都有副作用
@@ -75,7 +73,7 @@ public class PurenessAnalysis extends ModuleVisitor {
         while (!worklist.isEmpty()) {
             var function = worklist.poll();
             // 遍历函数的调用者
-            for (var caller : function.getCallers()) {
+            for (var caller : function.callers) {
                 if (caller.isPure) {
                     caller.isPure = false;
                     worklist.add(caller);
