@@ -1,12 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.mir.util.CFGUtils;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.stream.Collectors;
 
 public final class Function extends User {
@@ -21,17 +20,7 @@ public final class Function extends User {
 
     // 以下都为分析用的字段
     public ArrayList<Var> localVars = new ArrayList<>();
-
-    public boolean isAtMostCalledOnce;
-
-    // 是否没有副作用
-    public boolean isPure;
-
     public ArrayList<Loop> loops = new ArrayList<>();
-
-    public ArrayList<Instruction.Call> callSites = new ArrayList<>();
-    public HashSet<Function> callers = new HashSet<>();
-    public HashSet<Function> callees = new HashSet<>();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -95,12 +84,8 @@ public final class Function extends User {
                 localVars.stream().map(it -> it.name + ": " + it.varType)
                         .collect(Collectors.joining(", ")) +
                 "}) \n" +
-                getTopoSortedBlocks().stream().map(BasicBlock::toString)
+                new CFGAnalysis().process(this).getRPOBlocks(this).stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n"));
-    }
-
-    public List<BasicBlock> getTopoSortedBlocks() {
-        return CFGUtils.getReversePostOrderedBlocks(entry);
     }
 
 }

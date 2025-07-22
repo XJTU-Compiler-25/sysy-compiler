@@ -238,7 +238,7 @@ public abstract sealed class Instruction extends User {
     // 函数调用
 
     public static final class Call extends Instruction {
-        private Use<Function> function;
+        private final Use<Function> function;
         public Use[] args;
 
         Call(BasicBlock block, int label, Function function, Value... args) {

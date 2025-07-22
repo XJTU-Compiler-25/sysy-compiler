@@ -1,49 +1,133 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
+import java.util.*;
+
 // 求出基本块的 pred, succ 列表
-public final class CFGAnalysis extends ModuleVisitor {
-    public CFGAnalysis() { }
-    public CFGAnalysis(ErrManager errManager) {
-        super(errManager);
+public final class CFGAnalysis extends ModuleVisitor<CFGAnalysis.Result> {
+    public CFGAnalysis() { super(null); }
+    public CFGAnalysis(Pipeline<Module> pipeline) {
+        super(pipeline);
     }
 
-    /*
-    public record Result(Map<BasicBlock, Set<BasicBlock>> predMap, Map<BasicBlock, Set<BasicBlock>> succMap) { }
-    */
+    public record Result(
+            Map<BasicBlock, Set<BasicBlock>> predMap,
+            Map<BasicBlock, Set<BasicBlock>> succMap,
+            Map<BasicBlock, Set<Instruction.Terminator>> predTermMap
+    ) {
+        public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+            return predMap.getOrDefault(block, Set.of());
+        }
 
-    public static void run(Function function) {
-        new CFGAnalysis().visit(function);
+        public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+            return succMap.getOrDefault(block, Set.of());
+        }
+
+        public Set<Instruction.Terminator> getPredTermsOf(BasicBlock block) {
+            return predTermMap.getOrDefault(block, Set.of());
+        }
+
+
+        /** 对基本块进行拓扑排序，得到逆后序 (Reverse Post Order)，用于前向数据流分析 */
+        public List<BasicBlock> getRPOBlocks(BasicBlock entry) {
+            var postOrder = new ArrayList<BasicBlock>();
+            var visited = new HashSet<BasicBlock>();
+            dfs(entry, visited, postOrder);
+            return postOrder.reversed();
+        }
+
+        /** 对基本块进行拓扑排序，得到后序(Post Order)，用于后向数据流分析 */
+        public List<BasicBlock> getPOBlocks(BasicBlock entry) {
+            var postOrder = new ArrayList<BasicBlock>();
+            var visited = new HashSet<BasicBlock>();
+            dfs(entry, visited, postOrder);
+            return postOrder;
+        }
+
+        private void dfs(BasicBlock block, HashSet<BasicBlock> visited, ArrayList<BasicBlock> postOrder) {
+            visited.add(block);
+            for (var successor : getSuccBlocksOf(block)) {
+                if (!visited.contains(successor)) dfs(successor, visited, postOrder);
+            }
+            postOrder.add(block);
+        }
+
+        public List<BasicBlock> getRPOBlocks(Function function) {
+            return getRPOBlocks(function.entry);
+        }
+
+        public List<BasicBlock> getPOBlocks(Function function) {
+            return getPOBlocks(function.entry);
+        }
     }
 
     @Override
-    public void visit(Function function) {
-        for (var block : function.blocks) visit(block);
-    }
+    public Result process(Module module) {
+        var predTermMap = new HashMap<BasicBlock, Set<Instruction.Terminator>>();
+        var predMap = new HashMap<BasicBlock, Set<BasicBlock>>();
+        var succMap = new HashMap<BasicBlock, Set<BasicBlock>>();
 
-    @Override
-    public void visit(BasicBlock block) {
-        block.preds.clear();
-        block.predTerms.clear();
-        block.succs.clear();
+        for (var function : module.getFunctions()) {
+            for (var block : function.blocks) {
+                var predTerms = new HashSet<Instruction.Terminator>();
+                var preds = new HashSet<BasicBlock>();
+                var succs = new HashSet<BasicBlock>();
+                predMap.put(block, preds);
+                succMap.put(block, succs);
+                predTermMap.put(block, predTerms);
 
-        for (var use : block.usedBy) {
-            if (use.user instanceof Instruction.Terminator term) {
-                block.predTerms.add(term);
-                block.preds.add(term.getBlock());
+                for (var use : block.usedBy) {
+                    if (use.user instanceof Instruction.Terminator term) {
+                        predTerms.add(term);
+                        preds.add(term.getBlock());
+                    }
+                }
+
+                switch(block.terminator) {
+                    case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
+                    case Instruction.Br br -> succs.addAll(br.getTargets());
+                    default -> { }
+                }
             }
         }
 
-        switch(block.terminator) {
-            case Instruction.Jmp jmp -> block.succs.add(jmp.getTarget());
-            case Instruction.Br br -> block.succs.addAll(br.getTargets());
-            default -> { }
+        return new Result(predMap, succMap, predTermMap);
+    }
+
+    public Result process(Function function) {
+        var predTermMap = new HashMap<BasicBlock, Set<Instruction.Terminator>>();
+        var predMap = new HashMap<BasicBlock, Set<BasicBlock>>();
+        var succMap = new HashMap<BasicBlock, Set<BasicBlock>>();
+
+        for (var block : function.blocks) {
+            var predTerms = new HashSet<Instruction.Terminator>();
+            var preds = new HashSet<BasicBlock>();
+            var succs = new HashSet<BasicBlock>();
+            predMap.put(block, preds);
+            succMap.put(block, succs);
+            predTermMap.put(block, predTerms);
+
+            for (var use : block.usedBy) {
+                if (use.user instanceof Instruction.Terminator term) {
+                    predTerms.add(term);
+                    preds.add(term.getBlock());
+                }
+            }
+
+            switch(block.terminator) {
+                case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
+                case Instruction.Br br -> succs.addAll(br.getTargets());
+                default -> { }
+            }
         }
+
+        return new Result(predMap, succMap, predTermMap);
     }
 
 }

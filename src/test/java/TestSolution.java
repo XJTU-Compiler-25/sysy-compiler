@@ -1,54 +1,24 @@
 import java.io.*;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
-import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
+import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
-import cn.edu.xjtu.sysy.ast.AstBuilder;
-import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
-import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
-import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.parse.SysYLexer;
-import cn.edu.xjtu.sysy.parse.SysYParser;
-import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public final class TestSolution {
 
     private final AstPrettyPrinter app = new AstPrettyPrinter();
-
-    private CompUnit compileToAst(ErrManager em, String s) {
-        var cs = CharStreams.fromString(s);
-        var lexer = new SysYLexer(cs);
-        var tokens = new CommonTokenStream(lexer);
-        var parser = new SysYParser(tokens);
-        var cst = parser.compUnit();
-        var ast = new AstBuilder(null).visitCompUnit(cst);
-        return ast;
-    }
-
-    private String CompileToRiscV(CompUnit ast) throws IOException {
-        var calc = new StackCalculator();
-        var writer = new RiscVWriter();
-        var cgen = new RiscVCGen(writer);
-        calc.visit(ast);
-        cgen.visit(ast);
-        writer.emitAll();
-        return writer.toString();
-    }
 
     private List<DynamicTest> genDynamicTest(String folder) throws Exception {
         var testFileFolder = new File(this.getClass().getResource(folder).toURI());
@@ -71,8 +41,8 @@ public final class TestSolution {
                         testOutStream.close();
                         return dynamicTest(testName, () -> {
                             var em = ErrManager.GLOBAL;
-                            var ast = compileToAst(em, testCode);
-                            AstPassGroups.makePassGroup(em).process(ast);
+                            var ast = Compiler.compileToAst(em, testCode);
+                            AstPipelines.DEFAULT.process(ast);
                             //app.visit(ast);
                             if (em.hasErr()) {
                                 System.out.println("Semantic Error on " + testName);
@@ -81,21 +51,21 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
-                            MirPassGroups.makePassGroup(em).process(module);
+                            MirPipelines.DEFAULT.process(module);
                             System.out.println(module);
 
                             if (true) {
                                 System.out.println("Interpreting test...");
                                 var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
                                 var os = new ByteArrayOutputStream();
-                                var interpreter = new Interpreter(em, new PrintStream(os), is);
+                                var interpreter = new Interpreter(new PrintStream(os), is);
                                 interpreter.process(module);
                                 var out = os.toString();
                                 System.out.println("Test output: \n" + out);
                                 //Assertions.assertEquals(testOut, out);
                             }
 
-                            String riscVCode = CompileToRiscV(ast);
+                            String riscVCode = Compiler.CompileToRiscV(ast);
                             File out = new File(f.getParent(), f.getName() + ".s");
                             if (out.exists()) {
                                 out.delete();

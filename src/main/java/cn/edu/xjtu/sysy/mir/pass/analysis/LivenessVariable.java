@@ -4,16 +4,18 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.mir.node.Var;
 
 /** 活跃变量分析 */
 public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
 
-    public LivenessVariable(ErrManager errManager) {
-        super(errManager, AnalysisDirection.BACKWARD);
+    public LivenessVariable(Pipeline<Module> errManager) {
+        super(errManager, BACKWARD);
     }
 
     @Override

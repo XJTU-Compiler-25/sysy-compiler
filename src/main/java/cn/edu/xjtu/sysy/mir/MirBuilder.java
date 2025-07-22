@@ -17,7 +17,6 @@ import cn.edu.xjtu.sysy.symbol.Types;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
-import cn.edu.xjtu.sysy.util.Assertions;
 import cn.edu.xjtu.sysy.util.Placeholder;
 
 /**
@@ -261,7 +260,7 @@ public final class MirBuilder implements ErrManaged {
         var bodyBB = new BasicBlock(curFunc, loopDepth + 1);
         var latchBB = new BasicBlock(curFunc, loopDepth + 1);
         var exitBB = new BasicBlock(curFunc, loopDepth);
-        var loop = Loop.of(loops.peekLast(), preheaderBB, headerBB, bodyBB, exitBB);
+        var loop = new Loop(loops.peekLast(), preheaderBB, headerBB, bodyBB, exitBB);
         curFunc.addLoop(loop);
 
         helper.jmp(preheaderBB);

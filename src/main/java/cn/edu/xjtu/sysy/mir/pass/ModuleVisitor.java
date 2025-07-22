@@ -1,17 +1,17 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pass;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.util.Placeholder;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
 
 public abstract class ModuleVisitor<R> extends Pass<Module, R> {
-    public ModuleVisitor(ErrManager errManager) {
-        super(errManager);
+    public ModuleVisitor(Pipeline<Module> pipeline) {
+        super(pipeline);
     }
-
-    public ModuleVisitor() { super(); }
 
     @Override
     public R process(Module module) {
@@ -24,7 +24,7 @@ public abstract class ModuleVisitor<R> extends Pass<Module, R> {
     }
 
     public void visit(Function function) {
-        for (var basicBlock : function.getTopoSortedBlocks()) visit(basicBlock);
+        for (var basicBlock : getCFG().getRPOBlocks(function)) visit(basicBlock);
     }
 
     public void visit(BasicBlock block) {
@@ -35,5 +35,13 @@ public abstract class ModuleVisitor<R> extends Pass<Module, R> {
     public void visit(Instruction instruction) { }
 
     private void visit(Instruction.Terminator terminator) { }
+
+    protected final CFGAnalysis.Result getCFG() {
+        return pipeline.getResult(CFGAnalysis.class);
+    }
+
+    protected final CallGraphAnalysis.Result getCallGraph() {
+        return pipeline.getResult(CallGraphAnalysis.class);
+    }
 
 }

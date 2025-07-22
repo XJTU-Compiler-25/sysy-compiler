@@ -1,10 +1,10 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
@@ -12,10 +12,8 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 // 常量折叠和传播，指令合并
 @SuppressWarnings("unchecked")
-public final class InstCombine extends ModuleVisitor {
-    public InstCombine(ErrManager errManager) {
-        super(errManager);
-    }
+public final class InstCombine extends AbstractTransform {
+    public InstCombine(Pipeline<Module> pipeline) { super(pipeline); }
 
     private final InstructionHelper helper = new InstructionHelper();
 

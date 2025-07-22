@@ -1,8 +1,11 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
@@ -16,9 +19,15 @@ import java.util.*;
  * var 的 def 就是 store，use 就是 load
  */
 @SuppressWarnings("unchecked")
-public final class EnterSSA extends ModuleVisitor {
-    public EnterSSA(ErrManager errManager) {
-        super(errManager);
+public final class EnterSSA extends AbstractTransform {
+    public EnterSSA(Pipeline<Module> pipeline) { super(pipeline); }
+
+    private DominanceAnalysis.Result domTree;
+
+    @Override
+    public void visit(Module module) {
+        domTree = getResult(DominanceAnalysis.class);
+        super.visit(module);
     }
 
     @Override
@@ -38,11 +47,8 @@ public final class EnterSSA extends ModuleVisitor {
      */
     private void optimizeVars(Function function) {
         var vars = function.localVars;
-        for (var iterator = vars.iterator(); iterator.hasNext(); ) {
-            var var = iterator.next();
-            // 没有被使用的变量直接删除
-            if (var.notUsed()) iterator.remove();
-        }
+        // 没有被使用的变量直接删除
+        vars.removeIf(Value::notUsed);
     }
 
     /*
@@ -71,7 +77,7 @@ public final class EnterSSA extends ModuleVisitor {
         while (!worklist.isEmpty()) {
             var currentBlock = worklist.poll();
 
-            for (var dfBlock : currentBlock.df) {
+            for (var dfBlock : domTree.getDF(currentBlock)) {
                 if (!blocksToInsert.contains(dfBlock)) {
                     blocksToInsert.add(dfBlock);
                     // phi 也是一个 def
@@ -82,7 +88,7 @@ public final class EnterSSA extends ModuleVisitor {
 
         for (var block : blocksToInsert) {
             var arg = block.addBlockArgument(var);
-            for (var predTerm : block.predTerms)
+            for (var predTerm : getCFG().getPredTermsOf(block))
                 predTerm.putParam(block, arg.var, ImmediateValues.undefined());
         }
     }

@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
@@ -16,7 +17,7 @@ import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModuleVisitor {
+public final class Interpreter extends ModuleVisitor<Void> {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -25,10 +26,10 @@ public final class Interpreter extends ModuleVisitor {
     private final ArrayDeque<HashMap<Value, ImmediateValue>> stackframes = new ArrayDeque<>();
     private HashMap<Value, ImmediateValue> stackframe;
     private BasicBlock currentBlock;
-    private ArrayDeque<Value> retAddrs = new ArrayDeque<>();
+    private final ArrayDeque<Value> retAddrs = new ArrayDeque<>();
 
-    public Interpreter(ErrManager errManager, PrintStream out, InputStream in) {
-        super(errManager);
+    public Interpreter(PrintStream out, InputStream in) {
+        super(null);
         this.out = out;
         this.in = in;
         this.sc = new Scanner(in);
@@ -197,7 +198,7 @@ public final class Interpreter extends ModuleVisitor {
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
-                    if (cond != iZero) {
+                    if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {

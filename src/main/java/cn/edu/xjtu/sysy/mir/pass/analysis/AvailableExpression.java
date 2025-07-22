@@ -8,8 +8,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Module;
 
 /** 可用表达式分析 */
 public class AvailableExpression
@@ -43,8 +45,8 @@ public class AvailableExpression
         }
     }
 
-    public AvailableExpression(ErrManager errManager) {
-        super(errManager, AnalysisDirection.FORWARD);
+    public AvailableExpression(Pipeline<Module> pipeline) {
+        super(pipeline, FORWARD);
     }
 
     @Override

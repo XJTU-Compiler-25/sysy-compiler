@@ -1,5 +1,7 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
+import cn.edu.xjtu.sysy.Pipeline;
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManager;
@@ -12,8 +14,8 @@ import java.util.List;
  * 收集变量符号，用于后续 IR 生成
  */
 public class VarCollector extends AstVisitor {
-    public VarCollector(ErrManager errManager) {
-        super(errManager);
+    public VarCollector(Pipeline<CompUnit> pipeline) {
+        super(pipeline);
     }
 
     private List<Symbol.VarSymbol> vars;

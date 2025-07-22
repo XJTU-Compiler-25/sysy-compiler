@@ -1,31 +1,45 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.PurenessAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.HashSet;
+import java.util.Iterator;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 // dead code elimination
-public class DCE extends ModuleVisitor {
+public class DCE extends AbstractTransform {
+    public DCE(Pipeline<Module> pipeline) { super(pipeline); }
 
-    public DCE(ErrManager errManager) {
-        super(errManager);
+    private CFGAnalysis.Result cfg;
+    private PurenessAnalysis.Result pureRes;
+
+    @Override
+    public void visit(Module module) {
+        cfg = getCFG();
+        pureRes = getResult(PurenessAnalysis.class);
+        super.visit(module);
     }
 
     @Override
     public void visit(Function function) {
         removeUnusedInstructions(function);
+        removeUnreachableBlocks(function);
         removeUnusedBlockArguments(function);
         removeUnusedLocalVars(function);
     }
 
-    private static void removeUnusedInstructions(Function function) {
-        var blocks = function.getTopoSortedBlocks();
+    private void removeUnusedInstructions(Function function) {
+        var blocks = getCFG().getRPOBlocks(function);
         var reachable = new HashSet<Instruction>();
         for (var block : blocks) {
             var instrs = block.instructions;
@@ -34,7 +48,7 @@ public class DCE extends ModuleVisitor {
             // 有副作用的指令是可达的
             for (var it : instrs) {
                 if (it instanceof Store
-                        || (it instanceof Call call && !call.getFunction().isPure)
+                        || (it instanceof Call call && !pureRes.isPure(call.getFunction()))
                         || it instanceof CallExternal)
                     reachable.add(it);
             }
@@ -63,11 +77,33 @@ public class DCE extends ModuleVisitor {
         }
     }
 
-    private static void removeUnusedBlockArguments(Function function) {
-        function.getTopoSortedBlocks().forEach(DCE::removeUnusedBlockArguments);
+    private void removeUnreachableBlocks(Function function) {
+        var reachable = new HashSet<BasicBlock>();
+        reachable.add(function.entry);
+
+        // 从入口块开始，遍历所有可达的块
+        dfs(function.entry, reachable);
+
+        for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
+            var block = iterator.next();
+            if (!reachable.contains(block)) {
+                iterator.remove();
+                block.dispose();
+            }
+        }
     }
 
-    private static void removeUnusedBlockArguments(BasicBlock block) {
+    private void dfs(BasicBlock block, HashSet<BasicBlock> visited) {
+        for (var succ : cfg.getSuccBlocksOf(block)) {
+            if (visited.add(succ)) dfs(succ, visited);
+        }
+    }
+
+    private void removeUnusedBlockArguments(Function function) {
+        getCFG().getRPOBlocks(function).forEach(this::removeUnusedBlockArguments);
+    }
+
+    private void removeUnusedBlockArguments(BasicBlock block) {
         // 删除无用的 block argument
         for (var iter = block.args.entrySet().iterator(); iter.hasNext(); ) {
             var entry = iter.next();
@@ -76,7 +112,7 @@ public class DCE extends ModuleVisitor {
             if (!blockArg.notUsed()) continue;
 
             iter.remove();
-            for (var term : block.predTerms) {
+            for (var term : cfg.getPredTermsOf(block)) {
                 switch (term) {
                     case Br it -> {
                         if (it.getTrueTarget() == block) {
@@ -98,7 +134,7 @@ public class DCE extends ModuleVisitor {
         }
     }
 
-    private static void removeUnusedLocalVars(Function function) {
+    private void removeUnusedLocalVars(Function function) {
         function.localVars.removeIf(Value::notUsed);
     }
 

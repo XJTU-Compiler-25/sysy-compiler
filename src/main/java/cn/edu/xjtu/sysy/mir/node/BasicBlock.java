@@ -22,15 +22,6 @@ public final class BasicBlock extends Value {
 
     // 在几层循环里面
     public int loopDepth = 0;
-    public HashSet<BasicBlock> succs = new HashSet<>();
-    public HashSet<BasicBlock> preds = new HashSet<>();
-    public ArrayList<Instruction.Terminator> predTerms = new ArrayList<>();
-
-    // 该块的直接支配者（支配者树上的父节点）
-    public BasicBlock idom;
-
-    // 支配边界
-    public HashSet<BasicBlock> df;
 
     public BasicBlock(Function function, int loopDepth) {
         this(function);
@@ -80,24 +71,6 @@ public final class BasicBlock extends Value {
                         .collect(Collectors.joining(", ")) +
                 "):\n" + instructions.stream().map(it -> it.toString() + "\n")
                         .collect(Collectors.joining()) + terminator;
-    }
-
-    public boolean strictlyDominates(BasicBlock other) {
-        return this != other && this.dominates(other);
-    }
-
-    public boolean dominates(BasicBlock other) {
-        // 自己支配自己
-        if (this == other) return true;
-        // entry 不被任何块支配
-        if (idom == null) return false;
-
-        // 通过支配树判断
-        while (other != null) {
-            if (other == this) return true;
-            other = other.idom;
-        }
-        return false;
     }
 
 }

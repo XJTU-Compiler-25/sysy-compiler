@@ -2,121 +2,81 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.*;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
-import cn.edu.xjtu.sysy.mir.util.CFGUtils;
 import cn.edu.xjtu.sysy.util.Worklist;
 
-public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
+public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
 
-    public enum AnalysisDirection {
-        FORWARD {
-            @Override
-            public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-                return block.succs;
-            }
+    public static final boolean FORWARD = true;
+    public static final boolean BACKWARD = false;
 
-            @Override
-            public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
-                return block.preds;
-            }
+    protected final boolean isForward;
+    protected final Map<Instruction, Result> flowBeforeInstr;
+    protected final Map<Instruction, Result> flowAfterInstr;
+    protected final Map<BasicBlock, Result> flowBeforeBlock;
+    protected final Map<BasicBlock, Result> flowAfterBlock;
 
-            @Override
-            public List<BasicBlock> getOrderedBlocks(BasicBlock entry)  {
-                return CFGUtils.getReversePostOrderedBlocks(entry);
-            }
-
-            @Override
-            public List<Instruction> getOrderedInstrs(BasicBlock block) {
-                List<Instruction> instrs = new ArrayList<>(block.instructions);
-                instrs.add(block.terminator);
-                return instrs;
-            }
-        },
-        BACKWARD {
-            @Override
-            public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-                return block.preds;
-            }
-            @Override
-            public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
-                return block.succs;
-            }
-
-            @Override
-            public List<BasicBlock> getOrderedBlocks(BasicBlock entry)  {
-                return CFGUtils.getPostOrderedBlocks(entry);
-            }
-
-            @Override
-            public List<Instruction> getOrderedInstrs(BasicBlock block) {
-                List<Instruction> instrs = new ArrayList<>(block.instructions);
-                instrs.add(block.terminator);
-                Collections.reverse(instrs);
-                return instrs;
-            }
-        };
-
-        /** 按照当前方向获取后续块 */
-        public abstract Set<BasicBlock> getSuccBlocksOf(BasicBlock block);
-        
-        /** 按照当前方向获取前导块。*/
-        public abstract Set<BasicBlock> getPredBlocksOf(BasicBlock block);
-        
-        /** 按照当前方向获取排序好的基本块 */
-        public abstract List<BasicBlock> getOrderedBlocks(BasicBlock entry);
-        
-        /** 按照当前方向获取排序好的指令列表 */
-        public abstract List<Instruction> getOrderedInstrs(BasicBlock block);
-
-    }
-
-    protected final Map<Instruction, T> flowBeforeInstr;
-    protected final Map<Instruction, T> flowAfterInstr;
-    protected final Map<BasicBlock, T> flowBeforeBlock;
-    protected final Map<BasicBlock, T> flowAfterBlock;
-    protected final AnalysisDirection direction;
-
-    public AbstractAnalysis(ErrManager errManager, AnalysisDirection direction) {
-        super(errManager);
-        this.direction = direction;
+    public AbstractAnalysis(Pipeline<Module> pipeline, boolean isForward) {
+        super(pipeline);
+        this.isForward = isForward;
         this.flowBeforeInstr = new HashMap<>();
         this.flowAfterInstr = new HashMap<>();
         this.flowBeforeBlock = new HashMap<>();
         this.flowAfterBlock = new HashMap<>();
     }
 
-    public T getFlowBefore(BasicBlock block) {
+    public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+        return isForward ? getCFG().getPredBlocksOf(block) : getCFG().getSuccBlocksOf(block);
+    }
+
+    public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+        return isForward ? getCFG().getSuccBlocksOf(block) : getCFG().getPredBlocksOf(block);
+    }
+
+    public List<BasicBlock> getOrderedBlocksOf(Function function) {
+        return isForward ? getCFG().getRPOBlocks(function) : getCFG().getPOBlocks(function);
+    }
+
+    public ArrayList<Instruction> getOrderedInstrs(BasicBlock block) {
+        var instrs = new ArrayList<>(block.instructions);
+        instrs.add(block.terminator);
+        if (!isForward) Collections.reverse(instrs);
+        return instrs;
+    }
+
+    public Result getFlowBefore(BasicBlock block) {
         return flowBeforeBlock.get(block);
     }
 
-    public T getFlowBefore(Instruction instr) {
+    public Result getFlowBefore(Instruction instr) {
         return flowBeforeInstr.get(instr);
     }
 
-    public T getFlowAfter(BasicBlock block) {
+    public Result getFlowAfter(BasicBlock block) {
         return flowAfterBlock.get(block);
     }
 
-    public T getFlowAfter(Instruction instr) {
+    public Result getFlowAfter(Instruction instr) {
         return flowAfterInstr.get(instr);
     }
 
     /** 初始情况，也就是格的下界 */
-    protected abstract T initial();
+    protected abstract Result initial();
 
     /** 拷贝，将src的值拷贝到dst */
-    protected abstract void copy(T dst, T src);
+    protected abstract void copy(Result dst, Result src);
 
     /** 合并，在控制流交汇的地方选择取交或者取并 */
-    protected abstract void merge(T dst, T src1, T src2);
+    protected abstract void merge(Result dst, Result src1, Result src2);
 
     /** 单条语句的转换函数 */
-    protected abstract void flowThrough(Instruction instr, T in, T out);
+    protected abstract void flowThrough(Instruction instr, Result in, Result out);
 
     /** 初始化每个基本块 */
     protected void init(List<BasicBlock> blocks) {
@@ -128,7 +88,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
 
     /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
     protected void meet(BasicBlock block) {
-        var inBlocks = direction.getPredBlocksOf(block);
+        var inBlocks = getPredBlocksOf(block);
         if (inBlocks.isEmpty()) return;
         var inout = this.flowBeforeBlock.get(block);
 
@@ -139,7 +99,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
                 copy = false;
                 copy(inout, in);
             } else {
-                T tmp = initial();
+                Result tmp = initial();
                 merge(tmp, inout, in);
                 copy(inout, tmp);
             }
@@ -148,14 +108,14 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
 
     /** 处理基本块 */
     protected boolean flowThrough(BasicBlock b) {
-        T in = flowBeforeBlock.get(b);
-        T out = flowAfterBlock.get(b);
+        Result in = flowBeforeBlock.get(b);
+        Result out = flowAfterBlock.get(b);
         /* 如果b在一个size > 1的强连通分量或者在自环中
          * i.e. b可能在一个循环结构中
          * 执行是否已经到达不动点的检测
          */
         if (b.loopDepth > 0) {
-            T newOut = initial();
+            Result newOut = initial();
             flowThrough(b, in, newOut);
             if (newOut.equals(out)) {
                 return false;
@@ -169,8 +129,8 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
     }
 
     /** 基本块的转换函数 */
-    protected void flowThrough(BasicBlock block, T in, T out) {
-        var instrs = direction.getOrderedInstrs(block);
+    protected void flowThrough(BasicBlock block, Result in, Result out) {
+        var instrs = getOrderedInstrs(block);
         var inFlow = in;
         var outFlow = initial();
         // 按顺序遍历每条指令，进行分析
@@ -187,7 +147,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
 
     @Override
     public void visit(Function function) {
-        var blocks = direction.getOrderedBlocks(function.entry);
+        var blocks = getOrderedBlocksOf(function);
         init(blocks);
         var worklist = new Worklist<>(blocks);
         while (!worklist.isEmpty()) {
@@ -195,7 +155,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
             meet(e);
             boolean changed = flowThrough(e);
             if (changed) {
-                for (var succ : direction.getSuccBlocksOf(e)) worklist.add(succ);
+                for (var succ : getSuccBlocksOf(e)) worklist.add(succ);
             }
         }
     }
@@ -205,7 +165,7 @@ public abstract class AbstractAnalysis<T> extends ModuleVisitor<T> {
     }
 
     public void printResult(Function function) {
-        for (var block : function.getTopoSortedBlocks()) {
+        for (var block : getCFG().getRPOBlocks(function)) {
             System.out.printf("bb%s:%n", block.order);
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));
