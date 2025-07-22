@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
@@ -16,7 +17,7 @@ import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModuleVisitor {
+public final class Interpreter extends ModuleVisitor<Void> {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -25,10 +26,10 @@ public final class Interpreter extends ModuleVisitor {
     private final ArrayDeque<HashMap<Value, ImmediateValue>> stackframes = new ArrayDeque<>();
     private HashMap<Value, ImmediateValue> stackframe;
     private BasicBlock currentBlock;
-    private ArrayDeque<Value> retAddrs = new ArrayDeque<>();
+    private final ArrayDeque<Value> retAddrs = new ArrayDeque<>();
 
-    public Interpreter(ErrManager errManager, PrintStream out, InputStream in) {
-        super(errManager);
+    public Interpreter(PrintStream out, InputStream in) {
+        super(null);
         this.out = out;
         this.in = in;
         this.sc = new Scanner(in);
@@ -54,7 +55,7 @@ public final class Interpreter extends ModuleVisitor {
             globals.put(var, init);
         });
 
-        var main = module.functions.get("main");
+        var main = module.getFunction("main");
         visit(main);
         var mainRet = stackframe.get(iZero);
         out.println(mainRet);
@@ -88,6 +89,7 @@ public final class Interpreter extends ModuleVisitor {
     private ImmediateValue toImm(Value value) {
         if (value instanceof ImmediateValue imm) return imm;
         if (value instanceof Var var && var.isGlobal) return globals.get(var);
+        if (value instanceof BlockArgument arg) value = arg.var;
         var val = stackframe.get(value);
         if (val != null) return val;
         throw new NoSuchElementException("Undefined value: " + value.shortName());
@@ -100,7 +102,7 @@ public final class Interpreter extends ModuleVisitor {
                 case Call it -> {
                     var oldSF = stackframe;
                     var newSF = new HashMap<Value, ImmediateValue>();
-                    var callee = it.function;
+                    var callee = it.getFunction();
                     var params = callee.params;
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
@@ -190,12 +192,13 @@ public final class Interpreter extends ModuleVisitor {
                     currentBlock = null;
                 }
                 case Jmp it -> {
-                    it.params.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
-                    currentBlock = it.getTarget();
+                    var target = it.getTarget();
+                    it.params.forEach((var, use) -> stackframe.put(var, toImm(use.value)));
+                    currentBlock = target;
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
-                    if (cond != iZero) {
+                    if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
@@ -227,7 +230,7 @@ public final class Interpreter extends ModuleVisitor {
                                 offset += getInt(indices[i].value) * strides[i];
                             stackframe.put(it, toImm(base.values[offset]));
                         }
-                        default -> unreachable();
+                        default -> unsupported(addr);
                     }
                 }
                 case Store it -> {
@@ -237,7 +240,7 @@ public final class Interpreter extends ModuleVisitor {
                         case Var var -> {
                             if (var.isGlobal) globals.put(var, value);
                             else if (var.isParam) stackframe.put(it, value);
-                            else unreachable();
+                            else unsupported(addr);
                         }
                         case GetElemPtr gep -> {
                             var bv = gep.basePtr.value;

@@ -3,27 +3,29 @@ package cn.edu.xjtu.sysy.mir.pass.transform;
 import java.util.ArrayList;
 import java.util.List;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.pass.AvailableExpression;
+import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.analysis.AvailableExpression;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-public class CommonSubexprElimination extends ModuleVisitor {
+public class CommonSubexprElimination extends AbstractTransform {
     
     public final AvailableExpression analysis;
 
-    public CommonSubexprElimination(ErrManager errManager) {
-        super(errManager);
-        analysis = new AvailableExpression(errManager);
+    public CommonSubexprElimination(Pipeline<Module> pipeline) {
+        super(pipeline);
+        analysis = new AvailableExpression(pipeline);
     }
 
     @Override
     public void visit(Function function) {
         analysis.visit(function);
         analysis.printResult(function);
-        function.blocks.forEach(this::visit);
+        getCFG().getRPOBlocks(function).forEach(this::visit);
     }
 
     @Override

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
@@ -22,9 +23,7 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * <p>应当注意此时处理的数组仍然是 RawArray
  */
 public final class AstAnnotator extends AstVisitor {
-    public AstAnnotator(ErrManager errManager) {
-        super(errManager);
-    }
+    public AstAnnotator(Pipeline<CompUnit> pipeline) { super(pipeline); }
 
     private SymbolTable.Global globalST;
     private SymbolTable currentST;

@@ -5,8 +5,8 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-// 运算强度削减
-public final class StrengthReduction extends AbstractTransform {
-    public StrengthReduction(Pipeline<Module> pipeline) { super(pipeline); }
+// Scalar Evolution 循环变量归纳
+public final class SCEV extends AbstractTransform {
+    public SCEV(Pipeline<Module> pipeline) { super(pipeline); }
 
 }

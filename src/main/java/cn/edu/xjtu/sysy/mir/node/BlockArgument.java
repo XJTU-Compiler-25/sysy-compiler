@@ -13,6 +13,6 @@ public final class BlockArgument extends Value {
 
     @Override
     public String shortName() {
-        return "%" + var.name + "@" + block.label;
+        return "%" + var.name + "@" + block.order;
     }
 }

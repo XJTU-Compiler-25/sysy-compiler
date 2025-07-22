@@ -5,8 +5,8 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-// 运算强度削减
-public final class StrengthReduction extends AbstractTransform {
-    public StrengthReduction(Pipeline<Module> pipeline) { super(pipeline); }
+// Global Value Numbering
+public final class GVN extends AbstractTransform {
+    public GVN(Pipeline<Module> pipeline) { super(pipeline); }
 
 }

@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.mir.node;
 import cn.edu.xjtu.sysy.symbol.Symbol;
 import cn.edu.xjtu.sysy.symbol.Type;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
@@ -33,7 +34,16 @@ public final class Module {
                 globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
                         .collect(Collectors.joining(", ")) +
                 "\nFunctions:\n" +
-                functions.values().stream().map(Function::toString).collect(Collectors.joining("\n"));
+                getFunctions().stream().map(Function::toString).collect(Collectors.joining("\n"));
         return sb;
     }
+
+    public Collection<Function> getFunctions() {
+        return functions.values();
+    }
+
+    public Function getFunction(String name) {
+        return functions.get(name);
+    }
+
 }

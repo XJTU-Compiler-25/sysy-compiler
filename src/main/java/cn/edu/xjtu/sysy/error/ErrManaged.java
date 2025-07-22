@@ -7,6 +7,10 @@ public interface ErrManaged {
         getErrManager().err(msg);
     }
 
+    default void err(Err err) {
+        getErrManager().err(err);
+    }
+
     default boolean hasErr() {
         return getErrManager().hasErr();
     }

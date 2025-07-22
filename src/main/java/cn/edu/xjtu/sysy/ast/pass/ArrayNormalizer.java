@@ -5,7 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.ast.SemanticError;
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Expr.Array;
@@ -13,10 +15,10 @@ import cn.edu.xjtu.sysy.ast.node.Node;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.symbol.Type;
 
-/** todo 把 Array 正规化为只有 单值 或 数组 元素 */
+/** 把 Array 正规化为只有 单值 或 数组 元素 */
 public final class ArrayNormalizer extends AstVisitor {
-    public ArrayNormalizer(ErrManager errManager) {
-        super(errManager);
+    public ArrayNormalizer(Pipeline<CompUnit> pipeline) {
+        super(pipeline);
     }
 
     @Override
@@ -29,7 +31,7 @@ public final class ArrayNormalizer extends AstVisitor {
             if (initExpr instanceof Expr.RawArray array) {
                 var checker = new ArrayChecker(dimensions);
                 node.init = checker.normalize(array);
-                this.errManager.errs.addAll(checker.errors);
+                for (var err : checker.errors) err(err);
             }
         }
     }
@@ -40,7 +42,7 @@ public final class ArrayNormalizer extends AstVisitor {
         visit(node.body);
     }
 
-    class ArrayChecker {
+    static class ArrayChecker {
 
         /** 数组维度 */
         private final int[] dimensions;

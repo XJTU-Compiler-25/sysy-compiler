@@ -5,8 +5,8 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-// 运算强度削减
-public final class StrengthReduction extends AbstractTransform {
-    public StrengthReduction(Pipeline<Module> pipeline) { super(pipeline); }
+// 如果安全，将全局变量降低到局部变量
+public final class VarLocalize extends AbstractTransform {
+    public VarLocalize(Pipeline<Module> pipeline) { super(pipeline); }
 
 }
