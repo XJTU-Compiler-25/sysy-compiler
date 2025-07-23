@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 public final class InstructionHelper {
+    private int insertPosition;
     private BasicBlock block;
 
     public InstructionHelper() {}
@@ -15,6 +16,12 @@ public final class InstructionHelper {
 
     public void changeBlock(BasicBlock block) {
         this.block = block;
+        moveToTail();
+    }
+
+    public void removeBlock() {
+        block = null;
+        insertPosition = -1;
     }
 
     private int getNewIndex() {
@@ -27,6 +34,23 @@ public final class InstructionHelper {
 
     public boolean hasTerminator() {
         return block.terminator != null;
+    }
+
+    public void moveCursor(int insertPosition) {
+        this.insertPosition = insertPosition;
+    }
+
+    public void moveToHead() {
+        insertPosition = 0;
+    }
+
+    public void moveToTail() {
+        insertPosition = block.instructions.size();
+    }
+
+    public void insert(Instruction instruction) {
+        block.instructions.add(insertPosition, instruction);
+        insertPosition++;
     }
 
     // terminator instructions
@@ -59,25 +83,25 @@ public final class InstructionHelper {
 
     public Instruction.Call call(Function func, Value... args) {
         var instr = new Instruction.Call(block, getNewIndex(), func, args);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
     public Instruction.CallExternal callBuiltin(String name, Value... args) {
         var instr = new Instruction.CallExternal(block, getNewIndex(), name, args);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
     public Instruction.Alloca alloca(Type type) {
         var instr = new Instruction.Alloca(block, getNewIndex(), type);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
     public Instruction.Load load(Value from) {
         var instr = new Instruction.Load(block, getNewIndex(), from);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -86,13 +110,13 @@ public final class InstructionHelper {
         Assertions.requires(value.type == ptrTy.baseType,
                 String.format("invalid type: typeof target(%s) = %s, value(%s) = %s", target, ptrTy, value, value.type));
         var instr = new Instruction.Store(block, target, value);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
     public Instruction.GetElemPtr getElementPtr(Value ptr, Value... indices) {
         var instr = new Instruction.GetElemPtr(block, getNewIndex(), ptr, indices);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -100,7 +124,7 @@ public final class InstructionHelper {
         Assertions.requires(value.type == Types.Int,
                 String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.I2F(block, getNewIndex(), value);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -108,7 +132,7 @@ public final class InstructionHelper {
         Assertions.requires(value.type == Types.Float,
                 String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.F2I(block, getNewIndex(), value);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -116,7 +140,7 @@ public final class InstructionHelper {
         Assertions.requires(value.type == Types.Int,
                 String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.BitCastI2F(block, getNewIndex(), value);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -124,7 +148,7 @@ public final class InstructionHelper {
         Assertions.requires(value.type == Types.Float,
                 String.format("invalid type: typeof value(%s) = %s", value, value.type));
         var instr = new Instruction.BitCastF2I(block, getNewIndex(), value);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -137,7 +161,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FAdd(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -150,7 +174,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FSub(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -163,7 +187,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FMul(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -176,7 +200,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FDiv(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -189,7 +213,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FMod(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -200,7 +224,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FNeg(block, getNewIndex(), lhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -209,7 +233,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Shl(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -218,7 +242,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Shr(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -227,7 +251,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.AShr(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -236,7 +260,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.And(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -245,7 +269,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Or(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -254,7 +278,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s", lhs, lType));
         var instr = new Instruction.Not(block, getNewIndex(), lhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -263,7 +287,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Int,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.Xor(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -277,7 +301,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FEq(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -291,7 +315,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FNe(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -305,7 +329,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FGt(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -319,7 +343,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FLt(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -333,7 +357,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FGe(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -347,7 +371,7 @@ public final class InstructionHelper {
             case Type.Float _ -> new Instruction.FLe(block, getNewIndex(), lhs, rhs);
             default -> Assertions.unsupported(lType);
         };
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -357,7 +381,7 @@ public final class InstructionHelper {
         Assertions.requires(lhs.type == Types.Float,
                 String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
         var instr = new Instruction.FSqrt(block, getNewIndex(), lhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -365,7 +389,7 @@ public final class InstructionHelper {
         Assertions.requires(lhs.type == Types.Float,
                 String.format("invalid type: typeof lhs(%s) = %s", lhs, lhs.type));
         var instr = new Instruction.FAbs(block, getNewIndex(), lhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -374,7 +398,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Float,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.FMin(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 
@@ -383,7 +407,7 @@ public final class InstructionHelper {
         Assertions.requires(lType == rhs.type && lType == Types.Float,
                 String.format("invalid type: typeof lhs(%s) = %s, typeof rhs(%s) = %s", lhs, lhs.type, rhs, rhs.type));
         var instr = new Instruction.FMax(block, getNewIndex(), lhs, rhs);
-        block.addInstruction(instr);
+        insert(instr);
         return instr;
     }
 

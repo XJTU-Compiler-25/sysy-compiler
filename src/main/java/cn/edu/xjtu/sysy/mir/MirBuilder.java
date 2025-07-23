@@ -71,7 +71,7 @@ public final class MirBuilder implements ErrManaged {
     }
 
     private ImmediateValue foldGlobalInit(Expr node) {
-        if (node == null) return ZeroInit;
+        if (node == null) return zeroInit();
 
         var ctv = node.getComptimeValue();
         if (ctv != null) {
@@ -99,13 +99,11 @@ public final class MirBuilder implements ErrManaged {
         var funcType = symbol.funcType;
 
         var func = curMod.newFunction(symbol.name, funcType);
-        var entryBB = func.addNewBlock();
 
         curFunc = func;
         symbol.address = func;
 
-        func.entry = entryBB;
-        helper.changeBlock(entryBB);
+        helper.changeBlock(func.entry);
 
         for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
         for (var var : node.allVars) var.address = var.type instanceof Type.Array arr ? helper.alloca(arr)
@@ -250,7 +248,7 @@ public final class MirBuilder implements ErrManaged {
         if (needMerge) {
             curFunc.addBlock(mergeBB);
             helper.changeBlock(mergeBB);
-        } else helper.changeBlock(null); // 设为 null 方便检测继续插入的错误
+        } else helper.removeBlock(); // 设为 null 方便检测继续插入的错误
     }
 
     public void visit(Stmt.While node) {

@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Symbol;
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,6 +29,12 @@ public final class Module {
         return globalVar;
     }
 
+    public void removeGlobalVar(Var var) {
+        Assertions.requires(var.isGlobal);
+        globalVars.remove(var.name);
+        globalVarInitValues.remove(var);
+    }
+
     @Override
     public String toString() {
         String sb = "Global Variables:\n" +
@@ -45,5 +52,11 @@ public final class Module {
     public Function getFunction(String name) {
         return functions.get(name);
     }
+
+    public Collection<Var> getGlobalVars() {
+        return globalVars.values();
+    }
+
+
 
 }

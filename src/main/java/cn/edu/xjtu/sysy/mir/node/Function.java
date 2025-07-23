@@ -13,8 +13,8 @@ public final class Function extends User {
 
     public String name;
     public Type.Function funcType;
+    public BasicBlock entry = new BasicBlock(this);
     public HashSet<BasicBlock> blocks = new HashSet<>();
-    public BasicBlock entry;
     private int tempValueCounter = 0;
     public ArrayList<Var> params = new ArrayList<>();
 
@@ -27,6 +27,7 @@ public final class Function extends User {
         this.module = module;
         this.name = name;
         this.funcType = funcType;
+        blocks.add(entry);
     }
 
     public Module getModule() {
@@ -80,7 +81,7 @@ public final class Function extends User {
                 params.stream().map(v -> v.name + ": " + v.varType)
                         .collect(Collectors.joining(", ")) +
                 ") -> " + funcType.returnType +
-                " (entry = " + entry.order + ", locals = {" +
+                " (locals = {" +
                 localVars.stream().map(it -> it.name + ": " + it.varType)
                         .collect(Collectors.joining(", ")) +
                 "}) \n" +

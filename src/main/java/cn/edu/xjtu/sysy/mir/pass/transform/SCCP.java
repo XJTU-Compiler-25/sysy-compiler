@@ -36,14 +36,14 @@ public final class SCCP extends AbstractTransform {
                     var target = br.getTrueTarget();
                     var jmp = helper.jmp(target);
                     br.trueParams.forEach((var, use) -> jmp.putParam(var, use.value));
-                    helper.changeBlock(null);
+                    helper.removeBlock();
                     br.dispose();
                 } else {
                     helper.changeBlock(block);
                     var target = br.getFalseTarget();
                     var jmp = helper.jmp(target);
                     br.falseParams.forEach((var, use) -> jmp.putParam(var, use.value));
-                    helper.changeBlock(null);
+                    helper.removeBlock();
                     br.dispose();
                 }
             }

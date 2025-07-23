@@ -10,10 +10,11 @@ public final class MirPipelines {
     private MirPipelines() { }
 
     public static final Pipeline<Module> DEFAULT = new Pipeline<>(
-            CFGAnalysis::new,
-            DominanceAnalysis::new,
             CallGraphAnalysis::new,
             OnceAnalysis::new,
+            VarLocalize::new,
+            CFGAnalysis::new,
+            DominanceAnalysis::new,
             PurenessAnalysis::new,
             EnterSSA::new,
             InstCombine::new,

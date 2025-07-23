@@ -32,7 +32,9 @@ public final class ImmediateValues {
         return new ImmediateValue.Undefined();
     }
 
-    public static final ImmediateValue.ZeroInit ZeroInit = new ImmediateValue.ZeroInit();
+    public static ImmediateValue.ZeroInit zeroInit() {
+        return new ImmediateValue.ZeroInit();
+    }
 
     public static ImmediateValue.DenseArray denseArrayOf(Type type, Value[] values) {
         return new ImmediateValue.DenseArray(type, values);

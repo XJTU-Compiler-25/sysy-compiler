@@ -1,7 +1,5 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
-import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
@@ -43,7 +41,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
         retAddrs.clear();
         retAddrs.push(iZero);
         stackframe = new HashMap<>();
-        module.globalVars.forEach((_, var) -> {
+        module.getGlobalVars().forEach(var -> {
             var init = module.globalVarInitValues.get(var);
             if (init instanceof SparseArray sp) init = sparseToDense(sp);
             else if (init instanceof ZeroInit) {
@@ -89,7 +87,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
     private ImmediateValue toImm(Value value) {
         if (value instanceof ImmediateValue imm) return imm;
         if (value instanceof Var var && var.isGlobal) return globals.get(var);
-        if (value instanceof BlockArgument arg) value = arg.var;
+        if (value instanceof BlockArgument arg) value = arg.getVar();
         var val = stackframe.get(value);
         if (val != null) return val;
         throw new NoSuchElementException("Undefined value: " + value.shortName());

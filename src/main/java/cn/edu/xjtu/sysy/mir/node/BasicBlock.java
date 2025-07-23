@@ -4,7 +4,6 @@ import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 
 /**
@@ -42,8 +41,8 @@ public final class BasicBlock extends Value {
         return function;
     }
 
-    public void addInstruction(Instruction instruction) {
-        instructions.add(instruction);
+    public void addInstruction(Instruction instruction, int position) {
+        instructions.add(position, instruction);
     }
 
     public void setTerminator(Instruction.Terminator terminator) {
@@ -67,7 +66,7 @@ public final class BasicBlock extends Value {
 
     public String toString() {
         return shortName() + " (" +
-                args.values().stream().map(it -> it.var.name)
+                args.values().stream().map(it -> it.getVar().name)
                         .collect(Collectors.joining(", ")) +
                 "):\n" + instructions.stream().map(it -> it.toString() + "\n")
                         .collect(Collectors.joining()) + terminator;

@@ -1,10 +1,8 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
@@ -89,7 +87,7 @@ public final class EnterSSA extends AbstractTransform {
         for (var block : blocksToInsert) {
             var arg = block.addBlockArgument(var);
             for (var predTerm : getCFG().getPredTermsOf(block))
-                predTerm.putParam(block, arg.var, ImmediateValues.undefined());
+                predTerm.putParam(block, arg.getVar(), ImmediateValues.undefined());
         }
     }
 
