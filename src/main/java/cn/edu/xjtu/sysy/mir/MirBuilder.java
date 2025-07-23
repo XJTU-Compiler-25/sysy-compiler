@@ -9,18 +9,14 @@ import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
+import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+
 import cn.edu.xjtu.sysy.util.Placeholder;
 
 /**
@@ -50,8 +46,7 @@ public final class MirBuilder implements ErrManaged {
     private Function curFunc;
     private final InstructionHelper helper = new InstructionHelper();
 
-    private final ArrayDeque<BasicBlock> loopBlocks = new ArrayDeque<>();
-    private final ArrayDeque<BasicBlock> loopExits = new ArrayDeque<>();
+    private final ArrayDeque<Loop> loops = new ArrayDeque<>();
 
     public Module build(CompUnit compUnit) {
         return visit(compUnit);
@@ -219,9 +214,10 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.If node) {
-        var thenBB = new BasicBlock(curFunc);
-        var elseBB = new BasicBlock(curFunc);
-        var mergeBB = new BasicBlock(curFunc);
+        var loopDepth = loops.size();
+        var thenBB = new BasicBlock(curFunc, loopDepth);
+        var elseBB = new BasicBlock(curFunc, loopDepth);
+        var mergeBB = new BasicBlock(curFunc, loopDepth);
 
         var elseStmt = node.elseStmt;
         var hasElse = elseStmt != Stmt.Empty.INSTANCE;
@@ -258,33 +254,42 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.While node) {
-        var condBB = new BasicBlock(curFunc);
-        var loopBB = new BasicBlock(curFunc);
-        var mergeBB = new BasicBlock(curFunc);
+        var loopDepth = loops.size();
+        var preheaderBB = new BasicBlock(curFunc, loopDepth);
+        var headerBB = new BasicBlock(curFunc, loopDepth + 1);
+        var bodyBB = new BasicBlock(curFunc, loopDepth + 1);
+        var latchBB = new BasicBlock(curFunc, loopDepth + 1);
+        var exitBB = new BasicBlock(curFunc, loopDepth);
+        var loop = new Loop(loops.peekLast(), preheaderBB, headerBB, bodyBB, exitBB);
+        curFunc.addLoop(loop);
 
-        curFunc.addBlock(condBB);
-        helper.jmp(condBB);
-        helper.changeBlock(condBB);
+        helper.jmp(preheaderBB);
 
-        visitCond(node.cond, loopBB, mergeBB);
+        curFunc.addBlock(preheaderBB);
+        helper.changeBlock(preheaderBB);
+        visitCond(node.cond, headerBB, exitBB);
 
-        loopBlocks.addLast(loopBB);
-        loopExits.addLast(mergeBB);
+        curFunc.addBlock(headerBB);
+        helper.changeBlock(headerBB);
+        helper.jmp(bodyBB);
+        loops.addLast(loop);
 
-        curFunc.addBlock(loopBB);
-        helper.changeBlock(loopBB);
-
+        curFunc.addBlock(bodyBB);
+        helper.changeBlock(bodyBB);
         visit(node.body);
-        if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(condBB);
+        if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(latchBB);
 
-        loopBlocks.removeLast();
-        loopExits.removeLast();
+        curFunc.addBlock(latchBB);
+        helper.changeBlock(latchBB);
+        visitCond(node.cond, bodyBB, exitBB);
 
-        curFunc.addBlock(mergeBB);
-        helper.changeBlock(mergeBB);
+        curFunc.addBlock(exitBB);
+        helper.changeBlock(exitBB);
+        loops.removeLast();
     }
 
     private void visitCond(Expr cond, BasicBlock trueTarget, BasicBlock falseTarget) {
+        var loopDepth = loops.size();
         if (cond instanceof Expr.Binary binary) {
             var ops = binary.operators;
             var opers = binary.operands;
@@ -294,7 +299,7 @@ public final class MirBuilder implements ErrManaged {
             if (firstOp == Expr.Operator.AND) {
                 for (int i = 0, size = opers.size() - 1; i < size; i++) {
                     var oper = opers.get(i);
-                    var checkRhs = new BasicBlock(curFunc);
+                    var checkRhs = new BasicBlock(curFunc, loopDepth);
                     visitCond(oper, checkRhs, falseTarget);
                     curFunc.addBlock(checkRhs);
                     helper.changeBlock(checkRhs);
@@ -304,7 +309,7 @@ public final class MirBuilder implements ErrManaged {
             } else if (firstOp == Expr.Operator.OR) {
                 for (int i = 0, size = opers.size() - 1; i < size; i++) {
                     var oper = opers.get(i);
-                    var checkRhs = new BasicBlock(curFunc);
+                    var checkRhs = new BasicBlock(curFunc, loopDepth);
                     visitCond(oper, trueTarget, checkRhs);
                     curFunc.addBlock(checkRhs);
                     helper.changeBlock(checkRhs);
@@ -320,22 +325,22 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.Break ignored) {
-        if (loopExits.isEmpty()) {
+        if (loops.isEmpty()) {
             err("break statement not in loop");
             return;
         }
 
-        var exitBB = loopExits.getLast();
+        var exitBB = loops.getLast().exit();
         helper.jmp(exitBB);
     }
 
     public void visit(Stmt.Continue ignored) {
-        if (loopBlocks.isEmpty()) {
+        if (loops.isEmpty()) {
             err("continue statement not in loop");
             return;
         }
 
-        var loopBB = loopBlocks.getLast();
+        var loopBB = loops.getLast().preheader();
         helper.jmp(loopBB);
     }
 
@@ -447,17 +452,18 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public Value visit(Expr.Cast node) {
-        var value = visit(node.value);
-
+        var nv = node.value;
         return switch (node.kind) {
-            case Float2Int -> helper.f2i(value);
-            case Int2Float -> helper.i2f(value);
+            case Float2Int -> helper.f2i(visit(nv));
+            case Int2Float -> helper.i2f(visit(nv));
             case Ptr2Bool -> iOne; // !ptr 的场景 ptr 都当 true 吧
-            case Decay -> helper.getElementPtr(value, iZero);
+            case Decay -> nv instanceof Expr.VarAccess va ? helper.getElementPtr(va.resolution.address, iZero)
+                    : helper.getElementPtr(visit(nv), iZero);
             case DecayAll -> {
-                var indices = new Value[((Type.Array) node.value.type).dimensions.length];
+                var indices = new Value[((Type.Array) nv.type).dimensions.length];
                 Arrays.fill(indices, iZero);
-                yield helper.getElementPtr(value, indices);
+                yield nv instanceof Expr.VarAccess va ? helper.getElementPtr(va.resolution.address, indices)
+                        : helper.getElementPtr(visit(nv), iZero);
             }
         };
     }

@@ -1,9 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 public final class Function extends User {
@@ -11,18 +13,14 @@ public final class Function extends User {
 
     public String name;
     public Type.Function funcType;
-    public ArrayList<BasicBlock> blocks = new ArrayList<>();
+    public HashSet<BasicBlock> blocks = new HashSet<>();
     public BasicBlock entry;
     private int tempValueCounter = 0;
     public ArrayList<Var> params = new ArrayList<>();
 
     // 以下都为分析用的字段
     public ArrayList<Var> localVars = new ArrayList<>();
-
-    public boolean isAtMostCalledOnce;
-
-    // 是否没有副作用
-    public boolean isPure;
+    public ArrayList<Loop> loops = new ArrayList<>();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -45,13 +43,9 @@ public final class Function extends User {
         return block;
     }
 
-    public String newBlockLabel() {
-        return "bb" + blocks.size();
-    }
-
     public void addBlock(BasicBlock block) {
         blocks.add(block);
-        block.label = newBlockLabel();
+        block.order = blocks.size();
     }
 
     public void removeBlock(BasicBlock block) {
@@ -70,6 +64,10 @@ public final class Function extends User {
         return localVar;
     }
 
+    public void addLoop(Loop loop) {
+        loops.add(loop);
+    }
+
     @Override
     public String shortName() {
         return name;
@@ -82,11 +80,12 @@ public final class Function extends User {
                 params.stream().map(v -> v.name + ": " + v.varType)
                         .collect(Collectors.joining(", ")) +
                 ") -> " + funcType.returnType +
-                " (entry = " + entry.label + ", locals = {" +
+                " (entry = " + entry.order + ", locals = {" +
                 localVars.stream().map(it -> it.name + ": " + it.varType)
                         .collect(Collectors.joining(", ")) +
                 "}) \n" +
-                blocks.stream().map(BasicBlock::toString)
+                new CFGAnalysis().process(this).getRPOBlocks(this).stream().map(BasicBlock::toString)
                         .collect(Collectors.joining("\n"));
     }
+
 }

@@ -5,8 +5,8 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 
-// 运算强度削减
-public final class StrengthReduction extends AbstractTransform {
-    public StrengthReduction(Pipeline<Module> pipeline) { super(pipeline); }
+// Loop Invariant Code Motion 循环不变量外提
+public final class LICM extends AbstractTransform {
+    public LICM(Pipeline<Module> pipeline) { super(pipeline); }
 
 }

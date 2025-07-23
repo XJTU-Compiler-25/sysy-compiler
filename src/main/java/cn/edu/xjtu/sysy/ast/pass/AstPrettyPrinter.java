@@ -15,8 +15,7 @@ public final class AstPrettyPrinter extends AstVisitor {
 
     public AstPrettyPrinter(PrintStream output) {
         super(null);
-        this.output = output;
-    }
+        this.output = output; }
 
     public AstPrettyPrinter() {
         this(System.out);

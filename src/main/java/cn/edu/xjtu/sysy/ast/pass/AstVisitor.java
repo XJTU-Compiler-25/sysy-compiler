@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import cn.edu.xjtu.sysy.Pass;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.ast.SemanticError;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
@@ -16,18 +17,17 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * 抽象类，用于遍历AST。
  * 派生类应该重写所有需要使用的方法。
  */
-public abstract class AstVisitor extends Pass<CompUnit> {
-    public AstVisitor(ErrManager errManager) {
-        super(errManager);
-    }
+public abstract class AstVisitor extends Pass<CompUnit, Void> {
+    public AstVisitor(Pipeline<CompUnit> pipeline) { super(pipeline); }
 
     public void err(Node node, String msg) {
-        this.errManager.err(new SemanticError(node, msg));
+        err(new SemanticError(node, msg));
     }
 
     @Override
-    public void process(CompUnit obj) {
+    public Void process(CompUnit obj) {
         visit(obj);
+        return null;
     }
 
     public void visit(CompUnit node) {

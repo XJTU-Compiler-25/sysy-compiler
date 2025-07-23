@@ -3,28 +3,23 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
-
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.pass.AstPassGroups;
+
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
-import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
-import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
 import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.util.Assertions;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 
 /**
  * 根据大赛技术方案规定，编译器的主类名为 Compiler，不带包名。
@@ -37,23 +32,15 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * testcase.sysy -S -o testcase.s -O1
  */
 public class Compiler {
+
     public static void main(String[] args) throws IOException {
         Assertions.requires(args.length > 4, "Not enough arguments");
 
-        String input = args[0];
-        String output = args[3];
+        var input = args[0];
+        var output = args[3];
 
-        CharStream inputStream = CharStreams.fromFileName(input);
-        SysYLexer lexer = new SysYLexer(inputStream);
-        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-        SysYParser parser = new SysYParser(tokenStream);
-
-        ErrManager em = new ErrManager();
-        CompUnitContext cst = parser.compUnit();
-        AstBuilder astBuilder = new AstBuilder(em);
-        CompUnit compUnit = astBuilder.visitCompUnit(cst);
-
-        AstPassGroups.makePassGroup(em).process(compUnit);
+        var em = ErrManager.GLOBAL;
+        var compUnit = compileToAst(em, input);
         if (em.hasErr()) {
             em.printErrs();
             return;
@@ -61,25 +48,16 @@ public class Compiler {
         var pp = new AstPrettyPrinter();
         //pp.visit(compUnit);
 
-        MirBuilder mirBuilder = new MirBuilder(em);
-        Module mir = mirBuilder.build(compUnit);
+        var mirBuilder = new MirBuilder(em);
+        var mir = mirBuilder.build(compUnit);
         //System.out.println(mir);
-        MirPassGroups.makePassGroup(em).process(mir);
+        MirPipelines.DEFAULT.process(mir);
         if (em.hasErr()) {
             em.printErrs();
             return;
         }
-        System.out.println(mir);
-        if (true) {
-            System.out.println("Interpreting test...");
-            var is = new ByteArrayInputStream(new byte[0]);
-            var os = new ByteArrayOutputStream();
-            var interpreter = new Interpreter(em, new PrintStream(os), is);
-            interpreter.process(mir);
-            var out = os.toString();
-            System.out.println("Test output: \n" + out);
-            //Assertions.assertEquals(testOut, out);
-        }
+        //System.out.println(mir);
+
         var calc = new StackCalculator();
         calc.visit(compUnit);
         var asm = new RiscVWriter();
@@ -98,4 +76,25 @@ public class Compiler {
             outStream.close();
         }
     }
+
+    public static CompUnit compileToAst(ErrManager em, String s) {
+        var cs = CharStreams.fromString(s);
+        var lexer = new SysYLexer(cs);
+        var tokens = new CommonTokenStream(lexer);
+        var parser = new SysYParser(tokens);
+        var cst = parser.compUnit();
+        var ast = new AstBuilder().visitCompUnit(cst);
+        return ast;
+    }
+
+    public static String CompileToRiscV(CompUnit ast) {
+        var calc = new StackCalculator();
+        var writer = new RiscVWriter();
+        var cgen = new RiscVCGen(writer);
+        calc.visit(ast);
+        cgen.visit(ast);
+        writer.emitAll();
+        return writer.toString();
+    }
+
 }

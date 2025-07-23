@@ -1,5 +1,9 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
@@ -8,7 +12,8 @@ import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
 import cn.edu.xjtu.sysy.mir.node.Var;
-import cn.edu.xjtu.sysy.mir.pass.AvailableExpression;
+import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.analysis.AvailableExpression;
 import cn.edu.xjtu.sysy.mir.pass.AvailableExpression.Expr;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.symbol.Type;
@@ -24,13 +29,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommonSubexprElimination extends ModuleVisitor {
+public class CommonSubexprElimination extends AbstractTransform {
 
     public final AvailableExpression analysis;
 
-    public CommonSubexprElimination(ErrManager errManager) {
-        super(errManager);
-        analysis = new AvailableExpression(errManager);
+    public CommonSubexprElimination(Pipeline<Module> pipeline) {
+        super(pipeline);
+        analysis = new AvailableExpression(pipeline);
     }
 
     @Override

@@ -1,40 +1,47 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pass;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.util.Placeholder;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
 
-public abstract class ModuleVisitor extends Pass<Module> {
-    public ModuleVisitor(ErrManager errManager) {
-        super(errManager);
+public abstract class ModuleVisitor<R> extends Pass<Module, R> {
+    public ModuleVisitor(Pipeline<Module> pipeline) {
+        super(pipeline);
     }
 
     @Override
-    public void process(Module module) {
+    public R process(Module module) {
         visit(module);
+        return null;
     }
 
     public void visit(Module module) {
-        module.functions.values().forEach(this::visit);
+        for (var function : module.getFunctions()) visit(function);
     }
 
     public void visit(Function function) {
-        function.blocks.forEach(this::visit);
+        for (var basicBlock : getCFG().getRPOBlocks(function)) visit(basicBlock);
     }
 
     public void visit(BasicBlock block) {
-        block.instructions.forEach(this::visit);
+        for (var instruction : block.instructions) visit(instruction);
         visit(block.terminator);
     }
 
-    public void visit(Instruction instruction) {
-        Placeholder.pass();
+    public void visit(Instruction instruction) { }
+
+    private void visit(Instruction.Terminator terminator) { }
+
+    protected final CFGAnalysis.Result getCFG() {
+        return pipeline.getResult(CFGAnalysis.class);
     }
 
-    private void visit(Instruction.Terminator terminator) {
-        Placeholder.pass();
+    protected final CallGraphAnalysis.Result getCallGraph() {
+        return pipeline.getResult(CallGraphAnalysis.class);
     }
 
 }

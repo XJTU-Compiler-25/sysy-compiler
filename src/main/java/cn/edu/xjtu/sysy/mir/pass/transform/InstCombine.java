@@ -1,10 +1,10 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
@@ -12,10 +12,8 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 // 常量折叠和传播，指令合并
 @SuppressWarnings("unchecked")
-public final class InstCombine extends ModuleVisitor {
-    public InstCombine(ErrManager errManager) {
-        super(errManager);
-    }
+public final class InstCombine extends AbstractTransform {
+    public InstCombine(Pipeline<Module> pipeline) { super(pipeline); }
 
     private final InstructionHelper helper = new InstructionHelper();
 
@@ -36,27 +34,6 @@ public final class InstCombine extends ModuleVisitor {
                 }
                 inst.replaceAllUsesWith(result);
             } else combineInst(inst); // 常量折叠没有成功，尝试一下模式识别
-        }
-
-        foldBranch(block);
-    }
-
-    // 尝试把常量驱动的 br 转为 jmp
-    private void foldBranch(BasicBlock block) {
-        if (block.terminator instanceof Instruction.Br br) {
-            if (br.getCondition() instanceof ImmediateValue iv) {
-                if (iv != iZero) {
-                    helper.changeBlock(block);
-                    helper.jmp(br.getTrueTarget()).overwriteParams(br.trueParams);
-                    helper.changeBlock(null);
-                    br.dispose();
-                } else {
-                    helper.changeBlock(block);
-                    helper.jmp(br.getFalseTarget()).overwriteParams(br.falseParams);
-                    helper.changeBlock(null);
-                    br.dispose();
-                }
-            }
         }
     }
 

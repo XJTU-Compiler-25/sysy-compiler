@@ -1,0 +1,11 @@
+package cn.edu.xjtu.sysy.mir.pass.transform;
+
+import cn.edu.xjtu.sysy.Pipeline;
+import cn.edu.xjtu.sysy.mir.node.Module;
+
+public final class Inline extends AbstractTransform {
+    public Inline(Pipeline<Module> pipeline) { super(pipeline); }
+
+    private static final int INLINE_THRESHOLD = 128;
+
+}
