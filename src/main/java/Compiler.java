@@ -1,6 +1,9 @@
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -14,8 +17,9 @@ import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
-import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.Interpreter;
+import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.parse.SysYParser.CompUnitContext;
@@ -66,7 +70,16 @@ public class Compiler {
             return;
         }
         System.out.println(mir);
-
+        if (true) {
+            System.out.println("Interpreting test...");
+            var is = new ByteArrayInputStream(new byte[0]);
+            var os = new ByteArrayOutputStream();
+            var interpreter = new Interpreter(em, new PrintStream(os), is);
+            interpreter.process(mir);
+            var out = os.toString();
+            System.out.println("Test output: \n" + out);
+            //Assertions.assertEquals(testOut, out);
+        }
         var calc = new StackCalculator();
         calc.visit(compUnit);
         var asm = new RiscVWriter();

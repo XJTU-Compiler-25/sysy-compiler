@@ -1,8 +1,19 @@
-package cn.edu.xjtu.sysy.riscv;
+package cn.edu.xjtu.sysy.riscv.node;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
+
+import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 public sealed interface Instr {
+
+    public abstract Stream<Register> getDef();
+    public abstract Stream<Register> getUse();
+    private static Stream<Register> genStream(Register... registers) {
+        return Arrays.stream(registers);
+    } 
+
     record Reg(Op op, Register.Int rd, Register.Int rs1, Register.Int rs2)
             implements Instr {
         public enum Op {
@@ -51,6 +62,17 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, %s", op, rd, rs1, rs2);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
+        }
+
     }
 
     record RegZ(Op op, Register.Int rd, Register.Int rs1)
@@ -80,6 +102,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s", op, rd, rs1);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
+        }
     }
 
     record FUnary(Op op, Register.Float rd, Register.Float rs1)
@@ -103,6 +135,16 @@ public sealed interface Instr {
         }
 
         @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
+        }
+
+        @Override
         public String toString() {
             return String.format("%s %s, %s", op, rd, rs1);
         }
@@ -112,6 +154,16 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("fclass.s %s, %s", rd, rs);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
         }
     }
 
@@ -144,6 +196,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, %s", op, rd, rs1, rs2);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
+        }
     }
 
     record FComp(Op op, Register.Int rd, Register.Float rs1, Register.Float rs2)
@@ -168,6 +230,16 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("%s %s, %s, %s", op, rd, rs1, rs2);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
         }
     }
 
@@ -195,6 +267,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, %s, %s", op, rd, rs1, rs2, rs3);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2, rs3);
+        }
     }
 
     record FloatCvt(Op op, Register.Int rd, Register.Float rs)
@@ -221,6 +303,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, rtz", op, rd, rs);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
+        }
     }
 
     record FloatIntMv(Register.Int rd, Register.Float rs)
@@ -229,6 +321,16 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("fmv.x.w %s, %s", rd, rs);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
         }
     }
 
@@ -256,6 +358,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s", op, rd, rs);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
+        }
     }
 
     record IntFloatMv(Register.Float rd, Register.Int rs)
@@ -264,6 +376,16 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("fmv.w.x %s, %s", rd, rs);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
         }
     }
 
@@ -314,6 +436,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, %d", op, rd, rs1, imm);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
+        }
     }
 
     record Load(Op op, Register.Int rd, Register.Int rs1, int imm)
@@ -347,12 +479,32 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %d(%s)", op, rd, imm, rs1);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
+        }
     }
 
     record Flw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
         @Override
         public String toString() {
             return String.format("flw %s, %d(%s)", rd, imm, rs1);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
         }
     }
 
@@ -384,26 +536,66 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %d(%s)", op, rs2, imm, rs1);
         }
-    }
 
-    record Fsw(Register.Float rd, Register.Int rs1, int imm) implements Instr {
         @Override
-        public String toString() {
-            return String.format("fsw %s, %d(%s)", rd, imm, rs1);
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
         }
     }
 
-    record Sw_global(Register.Int rd, Label label, Register.Int tmp) implements Instr {
+    record Fsw(Register.Float rs2, Register.Int rs1, int imm) implements Instr {
         @Override
         public String toString() {
-            return String.format("sw %s, %s, %s", rd, label, tmp);
+            return String.format("fsw %s, %d(%s)", rs2, imm, rs1);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
         }
     }
 
-    record Fsw_global(Register.Float rd, Label label, Register.Int tmp) implements Instr {
+    record SwGlobal(Register.Int rs, Label label, Register.Int tmp) implements Instr {
         @Override
         public String toString() {
-            return String.format("fsw %s, %s, %s", rd, label, tmp);
+            return String.format("sw %s, %s, %s", rs, label, tmp);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
+        }
+    }
+
+    record FswGlobal(Register.Float rs, Label label, Register.Int tmp) implements Instr {
+        @Override
+        public String toString() {
+            return String.format("fsw %s, %s, %s", rs, label, tmp);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
         }
     }
 
@@ -437,6 +629,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s, %s", op, rs1, rs2, label);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1, rs2);
+        }
     }
 
     record BranchZ(Op op, Register.Int rs1, Label label)
@@ -465,6 +667,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("%s %s, %s", op, rs1, label);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
+        }
     }
 
     record Jal(Register.Int rd, Label label) implements Instr {
@@ -473,6 +685,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("jal %s %s", rd, label);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
+        }
     }
 
     record Call(Label label) implements Instr {
@@ -480,6 +702,16 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("call %s", label);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(PhysicalRegisters.RA);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
         }
     }
 
@@ -493,12 +725,15 @@ public sealed interface Instr {
         public String toString() {
             return String.format("jalr %s %d(%s)", rd, imm, rs1);
         }
-    }
 
-    record LocalLabel(Label label) implements Instr {
         @Override
-        public String toString() {
-            return String.format("%s", label);
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs1);
         }
     }
 
@@ -507,6 +742,16 @@ public sealed interface Instr {
         public String toString() {
             return String.format("auipc %s, %d", rd, immu);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
+        }
     }
 
     record Lui(Register.Int rd, int immu) implements Instr {
@@ -514,21 +759,44 @@ public sealed interface Instr {
         public String toString() {
             return String.format("lui %s, %d", rd, immu);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
+        }
     }
 
-    record Ecall() implements Instr {}
+    record Ecall() implements Instr {
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
+        }
+    }
 
     record Li(Register.Int rd, int imm) implements Instr {
         @Override
         public String toString() {
             return String.format("li %s, %d", rd, imm);
         }
-    }
 
-    record Li_globl(Register.Int rd, Label imm) implements Instr {
         @Override
-        public String toString() {
-            return String.format("li %s, $%s", rd, imm);
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
         }
     }
 
@@ -537,12 +805,32 @@ public sealed interface Instr {
         public String toString() {
             return String.format("la %s, %s", rd, label);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream(rd);
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
+        }
     }
 
     record J(Label label) implements Instr {
         @Override
         public String toString() {
             return String.format("j %s", label);
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream();
         }
     }
 
@@ -551,12 +839,32 @@ public sealed interface Instr {
         public String toString() {
             return String.format("jr %s", rs);
         }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(rs);
+        }
     }
 
     record Ret() implements Instr {
         @Override
         public String toString() {
             return "ret";
+        }
+
+        @Override
+        public Stream<Register> getDef() {
+            return genStream();
+        }
+
+        @Override
+        public Stream<Register> getUse() {
+            return genStream(PhysicalRegisters.RA);
         }
     } 
 }

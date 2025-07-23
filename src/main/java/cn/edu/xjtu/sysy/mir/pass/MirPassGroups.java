@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.OncePurenessAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.transform.CommonSubexprElimination;
 import cn.edu.xjtu.sysy.mir.pass.transform.DeadCodeElimination;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
 import cn.edu.xjtu.sysy.mir.pass.transform.InstCombine;
@@ -19,9 +20,8 @@ public final class MirPassGroups {
                 EnterSSA::new,
                 OncePurenessAnalysis::new,
                 InstCombine::new,
-                DeadCodeElimination::new
-                // CommonSubexprElimination::new
-
+                DeadCodeElimination::new,
+                CommonSubexprElimination::new
         );
     }
 }

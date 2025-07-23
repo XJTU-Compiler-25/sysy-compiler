@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.Arrays;
+import java.util.HashMap;
 
 public final class ImmediateValues {
 
@@ -63,5 +64,4 @@ public final class ImmediateValues {
         values.forEach((index, value) -> denseValues[index] = value);
         return new ImmediateValue.DenseArray(sparseArray.type, denseValues);
     }
-
 }
