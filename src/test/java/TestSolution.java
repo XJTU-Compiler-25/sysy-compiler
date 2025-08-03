@@ -51,10 +51,11 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
+                            //System.out.println(module);
                             MirPipelines.DEFAULT.process(module);
                             System.out.println(module);
 
-                            if (true) {
+                            if (false) {
                                 System.out.println("Interpreting test...");
                                 var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
                                 var os = new ByteArrayOutputStream();

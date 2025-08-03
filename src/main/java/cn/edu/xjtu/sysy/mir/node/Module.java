@@ -1,16 +1,16 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.mir.util.ModulePrinter;
 import cn.edu.xjtu.sysy.symbol.Symbol;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.stream.Collectors;
 
 public final class Module {
-    public final HashMap<String, Var> globalVars = new HashMap<>();
-    public final HashMap<Var, ImmediateValue> globalVarInitValues = new HashMap<>();
+    public final HashMap<String, GlobalVar> globalVars = new HashMap<>();
+    public final HashMap<GlobalVar, ImmediateValue> globalVarInitValues = new HashMap<>();
     public final HashMap<String, Function> functions = new HashMap<>();
 
     public Function main;
@@ -22,27 +22,21 @@ public final class Module {
     }
 
     // 全局变量的初值必须是常量表达式，所以直接取 compTimeValue 即可
-    public Var newGlobalVar(Symbol.VarSymbol symbol, ImmediateValue init) {
-        var globalVar = new Var(symbol.name, symbol.type, true, false);
+    public GlobalVar newGlobalVar(Symbol.VarSymbol symbol, ImmediateValue init) {
+        var globalVar = new GlobalVar(symbol.name, symbol.type);
         globalVars.put(symbol.name, globalVar);
         globalVarInitValues.put(globalVar, init);
         return globalVar;
     }
 
-    public void removeGlobalVar(Var var) {
-        Assertions.requires(var.isGlobal);
+    public void removeGlobalVar(GlobalVar var) {
         globalVars.remove(var.name);
         globalVarInitValues.remove(var);
     }
 
     @Override
     public String toString() {
-        String sb = "Global Variables:\n" +
-                globalVars.values().stream().map(it -> it.shortName() + " = " + globalVarInitValues.get(it))
-                        .collect(Collectors.joining(", ")) +
-                "\nFunctions:\n" +
-                getFunctions().stream().map(Function::toString).collect(Collectors.joining("\n"));
-        return sb;
+        return ModulePrinter.toString(this);
     }
 
     public Collection<Function> getFunctions() {
@@ -53,7 +47,7 @@ public final class Module {
         return functions.get(name);
     }
 
-    public Collection<Var> getGlobalVars() {
+    public Collection<GlobalVar> getGlobalVars() {
         return globalVars.values();
     }
 

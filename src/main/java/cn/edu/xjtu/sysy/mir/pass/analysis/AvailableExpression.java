@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.Collections;
@@ -13,18 +14,18 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 
-/** 可用表达式分析 */
+// 可用表达式分析
 public class AvailableExpression
         extends AbstractAnalysis<Map<AvailableExpression.Expr, Set<Instruction>>> {
     
-    /** 表达式类 */
+    // 表达式类
     public record Expr(Instruction data) {
         @Override
         public int hashCode() {
             return data.getClass().hashCode() << 8 + data.used.size();
         }
 
-        /** 只要Instruction类相同，且运算元顺序和内容都相同，就算做是一个表达式 */
+        // 只要Instruction类相同，且运算元顺序和内容都相同，就算做是一个表达式
         @Override
         public boolean equals(Object other) {
             if (this == other) return true;
@@ -116,3 +117,4 @@ public class AvailableExpression
         return Stream.empty();
     }
 }
+*/

@@ -26,7 +26,14 @@ public final class Pipeline<T> {
     }
 
     public void process(T input) {
-        for (var pass : passes) cachedResults.put(pass.getClass(), pass.process(input));
+        for (var pass : passes) {
+            cachedResults.put(pass.getClass(), pass.process(input));
+            for (var pc : pass.invalidates()) cachedResults.remove(pc);
+        }
+    }
+
+    public <R> void putResult(Class<? extends Pass<T, R>> passClass, R result) {
+        cachedResults.put(passClass, result);
     }
 
     public <R> R getResult(Class<? extends Pass<T, R>> passClass) {

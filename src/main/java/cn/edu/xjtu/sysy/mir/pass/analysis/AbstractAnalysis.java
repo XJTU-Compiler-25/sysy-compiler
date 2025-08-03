@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.*;
@@ -66,19 +67,19 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         return flowAfterInstr.get(instr);
     }
 
-    /** 初始情况，也就是格的下界 */
+    // 初始情况，也就是格的下界
     protected abstract Result initial();
 
-    /** 拷贝，将src的值拷贝到dst */
+    // 拷贝，将src的值拷贝到dst
     protected abstract void copy(Result dst, Result src);
 
-    /** 合并，在控制流交汇的地方选择取交或者取并 */
+    // 合并，在控制流交汇的地方选择取交或者取并
     protected abstract void merge(Result dst, Result src1, Result src2);
 
-    /** 单条语句的转换函数 */
+    // 单条语句的转换函数
     protected abstract void flowThrough(Instruction instr, Result in, Result out);
 
-    /** 初始化每个基本块 */
+    // 初始化每个基本块
     protected void init(List<BasicBlock> blocks) {
         for (var b : blocks) {
             flowBeforeBlock.put(b, initial());
@@ -86,7 +87,7 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         }
     }
 
-    /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
+    // 处理控制流交汇（TODO: 基本块参数相关的部分还没写）
     protected void meet(BasicBlock block) {
         var inBlocks = getPredBlocksOf(block);
         if (inBlocks.isEmpty()) return;
@@ -106,14 +107,11 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         }
     }
 
-    /** 处理基本块 */
+    // 处理基本块
     protected boolean flowThrough(BasicBlock b) {
         Result in = flowBeforeBlock.get(b);
         Result out = flowAfterBlock.get(b);
-        /* 如果b在一个size > 1的强连通分量或者在自环中
-         * i.e. b可能在一个循环结构中
-         * 执行是否已经到达不动点的检测
-         */
+        // 如果b在一个size > 1的强连通分量或者在自环中， 执行是否已经到达不动点的检测
         if (b.loopDepth > 0) {
             Result newOut = initial();
             flowThrough(b, in, newOut);
@@ -128,7 +126,7 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         return true;
     }
 
-    /** 基本块的转换函数 */
+    // 基本块的转换函数
     protected void flowThrough(BasicBlock block, Result in, Result out) {
         var instrs = getOrderedInstrs(block);
         var inFlow = in;
@@ -166,7 +164,7 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
 
     public void printResult(Function function) {
         for (var block : getCFG().getRPOBlocks(function)) {
-            System.out.printf("bb%s:%n", block.order);
+            System.out.printf("%s:%n", block.shortName());
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));
                 System.out.println(instr);
@@ -177,3 +175,4 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         }
     }
 }
+*/

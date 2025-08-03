@@ -2,54 +2,27 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
-public final class DominanceAnalysis extends ModuleVisitor<DominanceAnalysis.Result> {
+public final class DominanceAnalysis extends ModuleVisitor<DomInfo> {
     public DominanceAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
 
-    public record Result(
-            Map<BasicBlock, BasicBlock> idomMap,
-            Map<BasicBlock, Set<BasicBlock>> dfMap
-    ) {
-        public BasicBlock getIDom(BasicBlock block) {
-            return idomMap.get(block);
-        }
-
-        public Set<BasicBlock> getDF(BasicBlock block) {
-            return dfMap.getOrDefault(block, Set.of());
-        }
-
-        public boolean strictlyDominates(BasicBlock domer, BasicBlock domee) {
-            return domer != domee && dominates(domer, domee);
-        }
-
-        public boolean dominates(BasicBlock domer, BasicBlock domee) {
-            // 自己支配自己
-            if (domer == domee) return true;
-            // entry 不被任何块支配
-            if (getIDom(domee) == null) return false;
-
-            // 通过支配树判断
-            while (domee != null) {
-                if (domee == domer) return true;
-                domee = getIDom(domee);
-            }
-            return false;
-        }
-    }
-
     @Override
-    public Result process(Module module) {
+    public DomInfo process(Module module) {
         var cfg = getCFG();
         var idomMap = new HashMap<BasicBlock, BasicBlock>();
+        var idomeeMap = new HashMap<BasicBlock, Set<BasicBlock>>();
         var dfMap = new HashMap<BasicBlock, Set<BasicBlock>>();
-        for (Function function : module.getFunctions()) {
+        var domDepthMap = new HashMap<BasicBlock, Integer>();
+
+        for (var function : module.getFunctions()) {
             var entry = function.entry;
             var blocks = cfg.getRPOBlocks(function);
+
             // 计算支配性
             boolean changed = true;
             while (changed) {
@@ -71,9 +44,29 @@ public final class DominanceAnalysis extends ModuleVisitor<DominanceAnalysis.Res
                 }
             }
 
-            // 计算支配边界
-            for (var block : blocks) dfMap.put(block, new HashSet<>());
+            // 收集被直接支配者集合
+            for (var block : blocks) {
+                if (block == entry) continue;
 
+                var idom = idomMap.get(block);
+                idomeeMap.computeIfAbsent(idom, _ -> new HashSet<>()).add(block);
+            }
+
+            var worklist = new Worklist<BasicBlock>();
+            worklist.add(entry);
+            while (!worklist.isEmpty()) {
+                var block = worklist.poll();
+
+                // entry 支配深度为 0
+                if (block == entry) domDepthMap.put(block, 0);
+                // 支配深度比直接支配者的深度大 1
+                else domDepthMap.put(block, domDepthMap.get(idomMap.get(block)) + 1);
+
+                for (var idomee : idomeeMap.computeIfAbsent(block, _ -> new HashSet<>()))
+                    worklist.add(idomee);
+            }
+
+            // 计算支配边界
             for (var block : blocks) {
                 var preds = cfg.getPredBlocksOf(block);
                 // 支配边界是控制流合并的结果，只有当有多个支配者时块才可能是支配边界
@@ -83,7 +76,7 @@ public final class DominanceAnalysis extends ModuleVisitor<DominanceAnalysis.Res
                         var cur = pred;
                         // block 是 从 pred 到 (block 的 idom) 的 每个节点 的 支配边界
                         while (cur != idom) {
-                            dfMap.get(cur).add(block);
+                            dfMap.computeIfAbsent(cur, _ -> new HashSet<>()).add(block);
                             var ci = idomMap.get(cur);
                             if (ci == null) break;
                             else cur = ci;
@@ -92,7 +85,8 @@ public final class DominanceAnalysis extends ModuleVisitor<DominanceAnalysis.Res
                 }
             }
         }
-        return new Result(idomMap, dfMap);
+
+        return new DomInfo(idomMap, idomeeMap, dfMap, domDepthMap);
     }
 
     private BasicBlock lca(BasicBlock a, BasicBlock b, HashMap<BasicBlock, BasicBlock> idomMap) {

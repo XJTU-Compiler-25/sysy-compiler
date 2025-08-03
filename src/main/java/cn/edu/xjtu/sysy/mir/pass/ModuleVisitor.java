@@ -2,11 +2,9 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 
 public abstract class ModuleVisitor<R> extends Pass<Module, R> {
     public ModuleVisitor(Pipeline<Module> pipeline) {
@@ -36,12 +34,24 @@ public abstract class ModuleVisitor<R> extends Pass<Module, R> {
 
     private void visit(Instruction.Terminator terminator) { }
 
-    protected final CFGAnalysis.Result getCFG() {
-        return pipeline.getResult(CFGAnalysis.class);
+    protected final CFG getCFG() {
+        return getResult(CFGAnalysis.class);
     }
 
-    protected final CallGraphAnalysis.Result getCallGraph() {
-        return pipeline.getResult(CallGraphAnalysis.class);
+    protected final CallGraph getCallGraph() {
+        return getResult(CallGraphAnalysis.class);
+    }
+
+    protected final FuncInfo getFuncInfo() {
+        return getResult(FuncInfoAnalysis.class);
+    }
+
+    protected final DomInfo getDomTree() {
+        return getResult(DominanceAnalysis.class);
+    }
+
+    protected final LoopInfo getLoopInfo() {
+        return getResult(LoopAnalysis.class);
     }
 
 }

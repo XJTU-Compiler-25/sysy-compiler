@@ -1,22 +1,24 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.Type;
+
 public final class BlockArgument extends User {
     // 属于哪个变量
-    public final BasicBlock block;
-    private final Use<Var> var;
+    public BasicBlock block;
+    public Type type;
 
-    public BlockArgument(BasicBlock block, Var var) {
-        super(var.type);
+    public BlockArgument(BasicBlock block, Type type) {
+        super(type);
         this.block = block;
-        this.var = use(var);
+        this.type = type;
     }
 
     @Override
     public String shortName() {
-        return "%" + getVar().name + "@" + block.order;
+        return "%" + id;
     }
 
-    public Var getVar() {
-        return var.value;
+    public boolean isParam() {
+        return block == block.getFunction().entry;
     }
 }

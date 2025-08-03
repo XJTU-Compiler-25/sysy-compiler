@@ -35,7 +35,7 @@ public final class AstPrettyPrinter extends AstVisitor {
         incIndent();
         for (var param : node.params) visit(param);
         decIndent();
-        println("}, body = ");
+        println("}, tails = ");
         incIndent();
         visit(node.body);
         decIndent();
@@ -123,7 +123,7 @@ public final class AstPrettyPrinter extends AstVisitor {
         incIndent();
         visit(node.cond);
         decIndent();
-        println(", body = ");
+        println(", tails = ");
         incIndent();
         visit(node.body);
         decIndent();

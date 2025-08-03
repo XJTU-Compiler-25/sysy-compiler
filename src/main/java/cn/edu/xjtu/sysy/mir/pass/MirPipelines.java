@@ -11,20 +11,20 @@ public final class MirPipelines {
 
     public static final Pipeline<Module> DEFAULT = new Pipeline<>(
             CallGraphAnalysis::new,
-            OnceAnalysis::new,
-            VarLocalize::new,
+            GlobalOpt::new,
             CFGAnalysis::new,
+            FuncInfoAnalysis::new,
             DominanceAnalysis::new,
-            PurenessAnalysis::new,
             EnterSSA::new,
-            InstCombine::new,
             SCCP::new,
+            ConstFold::new,
             CFGAnalysis::new,
+            InstCombine::new,
             DCE::new,
             CFGSimplify::new,
+            DCE::new,
             CFGAnalysis::new
             // CommonSubexprElimination::new
-
     );
 
     public static final Pipeline<Module> UNOPTIMIZED = new Pipeline<>(

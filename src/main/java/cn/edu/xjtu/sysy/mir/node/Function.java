@@ -1,26 +1,25 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Pair;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.stream.Collectors;
 
-public final class Function extends User {
+import static cn.edu.xjtu.sysy.util.Pair.pair;
+
+public final class Function extends Value {
     public Module module;
 
     public String name;
     public Type.Function funcType;
     public BasicBlock entry = new BasicBlock(this);
     public HashSet<BasicBlock> blocks = new HashSet<>();
-    private int tempValueCounter = 0;
-    public ArrayList<Var> params = new ArrayList<>();
+    // 函数参数是入口块的参数，是保插入序的
+    public ArrayList<Pair<String, BlockArgument>> params = new ArrayList<>();
 
     // 以下都为分析用的字段
-    public ArrayList<Var> localVars = new ArrayList<>();
-    public ArrayList<Loop> loops = new ArrayList<>();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -34,59 +33,32 @@ public final class Function extends User {
         return module;
     }
 
-    public int incTempValueCounter() {
-        return tempValueCounter++;
-    }
-
-    public BasicBlock addNewBlock() {
-        var block = new BasicBlock(this);
-        addBlock(block);
-        return block;
-    }
-
     public void addBlock(BasicBlock block) {
         blocks.add(block);
-        block.order = blocks.size();
     }
 
     public void removeBlock(BasicBlock block) {
         blocks.remove(block);
     }
 
-    public Var addNewParam(String name, Type type) {
-        var param = new Var(name, type, false, true);
-        params.add(param);
+    public BlockArgument addNewParam(String name, Type type) {
+        var param = entry.addBlockArgument(Types.ptrOf(type));
+        params.add(pair(name, param));
         return param;
     }
 
-    public Var addNewLocalVar(String name, Type type) {
-        var localVar = new Var(name, type, false, false);
-        localVars.add(localVar);
-        return localVar;
-    }
-
-    public void addLoop(Loop loop) {
-        loops.add(loop);
+    public BlockArgument getParam(String name) {
+        for (var param : params) if (param.first().equals(name)) return param.second();
+        return null;
     }
 
     @Override
     public String shortName() {
-        return name;
+        return "@" + name;
     }
 
-    @Override
-    public String toString() {
-        return "Function " + name +
-                " (" +
-                params.stream().map(v -> v.name + ": " + v.varType)
-                        .collect(Collectors.joining(", ")) +
-                ") -> " + funcType.returnType +
-                " (locals = {" +
-                localVars.stream().map(it -> it.name + ": " + it.varType)
-                        .collect(Collectors.joining(", ")) +
-                "}) \n" +
-                new CFGAnalysis().process(this).getRPOBlocks(this).stream().map(BasicBlock::toString)
-                        .collect(Collectors.joining("\n"));
+    public void dispose() {
+        for (var block : blocks) block.dispose();
     }
 
 }

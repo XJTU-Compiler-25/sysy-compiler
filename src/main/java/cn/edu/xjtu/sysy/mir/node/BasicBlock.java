@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
@@ -10,22 +11,13 @@ import java.util.stream.Collectors;
  * Basic Block 继承 Value 可以借助 Value 的 Def-Use 去便利地收集 pred 和 succ blocks
  */
 public final class BasicBlock extends Value {
-    public int order;
 
     private final Function function;
-    public final HashMap<Var, BlockArgument> args = new HashMap<>();
     public ArrayList<Instruction> instructions = new ArrayList<>();
     public Instruction.Terminator terminator;
+    public final ArrayList<BlockArgument> args = new ArrayList<>();
 
     // 以下都为分析用的字段
-
-    // 在几层循环里面
-    public int loopDepth = 0;
-
-    public BasicBlock(Function function, int loopDepth) {
-        this(function);
-        this.loopDepth = loopDepth;
-    }
 
     public BasicBlock(Function function) {
         super(Types.Void);
@@ -41,35 +33,19 @@ public final class BasicBlock extends Value {
         return function;
     }
 
-    public void addInstruction(Instruction instruction, int position) {
-        instructions.add(position, instruction);
-    }
-
     public void setTerminator(Instruction.Terminator terminator) {
         this.terminator = terminator;
     }
 
-    public BlockArgument addBlockArgument(Var var) {
-        var arg = new BlockArgument(this, var);
-        args.put(var, arg);
+    public BlockArgument addBlockArgument(Type type) {
+        var arg = new BlockArgument(this, type);
+        args.add(arg);
         return arg;
-    }
-
-    public BlockArgument getBlockArgument(Var var) {
-        return args.get(var);
     }
 
     @Override
     public String shortName() {
-        return "bb" + order;
-    }
-
-    public String toString() {
-        return shortName() + " (" +
-                args.values().stream().map(it -> it.getVar().name)
-                        .collect(Collectors.joining(", ")) +
-                "):\n" + instructions.stream().map(it -> it.toString() + "\n")
-                        .collect(Collectors.joining()) + terminator;
+        return "bb" + id;
     }
 
 }
