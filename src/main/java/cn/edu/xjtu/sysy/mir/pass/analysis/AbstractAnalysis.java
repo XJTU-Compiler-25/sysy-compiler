@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.*;
@@ -67,16 +68,16 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         return flowAfterInstr.get(instr);
     }
 
-    /** 初始情况，也就是格的下界 */
+    // 初始情况，也就是格的下界
     protected abstract Result initial();
 
-    /** 拷贝，将src的值拷贝到dst */
+    // 拷贝，将src的值拷贝到dst
     protected abstract void copy(Result dst, Result src);
 
-    /** 合并，在控制流交汇的地方选择取交或者取并 */
+    // 合并，在控制流交汇的地方选择取交或者取并
     protected abstract void merge(Result dst, Result src1, Result src2);
 
-    /** 单条语句的转换函数 */
+    // 单条语句的转换函数
     protected abstract void flowThrough(Instruction instr, Result in, Result out);
 
     /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
@@ -151,7 +152,7 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
 
     public void printResult(Function function) {
         for (var block : getCFG().getRPOBlocks(function)) {
-            System.out.printf("bb%s:%n", block.order);
+            System.out.printf("%s:%n", block.shortName());
             for (var instr : block.instructions) {
                 System.out.println(flowBeforeInstr.get(instr));
                 System.out.println(instr);
@@ -162,3 +163,4 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         }
     }
 }
+*/

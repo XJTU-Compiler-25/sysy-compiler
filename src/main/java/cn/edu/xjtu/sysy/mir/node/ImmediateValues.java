@@ -18,9 +18,6 @@ public final class ImmediateValues {
     public static final ImmediateValue.FloatConst fZero = new ImmediateValue.FloatConst(0.0f);
     public static final ImmediateValue.FloatConst fOne = new ImmediateValue.FloatConst(1.0f);
 
-    public static final ImmediateValue.IntConst iTrue = iOne;
-    public static final ImmediateValue.IntConst iFalse = iZero;
-
     public static ImmediateValue.IntConst intConst(int value) {
         return new ImmediateValue.IntConst(value);
     }
@@ -33,7 +30,9 @@ public final class ImmediateValues {
         return new ImmediateValue.Undefined();
     }
 
-    public static final ImmediateValue.ZeroInit ZeroInit = new ImmediateValue.ZeroInit();
+    public static ImmediateValue.ZeroInit zeroInit() {
+        return new ImmediateValue.ZeroInit();
+    }
 
     public static ImmediateValue.DenseArray denseArrayOf(Type type, Value[] values) {
         return new ImmediateValue.DenseArray(type, values);
@@ -56,6 +55,9 @@ public final class ImmediateValues {
     public static ImmediateValue.DenseArray sparseToDense(ImmediateValue.SparseArray sparseArray) {
         var values = sparseArray.values;
         var denseValues = new Value[sparseArray.size];
+        var elemType = ((Type.Array) ((Type.Pointer) sparseArray.type).baseType).elementType;
+        if (elemType == Types.Int) Arrays.fill(denseValues, iZero);
+        else if (elemType == Types.Float) Arrays.fill(denseValues, fZero);
         values.forEach((index, value) -> denseValues[index] = value);
         return new ImmediateValue.DenseArray(sparseArray.type, denseValues);
     }

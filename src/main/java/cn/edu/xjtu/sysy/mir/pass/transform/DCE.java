@@ -1,45 +1,49 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import java.util.HashSet;
+
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Alloca;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Call;
+import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.PurenessAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfo;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
-import java.util.HashSet;
-import java.util.Iterator;
-
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-
 // dead code elimination
+// 是一个 aggressively dce，因为预先假设都不可访问
+// dce 是一个 instruction level 的 pass，基本块相关的优化放在 cfg simplify，这样，dce 不会改变 cfg
 public class DCE extends AbstractTransform {
     public DCE(Pipeline<Module> pipeline) { super(pipeline); }
 
-    private CFGAnalysis.Result cfg;
-    private PurenessAnalysis.Result pureRes;
+    private FuncInfo funcInfo;
 
     @Override
     public void visit(Module module) {
-        cfg = getCFG();
-        pureRes = getResult(PurenessAnalysis.class);
-        super.visit(module);
+        funcInfo = getResult(FuncInfoAnalysis.class);
+
+        var modified = false;
+        do {
+            modified = false;
+            modified |= removeUnusedInstructions(module);
+            modified |= removeUnusedBlockArguments(module);
+        } while (modified);
     }
 
-    @Override
-    public void visit(Function function) {
-        removeUnusedInstructions(function);
-        removeUnreachableBlocks(function);
-        removeUnusedBlockArguments(function);
-        removeUnusedLocalVars(function);
+    public boolean removeUnusedInstructions(Module module) {
+        var modified = false;
+        for (var function : module.getFunctions()) modified |= removeUnusedInstructions(function);
+        return modified;
     }
 
-    private void removeUnusedInstructions(Function function) {
-        var blocks = getCFG().getRPOBlocks(function);
+    public boolean removeUnusedInstructions(Function function) {
+        var modified = false;
+        var blocks = function.blocks;
         var reachable = new HashSet<Instruction>();
         for (var block : blocks) {
             var instrs = block.instructions;
@@ -47,10 +51,10 @@ public class DCE extends AbstractTransform {
             reachable.add(block.terminator);
             // 有副作用的指令是可达的
             for (var it : instrs) {
-                if (it instanceof Store
-                        || (it instanceof Call call && !pureRes.isPure(call.getFunction()))
-                        || it instanceof CallExternal
-                        || it instanceof Dummy)
+                // 局部数组以外的 Store 指令、非纯函数调用和外部调用都是有副作用的
+                if ((it instanceof Store store && !(store.address.value instanceof Alloca))
+                        || (it instanceof Call call && !funcInfo.isPure(call.getFunction()))
+                        || it instanceof CallExternal)
                     reachable.add(it);
             }
 
@@ -73,70 +77,34 @@ public class DCE extends AbstractTransform {
                 if (!reachable.contains(inst)) {
                     iter.remove();
                     inst.dispose();
+                    modified = true;
                 }
             }
         }
+        return modified;
     }
 
-    private void removeUnreachableBlocks(Function function) {
-        var reachable = new HashSet<BasicBlock>();
-        reachable.add(function.entry);
+    public static boolean removeUnusedBlockArguments(Module module) {
+        var modified = false;
+        for (var function : module.getFunctions()) modified |= removeUnusedBlockArguments(function);
+        return modified;
+    }
 
-        // 从入口块开始，遍历所有可达的块
-        dfs(function.entry, reachable);
+    public static boolean removeUnusedBlockArguments(Function function) {
+        var modified = false;
+        for (var block : function.blocks) {
+            if (block == function.entry) continue; // 不删入口块的参数
 
-        for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
-            var block = iterator.next();
-            if (!reachable.contains(block)) {
-                iterator.remove();
-                block.dispose();
+            for (var iter = block.args.iterator(); iter.hasNext(); ) {
+                var blockArg = iter.next();
+                if (!blockArg.notUsed()) continue;
+
+                modified = true;
+                iter.remove();
+                for (var term : CFGAnalysis.getPredTermsOf(block)) term.removeParam(block, blockArg);
             }
         }
-    }
-
-    private void dfs(BasicBlock block, HashSet<BasicBlock> visited) {
-        for (var succ : cfg.getSuccBlocksOf(block)) {
-            if (visited.add(succ)) dfs(succ, visited);
-        }
-    }
-
-    private void removeUnusedBlockArguments(Function function) {
-        getCFG().getRPOBlocks(function).forEach(this::removeUnusedBlockArguments);
-    }
-
-    private void removeUnusedBlockArguments(BasicBlock block) {
-        // 删除无用的 block argument
-        for (var iter = block.args.entrySet().iterator(); iter.hasNext(); ) {
-            var entry = iter.next();
-            var var = entry.getKey();
-            var blockArg = entry.getValue();
-            if (!blockArg.notUsed()) continue;
-
-            iter.remove();
-            for (var term : cfg.getPredTermsOf(block)) {
-                switch (term) {
-                    case Br it -> {
-                        if (it.getTrueTarget() == block) {
-                            var tp = it.trueParams.remove(var);
-                            if (tp != null) tp.dispose();
-                        }
-                        if (it.getFalseTarget() == block) {
-                            var fp = it.falseParams.remove(var);
-                            if (fp != null) fp.dispose();
-                        }
-                    }
-                    case Jmp it -> {
-                        var p = it.params.remove(var);
-                        if (p != null) p.dispose();
-                    }
-                    default -> unreachable();
-                }
-            }
-        }
-    }
-
-    private void removeUnusedLocalVars(Function function) {
-        function.localVars.removeIf(Value::notUsed);
+        return modified;
     }
 
 }

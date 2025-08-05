@@ -51,6 +51,7 @@ public final class TestSolution {
 
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
+                            //System.out.println(module);
                             MirPipelines.DEFAULT.process(module);
                             System.out.println(module);
 

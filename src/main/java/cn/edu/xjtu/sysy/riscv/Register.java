@@ -7,9 +7,7 @@ import java.util.stream.Stream;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
-public sealed interface Register {
-
-    public abstract Type getType();
+public sealed interface Register extends ValuePosition {
     /** 整数寄存器 */
     enum Int implements Register {
         A0("a0"), A1("a1"), A2("a2"), A3("a3"), A4("a4"), A5("a5"), A6("a6"),
@@ -32,6 +30,22 @@ public sealed interface Register {
         @Override
         public String toString() {
             return this.name;
+        }
+
+        public static final Register.Int S0 = FP;
+
+        public static Register.Int A(int i) {
+            return switch (i) {
+                case 0 -> A0;
+                case 1 -> A1;
+                case 2 -> A2;
+                case 3 -> A3;
+                case 4 -> A4;
+                case 5 -> A5;
+                case 6 -> A6;
+                case 7 -> A7;
+                default -> unreachable();
+            };
         }
     }
 

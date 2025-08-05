@@ -72,7 +72,7 @@ public final class AstAnnotator extends AstVisitor {
         // resolveSymbol
         var paramSymbols = params.stream().map(p -> p.resolution).toList();
         var funcSymbol = new Symbol.FuncSymbol(node.name, funcType, paramSymbols);
-        // 先 declare func symbol，再 visit func body 是为了防止递归时找不到 func symbol
+        // 先 declare func symbol，再 visit func tails 是为了防止递归时找不到 func symbol
         globalST.declareFunc(funcSymbol);
         node.resolution = funcSymbol;
 

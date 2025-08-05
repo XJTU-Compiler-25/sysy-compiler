@@ -17,8 +17,6 @@ import cn.edu.xjtu.sysy.symbol.Types;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
-import cn.edu.xjtu.sysy.util.Placeholder;
-
 /**
  * Middle IR Builder
  * 这个类不是线程安全的，但是好像我们也没有多线程的需求
@@ -46,7 +44,8 @@ public final class MirBuilder implements ErrManaged {
     private Function curFunc;
     private final InstructionHelper helper = new InstructionHelper();
 
-    private final ArrayDeque<Loop> loops = new ArrayDeque<>();
+    private final ArrayDeque<BasicBlock> loopLatches = new ArrayDeque<>();
+    private final ArrayDeque<BasicBlock> loopExits = new ArrayDeque<>();
 
     public Module build(CompUnit compUnit) {
         return visit(compUnit);
@@ -71,7 +70,7 @@ public final class MirBuilder implements ErrManaged {
     }
 
     private ImmediateValue foldGlobalInit(Expr node) {
-        if (node == null) return ZeroInit;
+        if (node == null) return zeroInit();
 
         var ctv = node.getComptimeValue();
         if (ctv != null) {
@@ -99,17 +98,13 @@ public final class MirBuilder implements ErrManaged {
         var funcType = symbol.funcType;
 
         var func = curMod.newFunction(symbol.name, funcType);
-        var entryBB = func.addNewBlock();
-        
+
         curFunc = func;
         symbol.address = func;
 
-        func.entry = entryBB;
-        helper.changeBlock(entryBB);
+        helper.changeBlock(func.entry);
 
         for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
-        for (var var : node.allVars) var.address = var.type instanceof Type.Array arr ? helper.alloca(arr)
-                : curFunc.addNewLocalVar(var.name, var.type);
 
         visit(node.body);
         if (helper.getBlock() != null && !helper.hasTerminator()) {
@@ -122,8 +117,8 @@ public final class MirBuilder implements ErrManaged {
 
     public void visit(Stmt node) {
         switch (node) {
-            case null -> Placeholder.pass();
-            case Stmt.Empty _ -> Placeholder.pass();
+            case null -> { }
+            case Stmt.Empty _ -> { }
             case Stmt.Assign it -> visit(it);
             case Stmt.Block it -> visit(it);
             case Stmt.Break it -> visit(it);
@@ -139,10 +134,13 @@ public final class MirBuilder implements ErrManaged {
 
     public void visit(Stmt.LocalVarDef node) {
         for (var varDef : node.varDefs) {
+            var symbol = varDef.resolution;
+            var address = helper.alloca(symbol.type);
+            symbol.address = address;
             var initExpr = varDef.init;
             if (initExpr != null) {
-                var address = varDef.resolution.address;
-                if (varDef.type instanceof Type.Array arr) {
+                if (!(varDef.type instanceof Type.Array arr)) helper.store(address, visit(initExpr));
+                else {
                     if (!(initExpr instanceof Expr.Array init)) {
                         err("array variable must be initialized with an array literal, but got: " + initExpr);
                         continue;
@@ -159,7 +157,7 @@ public final class MirBuilder implements ErrManaged {
                         var ptr = helper.getElementPtr(decayAll, intConst(indexes.get(i)));
                         helper.store(ptr, value);
                     }
-                } else helper.store(address, visit(initExpr));
+                }
             }
         }
     }
@@ -213,10 +211,9 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.If node) {
-        var loopDepth = loops.size();
-        var thenBB = new BasicBlock(curFunc, loopDepth);
-        var elseBB = new BasicBlock(curFunc, loopDepth);
-        var mergeBB = new BasicBlock(curFunc, loopDepth);
+        var thenBB = new BasicBlock(curFunc);
+        var elseBB = new BasicBlock(curFunc);
+        var mergeBB = new BasicBlock(curFunc);
 
         var elseStmt = node.elseStmt;
         var hasElse = elseStmt != Stmt.Empty.INSTANCE;
@@ -249,46 +246,36 @@ public final class MirBuilder implements ErrManaged {
         if (needMerge) {
             curFunc.addBlock(mergeBB);
             helper.changeBlock(mergeBB);
-        } else helper.changeBlock(null); // 设为 null 方便检测继续插入的错误
+        } else helper.changeBlockToNull(); // 设为 null 方便检测继续插入的错误
     }
 
+    // 生成的时候就将 while 循环倒置为 if-do-while
     public void visit(Stmt.While node) {
-        var loopDepth = loops.size();
-        var preheaderBB = new BasicBlock(curFunc, loopDepth);
-        var headerBB = new BasicBlock(curFunc, loopDepth + 1);
-        var bodyBB = new BasicBlock(curFunc, loopDepth + 1);
-        var latchBB = new BasicBlock(curFunc, loopDepth + 1);
-        var exitBB = new BasicBlock(curFunc, loopDepth);
-        var loop = new Loop(loops.peekLast(), preheaderBB, headerBB, bodyBB, exitBB);
-        curFunc.addLoop(loop);
+        var headBB = new BasicBlock(curFunc);
+        var latchBB = new BasicBlock(curFunc);
+        var exitBB = new BasicBlock(curFunc);
 
-        helper.jmp(preheaderBB);
+        // guard if
+        visitCond(node.cond, headBB, exitBB);
 
-        curFunc.addBlock(preheaderBB);
-        helper.changeBlock(preheaderBB);
-        visitCond(node.cond, headerBB, exitBB);
-
-        curFunc.addBlock(headerBB);
-        helper.changeBlock(headerBB);
-        helper.jmp(bodyBB);
-        loops.addLast(loop);
-
-        curFunc.addBlock(bodyBB);
-        helper.changeBlock(bodyBB);
+        loopLatches.add(latchBB);
+        loopExits.add(exitBB);
+        curFunc.addBlock(headBB);
+        helper.changeBlock(headBB);
         visit(node.body);
         if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(latchBB);
 
         curFunc.addBlock(latchBB);
         helper.changeBlock(latchBB);
-        visitCond(node.cond, bodyBB, exitBB);
+        visitCond(node.cond, headBB, exitBB);
 
+        loopLatches.removeLast();
+        loopExits.removeLast();
         curFunc.addBlock(exitBB);
         helper.changeBlock(exitBB);
-        loops.removeLast();
     }
 
     private void visitCond(Expr cond, BasicBlock trueTarget, BasicBlock falseTarget) {
-        var loopDepth = loops.size();
         if (cond instanceof Expr.Binary binary) {
             var ops = binary.operators;
             var opers = binary.operands;
@@ -298,7 +285,7 @@ public final class MirBuilder implements ErrManaged {
             if (firstOp == Expr.Operator.AND) {
                 for (int i = 0, size = opers.size() - 1; i < size; i++) {
                     var oper = opers.get(i);
-                    var checkRhs = new BasicBlock(curFunc, loopDepth);
+                    var checkRhs = new BasicBlock(curFunc);
                     visitCond(oper, checkRhs, falseTarget);
                     curFunc.addBlock(checkRhs);
                     helper.changeBlock(checkRhs);
@@ -308,7 +295,7 @@ public final class MirBuilder implements ErrManaged {
             } else if (firstOp == Expr.Operator.OR) {
                 for (int i = 0, size = opers.size() - 1; i < size; i++) {
                     var oper = opers.get(i);
-                    var checkRhs = new BasicBlock(curFunc, loopDepth);
+                    var checkRhs = new BasicBlock(curFunc);
                     visitCond(oper, trueTarget, checkRhs);
                     curFunc.addBlock(checkRhs);
                     helper.changeBlock(checkRhs);
@@ -324,22 +311,22 @@ public final class MirBuilder implements ErrManaged {
     }
 
     public void visit(Stmt.Break ignored) {
-        if (loops.isEmpty()) {
+        if (loopLatches.isEmpty()) {
             err("break statement not in loop");
             return;
         }
 
-        var exitBB = loops.getLast().exit();
+        var exitBB = loopExits.getLast();
         helper.jmp(exitBB);
     }
 
     public void visit(Stmt.Continue ignored) {
-        if (loops.isEmpty()) {
+        if (loopLatches.isEmpty()) {
             err("continue statement not in loop");
             return;
         }
 
-        var loopBB = loops.getLast().preheader();
+        var loopBB = loopLatches.getLast();
         helper.jmp(loopBB);
     }
 

@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import cn.edu.xjtu.sysy.Pipeline;
@@ -16,6 +17,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import cn.edu.xjtu.sysy.Pipeline;
+import cn.edu.xjtu.sysy.error.ErrManager;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Module;
+
 /** 可用表达式分析 */
 public class AvailableExpression
         extends AbstractAnalysis<Map<AvailableExpression.Expr, Set<Instruction>>> {
@@ -28,7 +34,7 @@ public class AvailableExpression
             return Objects.hash(data.getClass(), usedList);
         }
 
-        /** 只要Instruction类相同，且运算元顺序和内容都相同，就算做是一个表达式 */
+        // 只要Instruction类相同，且运算元顺序和内容都相同，就算做是一个表达式
         @Override
         public boolean equals(Object other) {
             if (this == other) return true;
@@ -141,3 +147,4 @@ public class AvailableExpression
         return Stream.empty();
     }
 }
+*/

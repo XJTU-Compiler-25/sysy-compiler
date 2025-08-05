@@ -97,7 +97,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
     private final InputStream in;
     private final Scanner sc;
     private long startTime;
-    private final HashMap<Var, ImmediateValue> globals = new HashMap<>();
+    private final HashMap<GlobalVar, ImmediateValue> globals = new HashMap<>();
     private final ArrayDeque<HashMap<Value, ImmediateValue>> stackframes = new ArrayDeque<>();
     private HashMap<Value, ImmediateValue> stackframe;
     private BasicBlock currentBlock;
@@ -110,15 +110,17 @@ public final class Interpreter extends ModuleVisitor<Void> {
         this.sc = new Scanner(in);
     }
 
+    private Module currentModule;
     @Override
     public void visit(Module module) {
+        currentModule = module;
         globals.clear();
         stackframes.clear();
         stackframes.push(new HashMap<>());
         retAddrs.clear();
         retAddrs.push(iZero);
         stackframe = new HashMap<>();
-        module.globalVars.forEach((_, var) -> {
+        module.getGlobalVars().forEach(var -> {
             var init = module.globalVarInitValues.get(var);
             if (init instanceof SparseArray sp) init = sparseToDense(sp);
             else if (init instanceof ZeroInit) {
@@ -163,8 +165,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
 
     private ImmediateValue toImm(Value value) {
         if (value instanceof ImmediateValue imm) return imm;
-        if (value instanceof Var var && var.isGlobal) return globals.get(var);
-        if (value instanceof BlockArgument arg) value = arg.var;
+        if (value instanceof GlobalVar var) return globals.get(var);
         var val = stackframe.get(value);
         if (val != null) return val;
         throw new NoSuchElementException("Undefined value: " + value.shortName());
@@ -182,7 +183,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
                         var arg = it.args[i].value;
-                        newSF.put(param, toImm(arg));
+                        newSF.put(param.second(), toImm(arg));
                     }
                     retAddrs.push(it);
                     stackframes.push(oldSF);
@@ -268,16 +269,40 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 }
                 case Jmp it -> {
                     var target = it.getTarget();
-                    it.params.forEach((var, use) -> stackframe.put(var, toImm(use.value)));
+                    it.params.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
                     currentBlock = target;
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getFalseTarget();
+                    }
+                }
+                case BrBinary it -> {
+                    var lhs = getInt(it.lhs.value);
+                    var rhs = getInt(it.rhs.value);
+                    var cond = switch (it.op) {
+                        case BEQ -> lhs == rhs ? iTrue : iFalse;
+                        case BGE, BGEU -> lhs >= rhs ? iTrue : iFalse;
+                        case BGT, BGTU -> lhs > rhs ? iTrue : iFalse;
+                        case BLE, BLEU -> lhs <= rhs ? iTrue : iFalse;
+                        case BLT, BLTU -> lhs < rhs ? iTrue : iFalse;
+                        case BNE -> lhs != rhs ? iTrue : iFalse;
+                    };
+                    if (!cond.equals(iZero)) {
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getTrueTarget();
+                    } else {
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -308,12 +333,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 case Load it -> {
                     var addr = it.address.value;
                     switch (addr) {
-                        case Var var -> {
-                            if (var.isGlobal) stackframe.put(it, globals.get(var));
-                            else if (var.isParam) stackframe.put(it, toImm(it));
-                            else unreachable();
-                        }
-                        case ImmediateValue imm -> stackframe.put(it, imm);
+                        case GlobalVar var -> stackframe.put(it, globals.get(var));
                         case GetElemPtr gep -> {
                             var bv = gep.basePtr.value;
                             var base = (DenseArray) toImm(bv);
@@ -324,18 +344,14 @@ public final class Interpreter extends ModuleVisitor<Void> {
                                 offset += getInt(indices[i].value) * strides[i];
                             stackframe.put(it, toImm(base.values[offset]));
                         }
-                        default -> unsupported(addr);
+                        default -> stackframe.put(it, toImm(addr));
                     }
                 }
                 case Store it -> {
                     var addr = it.address.value;
                     var value = toImm(it.storeVal.value);
                     switch (addr) {
-                        case Var var -> {
-                            if (var.isGlobal) globals.put(var, value);
-                            else if (var.isParam) stackframe.put(it, value);
-                            else unsupported(addr);
-                        }
+                        case GlobalVar var -> globals.put(var, value);
                         case GetElemPtr gep -> {
                             var bv = gep.basePtr.value;
                             var base = (DenseArray) toImm(bv);
@@ -346,7 +362,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
                                 offset += getInt(indices[i].value) * strides[i];
                             base.values[offset] = value;
                         }
-                        default -> unsupported(addr);
+                        default -> stackframe.put(it, toImm(addr));
                     }
                 }
                 case GetElemPtr it -> {
@@ -418,64 +434,64 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 case IEq it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs == rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs == rhs ? iOne : iZero);
                 }
                 case INe it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs != rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs != rhs ? iOne : iZero);
                 }
                 case FEq it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs == rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs == rhs ? iOne : iZero);
                 }
                 case FNe it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs != rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs != rhs ? iOne : iZero);
                 }
 
                 // 比较运算
                 case IGe it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs >= rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs >= rhs ? iOne : iZero);
                 }
                 case ILe it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs <= rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs <= rhs ? iOne : iZero);
                 }
                 case IGt it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs > rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs > rhs ? iOne : iZero);
                 }
                 case ILt it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    stackframe.put(it, lhs < rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs < rhs ? iOne : iZero);
                 }
                 case FGe it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs >= rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs >= rhs ? iOne : iZero);
                 }
                 case FLe it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs <= rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs <= rhs ? iOne : iZero);
                 }
                 case FGt it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs > rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs > rhs ? iOne : iZero);
                 }
                 case FLt it -> {
                     var lhs = getFloat(it.lhs.value);
                     var rhs = getFloat(it.rhs.value);
-                    stackframe.put(it, lhs < rhs ? iTrue : iFalse);
+                    stackframe.put(it, lhs < rhs ? iOne : iZero);
                 }
 
                 // 转型运算
@@ -533,7 +549,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 }
                 case Not it -> {
                     var value = getInt(it.rhs.value);
-                    stackframe.put(it, value == 0 ? iTrue : iFalse);
+                    stackframe.put(it, value == 0 ? iOne : iZero);
                 }
 
                 // intrinsic

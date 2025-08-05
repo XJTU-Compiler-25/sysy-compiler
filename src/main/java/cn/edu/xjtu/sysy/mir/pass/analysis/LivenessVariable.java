@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import java.util.HashSet;
@@ -5,13 +6,12 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.mir.node.Var;
+import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 
-/** 活跃变量分析 */
+// 活跃变量分析
 public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
 
     public LivenessVariable(Pipeline<Module> errManager) {
@@ -46,7 +46,7 @@ public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
 
     private Stream<Value> gen(Instruction instr) {
         return instr.used.stream().map(it -> it.value).filter(it ->
-            it instanceof Instruction || it instanceof Var
+            it instanceof Instruction || it instanceof GlobalVar
         );
     }
 
@@ -59,3 +59,4 @@ public class LivenessVariable extends AbstractAnalysis<Set<Value>> {
     }
 
 }
+*/
