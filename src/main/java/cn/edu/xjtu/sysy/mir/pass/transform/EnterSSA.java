@@ -10,6 +10,8 @@ import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+
 @SuppressWarnings("unchecked")
 public final class EnterSSA extends AbstractTransform {
     public EnterSSA(Pipeline<Module> pipeline) { super(pipeline); }
@@ -26,6 +28,11 @@ public final class EnterSSA extends AbstractTransform {
     public void visit(Function function) {
         hoistAllocas(function);
         findCandidate(function);
+        for (var param : function.params) {
+            var arg = param.second();
+            arg.type = ((Type.Pointer) arg.type).baseType;
+            promotableVar.add(arg);
+        }
         insertBlockArgument();
         renaming(function);
     }
@@ -50,9 +57,9 @@ public final class EnterSSA extends AbstractTransform {
         }
     }
 
-    private final ArrayList<Instruction.Alloca> promotableAllocas = new ArrayList<>();
+    private final ArrayList<Value> promotableVar = new ArrayList<>();
     private void findCandidate(Function function) {
-        promotableAllocas.clear();
+        promotableVar.clear();
         // 所有 alloca 都在函数 entry 块
         for (var iterator = function.entry.instructions.iterator(); iterator.hasNext(); ) {
             var instr = iterator.next();
@@ -61,20 +68,26 @@ public final class EnterSSA extends AbstractTransform {
                 if (alloca.allocatedType instanceof Type.Scalar
                         // 从未被取过地址
                         && alloca.usedBy.stream().noneMatch(it -> it.user instanceof Instruction.GetElemPtr)) {
-                    promotableAllocas.add(alloca);
+                    promotableVar.add(alloca);
                     iterator.remove();
                 }
             }
         }
     }
 
-    private final HashMap<BlockArgument, Instruction.Alloca> blockArgToAlloca = new HashMap<>();
+    private final HashMap<BlockArgument, Value> blockArgToVar = new HashMap<>();
     private void insertBlockArgument() {
-        blockArgToAlloca.clear();
+        blockArgToVar.clear();
 
-        for (var alloca : promotableAllocas) {
+        for (var var : promotableVar) {
+            var varType = switch (var) {
+                case Instruction.Alloca it -> it.allocatedType;
+                case BlockArgument it -> it.type;
+                default -> throw new RuntimeException();
+            };
+
             var defBlocks = new HashSet<BasicBlock>();
-            for (var use : alloca.usedBy) if (use.user instanceof Instruction.Store store) defBlocks.add(store.getBlock());
+            for (var use : var.usedBy) if (use.user instanceof Instruction.Store store) defBlocks.add(store.getBlock());
 
             var blocksToInsert = new HashSet<BasicBlock>();
             var worklist = new Worklist<>(defBlocks);
@@ -92,9 +105,9 @@ public final class EnterSSA extends AbstractTransform {
             }
 
             for (var block : blocksToInsert) {
-                var arg = block.addBlockArgument(alloca.allocatedType);
+                var arg = block.addBlockArgument(varType);
                 // 记录 block argument 和 alloca 的对应关系
-                blockArgToAlloca.put(arg, alloca);
+                blockArgToVar.put(arg, var);
                 for (var predTerm : getCFG().getPredTermsOf(block))
                     predTerm.putParam(block, arg, ImmediateValues.undefined());
             }
@@ -103,35 +116,57 @@ public final class EnterSSA extends AbstractTransform {
 
     private void renaming(Function function) {
         var entry = function.entry;
-        var entryIncomingVals = new HashMap<Instruction.Alloca, Value>();
-        for (var var : promotableAllocas) entryIncomingVals.put(var, ImmediateValues.undefined());
+        var entryIncomingVals = new HashMap<Value, Value>();
+        for (var var : promotableVar) {
+            switch (var) {
+                case BlockArgument it -> entryIncomingVals.put(it, it);
+                case Instruction.Alloca it -> entryIncomingVals.put(var, ImmediateValues.undefined());
+                default -> unsupported(var);
+            }
+        }
 
         // 从 entry 向后继方向 DFS
         renamingRecursive(entry, new HashSet<>(), entryIncomingVals);
     }
 
-    private void renamingRecursive(BasicBlock block, HashSet<BasicBlock> visited, HashMap<Instruction.Alloca, Value> incomingVals) {
+    private void renamingRecursive(BasicBlock block, HashSet<BasicBlock> visited, HashMap<Value, Value> incomingVals) {
         if (visited.contains(block)) return;
         visited.add(block);
 
         // 块开头时值改为 block argument
-        for (var arg : block.args) incomingVals.put(blockArgToAlloca.get(arg), arg);
+        for (var arg : block.args) incomingVals.put(blockArgToVar.get(arg), arg);
 
         for (var iterator = block.instructions.iterator(); iterator.hasNext(); ) {
             var instr = iterator.next();
             switch (instr) {
                 case Instruction.Store store -> {
-                    if (store.address.value instanceof Instruction.Alloca var) {
-                        incomingVals.put(var, store.storeVal.value);
-                        store.dispose();
-                        iterator.remove();
+                    switch (store.address.value) {
+                        case Instruction.Alloca var -> {
+                            incomingVals.put(var, store.storeVal.value);
+                            store.dispose();
+                            iterator.remove();
+                        }
+                        case BlockArgument var -> {
+                            incomingVals.put(var, store.storeVal.value);
+                            store.dispose();
+                            iterator.remove();
+                        }
+                        default -> { }
                     }
                 }
                 case Instruction.Load load -> {
-                    if (load.address.value instanceof Instruction.Alloca var) {
-                        load.replaceAllUsesWith(incomingVals.get(var));
-                        load.dispose();
-                        iterator.remove();
+                    switch (load.address.value) {
+                        case Instruction.Alloca var -> {
+                            load.replaceAllUsesWith(incomingVals.get(var));
+                            load.dispose();
+                            iterator.remove();
+                        }
+                        case BlockArgument var -> {
+                            load.replaceAllUsesWith(incomingVals.get(var));
+                            load.dispose();
+                            iterator.remove();
+                        }
+                        default -> { }
                     }
                 }
                 default -> { }
@@ -141,14 +176,14 @@ public final class EnterSSA extends AbstractTransform {
         switch (block.terminator) {
             case Instruction.Jmp jmp -> {
                 jmp.params.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToAlloca.get(pair.first().value))));
+                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
                 renamingRecursive(jmp.getTarget(), visited, new HashMap<>(incomingVals));
             }
             case Instruction.Br br -> {
                 br.trueParams.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToAlloca.get(pair.first().value))));
+                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
                 br.falseParams.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToAlloca.get(pair.first().value))));
+                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
                 renamingRecursive(br.getTrueTarget(), visited, new HashMap<>(incomingVals));
                 renamingRecursive(br.getFalseTarget(), visited, new HashMap<>(incomingVals));
             }

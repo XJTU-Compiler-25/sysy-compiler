@@ -46,7 +46,7 @@ public abstract class ModuleVisitor<R> extends Pass<Module, R> {
         return getResult(FuncInfoAnalysis.class);
     }
 
-    protected final DomInfo getDomTree() {
+    protected final DomInfo getDomInfo() {
         return getResult(DominanceAnalysis.class);
     }
 

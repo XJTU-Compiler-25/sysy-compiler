@@ -1,16 +1,15 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public record DomInfo(
         // 一个块的直接支配者
         Map<BasicBlock, BasicBlock> idomMap,
         // 被一个块直接支配的块集合
-        Map<BasicBlock, Set<BasicBlock>> idomeeMap,
+        Map<BasicBlock, Set<BasicBlock>> domChildrenMap,
         // 一个块的支配边界
         Map<BasicBlock, Set<BasicBlock>> dfMap,
         // 一个块在支配树上的深度
@@ -25,7 +24,7 @@ public record DomInfo(
     }
 
     public int getDomDepth(BasicBlock block) {
-        return domDepthMap.getOrDefault(block, -1);
+        return domDepthMap.get(block);
     }
 
     public boolean strictlyDominates(BasicBlock domer, BasicBlock domee) {
@@ -65,4 +64,17 @@ public record DomInfo(
 
         return null;
     }
+
+    // depth first numbering，先序遍历
+    public List<BasicBlock> getDFN(Function function) {
+        var preOrder = new ArrayList<BasicBlock>();
+        dfs(function.entry, preOrder);
+        return preOrder;
+    }
+
+    private void dfs(BasicBlock block, ArrayList<BasicBlock> preOrder) {
+        preOrder.add(block);
+        for (var domChild : domChildrenMap.get(block)) dfs(domChild, preOrder);
+    }
+
 }

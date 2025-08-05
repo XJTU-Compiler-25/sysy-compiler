@@ -5,7 +5,6 @@ import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 

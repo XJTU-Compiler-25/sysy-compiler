@@ -55,6 +55,7 @@ public final class InstructionHelper {
 
     public void insert(Instruction instruction) {
         block.instructions.add(insertPosition, instruction);
+        instruction.setBlock(block);
         insertPosition++;
     }
 

@@ -23,6 +23,9 @@ public final class DominanceAnalysis extends ModuleVisitor<DomInfo> {
             var entry = function.entry;
             var blocks = cfg.getRPOBlocks(function);
 
+            for (var block : blocks)
+                if (block != entry) idomMap.put(block, entry);
+
             // 计算支配性
             boolean changed = true;
             while (changed) {
@@ -35,7 +38,8 @@ public final class DominanceAnalysis extends ModuleVisitor<DomInfo> {
                     if (preds.isEmpty()) continue;
                     var newDom = preds.iterator().next();
                     // 自己的 dom 就是所有 pred 在支配树上共同祖先
-                    for (var pred : preds) newDom = lca(pred, newDom, idomMap);
+                    for (var pred : preds)
+                        newDom = lca(pred, newDom, idomMap);
 
                     if (idomMap.get(block) != newDom) {
                         idomMap.put(block, newDom);
@@ -89,7 +93,7 @@ public final class DominanceAnalysis extends ModuleVisitor<DomInfo> {
         return new DomInfo(idomMap, idomeeMap, dfMap, domDepthMap);
     }
 
-    private BasicBlock lca(BasicBlock a, BasicBlock b, HashMap<BasicBlock, BasicBlock> idomMap) {
+    private static BasicBlock lca(BasicBlock a, BasicBlock b, HashMap<BasicBlock, BasicBlock> idomMap) {
         if (a == b) return a;
         if (a == null) return b;
         if (b == null) return a;

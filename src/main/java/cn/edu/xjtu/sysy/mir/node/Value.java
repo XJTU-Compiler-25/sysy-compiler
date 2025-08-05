@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.function.Predicate;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
-public abstract sealed class Value permits BasicBlock, Function, GlobalVar, ImmediateValue, User {
+public abstract sealed class Value permits BasicBlock, BlockArgument, Function, GlobalVar, ImmediateValue, User {
 
     private static int counter = 0;
     public final int id = counter++;

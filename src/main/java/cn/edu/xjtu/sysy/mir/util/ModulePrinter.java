@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.mir.util;
 
 import cn.edu.xjtu.sysy.mir.node.BlockArgument;
+import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 
@@ -16,14 +17,19 @@ public final class ModulePrinter {
 
     public static String toString(Module module) {
         var sb = new StringBuilder();
-        sb.append("=== Program Start ===\n");
+        sb.append("=== Program Start ===\nGlobals:\n");
+        for (var var : module.getGlobalVars()) {
+            sb.append(var.shortName()).append(": ").append(var.varType).append(" = ")
+                    .append(module.globalVarInitValues.get(var)).append('\n');
+        }
 
         var cfg = new CFGAnalysis().process(module);
         for (var function : module.getFunctions()) {
             sb.append("function ").append(function.name)
                     .append('(').append(function.params.stream()
                     .map(p -> p.first() + ": " + p.second().type)
-                    .collect(Collectors.joining(", "))).append("):\n");
+                    .collect(Collectors.joining(", "))).append("):\n(entry = ")
+                    .append(function.entry.shortName()).append(")\n");
 
             for (var block : cfg.getRPOBlocks(function)) {
                 sb.append('^').append(block.shortName()).append('(')

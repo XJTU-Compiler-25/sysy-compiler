@@ -7,6 +7,8 @@ import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
+import java.util.HashSet;
+
 @SuppressWarnings("unchecked")
 public final class CFGSimplify extends AbstractTransform {
     public CFGSimplify(Pipeline<Module> pipeline) { super(pipeline); }
@@ -23,9 +25,42 @@ public final class CFGSimplify extends AbstractTransform {
         do {
             modified = false;
             modified |= foldConstBranch(module);
+            modified |= removeUnreachableBlocks(module);
             modified |= removeEmptyBlocks(module);
         } while(modified);
     }
+
+    public static boolean removeUnreachableBlocks(Module module) {
+        var modified = false;
+        for (var function : module.getFunctions()) modified |= removeUnreachableBlocks(function);
+        return modified;
+    }
+
+    public static boolean removeUnreachableBlocks(Function function) {
+        var modified = false;
+        var reachable = new HashSet<BasicBlock>();
+        reachable.add(function.entry);
+
+        // 从入口块开始，遍历所有可达的块
+        dfs(function.entry, reachable);
+
+        for (var iterator = function.blocks.iterator(); iterator.hasNext(); ) {
+            var block = iterator.next();
+            if (!reachable.contains(block)) {
+                iterator.remove();
+                block.dispose();
+                modified = true;
+            }
+        }
+        return modified;
+    }
+
+    private static void dfs(BasicBlock block, HashSet<BasicBlock> visited) {
+        for (var succ : CFGAnalysis.getSuccBlocksOf(block)) {
+            if (visited.add(succ)) dfs(succ, visited);
+        }
+    }
+
 
     public static boolean removeEmptyBlocks(Module module) {
         var modified = false;
@@ -55,20 +90,6 @@ public final class CFGSimplify extends AbstractTransform {
                     jmp.params.forEach(pair -> term.putParam(block, pair.first().value, pair.second().value));
                     term.replaceTarget(block, succ);
                 }
-
-                modified = true;
-                function.removeBlock(block);
-                block.dispose();
-            } else if (predTerms.size() == 1) {
-                var predTerm = predTerms.iterator().next();
-
-                jmp.params.forEach(pair -> {
-                    var value = pair.second().value;
-                    if (!(value instanceof BlockArgument ba && ba.block == block))
-                        predTerm.putParam(block, pair.first().value, value);
-                });
-                for (var arg : block.args) arg.replaceAllUsesWith(predTerm.getParam(block, arg));
-                predTerm.replaceTarget(block, succ);
 
                 modified = true;
                 function.removeBlock(block);

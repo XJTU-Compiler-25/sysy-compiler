@@ -572,9 +572,9 @@ public final class SCCP extends AbstractTransform {
         return modified;
     }
 
+    // 只转换常量，后续有 DCE 收尾
     private void transform(Function function) {
         for (var block : function.blocks) {
-            // 不处理死代码块，稍后 DCE 会移除它
             if (!executable.contains(block)) continue;
 
             for (var arg : block.args) {

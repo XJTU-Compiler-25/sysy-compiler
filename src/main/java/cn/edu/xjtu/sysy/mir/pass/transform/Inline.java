@@ -19,5 +19,11 @@ public final class Inline extends AbstractTransform {
     public void visit(Module module) {
         cfg = getCFG();
         callGraph = getCallGraph();
+
     }
+
+    private void selectCandidates() {
+
+    }
+
 }

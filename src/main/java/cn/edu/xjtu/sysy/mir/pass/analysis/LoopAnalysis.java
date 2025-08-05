@@ -19,7 +19,7 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
     @Override
     public LoopInfo process(Module module) {
         cfg = getCFG();
-        domInfo = getDomTree();
+        domInfo = getDomInfo();
         loopsMap = new HashMap<>();
         loopDepthMap = new HashMap<>();
 
@@ -42,18 +42,20 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
                 case Instruction.Jmp it -> {
                     var target = it.getTarget();
                     if (domInfo.dominates(target, jumpSource)) {
-                        var latches = backedges.computeIfAbsent(target, _ -> new HashSet<>());
+                        var latches = backedges.computeIfAbsent(target, k -> new HashSet<>());
                         latches.add(jumpSource);
                     }
                 }
                 case Instruction.Br it -> {
                     var trueTarget = it.getTrueTarget();
                     var falseTarget = it.getFalseTarget();
+                    // 这里应该之前需要分割一下关键边
                     if (domInfo.dominates(trueTarget, jumpSource)) {
-                        var latches = backedges.computeIfAbsent(trueTarget, _ -> new HashSet<>());
+                        var latches = backedges.computeIfAbsent(trueTarget, k -> new HashSet<>());
                         latches.add(jumpSource);
-                    } else if (domInfo.dominates(falseTarget, jumpSource)) {
-                        var latches = backedges.computeIfAbsent(falseTarget, _ -> new HashSet<>());
+                    }
+                    if (domInfo.dominates(falseTarget, jumpSource)) {
+                        var latches = backedges.computeIfAbsent(falseTarget, k -> new HashSet<>());
                         latches.add(jumpSource);
                     }
                 }
@@ -61,19 +63,47 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
             }
         }
 
-        // 根据回边识别所有循环，同一个 header 的所有 latches 都属于同一个循环
-        // 否则可能出现 continue 也组成一个循环
+        var natLoops = new HashMap<BasicBlock, Set<BasicBlock>>();
+        // 识别自然循环并合并
         for (var backedge : backedges.entrySet()) {
             var header = backedge.getKey();
             var latches = backedge.getValue();
+            var blocksInLoop = natLoops.computeIfAbsent(header, k -> new HashSet<>());
 
             for (var latch : latches) {
-
+                var loopBlocks = new HashSet<BasicBlock>();
+                loopBlocks.add(header);
+                loopBlocks.add(latch);
+                var stack = new ArrayDeque<BasicBlock>();
+                if (header != latch) stack.addFirst(latch);
+                while (!stack.isEmpty()) {
+                    var block = stack.removeFirst();
+                    for (var pred : cfg.getPredBlocksOf(block)) {
+                        if (pred == header) continue;
+                        if (loopBlocks.add(pred)) stack.addLast(pred);
+                    }
+                }
+                blocksInLoop.addAll(loopBlocks);
             }
         }
 
-        // 构建循环树
+        for (var natLoop : natLoops.entrySet()) loops.add(new Loop(natLoop.getKey(), natLoop.getValue()));
 
+        // 构建循环森林
+        for (var loop : loops) {
+            var loopBlocks = loop.blocks;
+            Loop parent = null;
+            for (var candidate : loops) {
+                if (candidate == loop) continue;
+                var candidateBlocks = candidate.blocks;
+                if (candidateBlocks.containsAll(loopBlocks)) {
+                    if (parent == null || parent.blocks.size() > candidateBlocks.size())
+                        parent = candidate;
+                }
+            }
+            loop.parent = parent;
+            if (parent != null) parent.children.add(loop);
+        }
 
         // 计算每个 block 的 loop depth
         for (var block : blocks) {

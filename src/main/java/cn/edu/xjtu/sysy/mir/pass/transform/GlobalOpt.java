@@ -5,8 +5,6 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.symbol.Type;
 
-import java.util.*;
-
 public final class GlobalOpt extends AbstractTransform {
     public GlobalOpt(Pipeline<Module> pipeline) { super(pipeline); }
 
@@ -52,8 +50,6 @@ public final class GlobalOpt extends AbstractTransform {
 
     // 如果安全，将全局变量降低到局部变量，只降低标量，不然到时候数组又给 Globalize 提上来就搞笑了
     public static void localize(Module module) {
-        var candidates = new HashSet<GlobalVar>();
-
         outer: for (var iterator = module.getGlobalVars().iterator(); iterator.hasNext(); ) {
             var globalVar = iterator.next();
             // 不降低数组变量
