@@ -33,4 +33,9 @@ public final class Worklist<E> {
         if (set.add(e)) queue.addLast(e);
     }
 
+    public void clear() {
+        queue.clear();
+        set.clear();
+    }
+
 }

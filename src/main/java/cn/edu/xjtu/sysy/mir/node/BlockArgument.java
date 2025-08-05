@@ -1,18 +1,24 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.Type;
+
 public final class BlockArgument extends Value {
     // 属于哪个变量
-    public final BasicBlock block;
-    public final Var var;
+    public BasicBlock block;
+    public Type type;
 
-    public BlockArgument(BasicBlock block, Var var) {
-        super(var.type);
+    public BlockArgument(BasicBlock block, Type type) {
+        super(type);
         this.block = block;
-        this.var = var;
+        this.type = type;
     }
 
     @Override
     public String shortName() {
-        return "%" + var.name + "@" + block.order;
+        return "%" + id;
+    }
+
+    public boolean isParam() {
+        return block == block.getFunction().entry;
     }
 }

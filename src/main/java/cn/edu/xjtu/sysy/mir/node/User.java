@@ -7,7 +7,7 @@ import java.util.ArrayList;
 
 
 @SuppressWarnings("rawtypes")
-public sealed abstract class User extends Value permits Function, Instruction {
+public sealed abstract class User extends Value permits Instruction {
 
     public final HashSet<Use> used = new HashSet<>();
     /** 列表，处理需要有序访问Use的情况 */

@@ -4,7 +4,6 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.ArrayNormalizer;
 import cn.edu.xjtu.sysy.ast.pass.AstAnnotator;
-import cn.edu.xjtu.sysy.ast.pass.VarCollector;
 
 public final class AstPipelines {
 
@@ -12,8 +11,7 @@ public final class AstPipelines {
 
     public static final Pipeline<CompUnit> DEFAULT = new Pipeline<>(
             AstAnnotator::new,
-            ArrayNormalizer::new,
-            VarCollector::new
+            ArrayNormalizer::new
     );
 
 }

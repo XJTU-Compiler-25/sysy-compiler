@@ -1,3 +1,4 @@
+/*
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
@@ -42,3 +43,4 @@ public class CommonSubexprElimination extends AbstractTransform {
         elim.forEach(block.instructions::remove);
     }
 }
+*/

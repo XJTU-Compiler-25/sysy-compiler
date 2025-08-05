@@ -93,6 +93,11 @@ public abstract sealed class ImmediateValue extends Value {
         String buildStringRepresent() {
             return "zeroinit";
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof ZeroInit;
+        }
     }
 
     public static final class DenseArray extends ImmediateValue {

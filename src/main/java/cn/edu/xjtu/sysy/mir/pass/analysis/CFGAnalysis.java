@@ -10,65 +10,14 @@ import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
 import java.util.*;
 
 // 求出基本块的 pred, succ 列表
-public final class CFGAnalysis extends ModuleVisitor<CFGAnalysis.Result> {
+public final class CFGAnalysis extends ModuleVisitor<CFG> {
     public CFGAnalysis() { super(null); }
     public CFGAnalysis(Pipeline<Module> pipeline) {
         super(pipeline);
     }
 
-    public record Result(
-            Map<BasicBlock, Set<BasicBlock>> predMap,
-            Map<BasicBlock, Set<BasicBlock>> succMap,
-            Map<BasicBlock, Set<Instruction.Terminator>> predTermMap
-    ) {
-        public Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
-            return predMap.getOrDefault(block, Set.of());
-        }
-
-        public Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-            return succMap.getOrDefault(block, Set.of());
-        }
-
-        public Set<Instruction.Terminator> getPredTermsOf(BasicBlock block) {
-            return predTermMap.getOrDefault(block, Set.of());
-        }
-
-
-        /** 对基本块进行拓扑排序，得到逆后序 (Reverse Post Order)，用于前向数据流分析 */
-        public List<BasicBlock> getRPOBlocks(BasicBlock entry) {
-            var postOrder = new ArrayList<BasicBlock>();
-            var visited = new HashSet<BasicBlock>();
-            dfs(entry, visited, postOrder);
-            return postOrder.reversed();
-        }
-
-        /** 对基本块进行拓扑排序，得到后序(Post Order)，用于后向数据流分析 */
-        public List<BasicBlock> getPOBlocks(BasicBlock entry) {
-            var postOrder = new ArrayList<BasicBlock>();
-            var visited = new HashSet<BasicBlock>();
-            dfs(entry, visited, postOrder);
-            return postOrder;
-        }
-
-        private void dfs(BasicBlock block, HashSet<BasicBlock> visited, ArrayList<BasicBlock> postOrder) {
-            visited.add(block);
-            for (var successor : getSuccBlocksOf(block)) {
-                if (!visited.contains(successor)) dfs(successor, visited, postOrder);
-            }
-            postOrder.add(block);
-        }
-
-        public List<BasicBlock> getRPOBlocks(Function function) {
-            return getRPOBlocks(function.entry);
-        }
-
-        public List<BasicBlock> getPOBlocks(Function function) {
-            return getPOBlocks(function.entry);
-        }
-    }
-
     @Override
-    public Result process(Module module) {
+    public CFG process(Module module) {
         var predTermMap = new HashMap<BasicBlock, Set<Instruction.Terminator>>();
         var predMap = new HashMap<BasicBlock, Set<BasicBlock>>();
         var succMap = new HashMap<BasicBlock, Set<BasicBlock>>();
@@ -97,10 +46,10 @@ public final class CFGAnalysis extends ModuleVisitor<CFGAnalysis.Result> {
             }
         }
 
-        return new Result(predMap, succMap, predTermMap);
+        return new CFG(predMap, succMap, predTermMap);
     }
 
-    public Result process(Function function) {
+    public CFG process(Function function) {
         var predTermMap = new HashMap<BasicBlock, Set<Instruction.Terminator>>();
         var predMap = new HashMap<BasicBlock, Set<BasicBlock>>();
         var succMap = new HashMap<BasicBlock, Set<BasicBlock>>();
@@ -122,12 +71,50 @@ public final class CFGAnalysis extends ModuleVisitor<CFGAnalysis.Result> {
 
             switch(block.terminator) {
                 case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
-                case Instruction.Br br -> succs.addAll(br.getTargets());
+                case Instruction.Br br -> {
+                    succs.add(br.getTrueTarget());
+                    succs.add(br.getFalseTarget());
+                }
                 default -> { }
             }
         }
 
-        return new Result(predMap, succMap, predTermMap);
+        return new CFG(predMap, succMap, predTermMap);
+    }
+
+    // 某些分析中 CFG 会极快变化，可以就地计算
+
+    public static Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+        var preds = new HashSet<BasicBlock>();
+        for (var use : block.usedBy) {
+            if (use.user instanceof Instruction.Terminator term) {
+                preds.add(term.getBlock());
+            }
+        }
+        return preds;
+    }
+
+    public static Set<Instruction.Terminator> getPredTermsOf(BasicBlock block) {
+        var preds = new HashSet<Instruction.Terminator>();
+        for (var use : block.usedBy) {
+            if (use.user instanceof Instruction.Terminator term) {
+                preds.add(term);
+            }
+        }
+        return preds;
+    }
+
+    public static Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+        var succs = new HashSet<BasicBlock>();
+        switch(block.terminator) {
+            case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
+            case Instruction.Br br -> {
+                succs.add(br.getTrueTarget());
+                succs.add(br.getFalseTarget());
+            }
+            default -> { }
+        }
+        return succs;
     }
 
 }

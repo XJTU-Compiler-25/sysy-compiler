@@ -32,7 +32,6 @@ public abstract sealed class Decl extends Node {
         public Type retType;
         public Symbol.FuncSymbol resolution;
         public SymbolTable.Local symbolTable;
-        public List<Symbol.VarSymbol> allVars;
 
         public FuncDef(Token start, Token end, String name, String retTypeName, List<VarDef> params, Stmt.Block body) {
             super(start, end);
