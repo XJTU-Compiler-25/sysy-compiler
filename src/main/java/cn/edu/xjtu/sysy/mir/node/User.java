@@ -25,6 +25,10 @@ public sealed abstract class User extends Value permits Function, Instruction {
 
     public void removeUsed(Use use) {
         int idx = usedList.lastIndexOf(use);
+        if (idx == -1) {
+            used.remove(use);
+            return;
+        }
         usedList.remove(idx);
         if (!usedList.contains(use)) used.remove(use);
     }

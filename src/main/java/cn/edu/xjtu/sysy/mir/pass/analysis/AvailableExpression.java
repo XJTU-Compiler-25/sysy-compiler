@@ -1,10 +1,12 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
+import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
+import cn.edu.xjtu.sysy.mir.node.Module;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,11 +15,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Module;
 
 /** 可用表达式分析 */
 public class AvailableExpression
@@ -89,7 +86,7 @@ public class AvailableExpression
     @Override
     protected void flowThrough(
             BasicBlock block, Map<AvailableExpression.Expr, Set<Instruction>> in) {
-        var instrs = direction.getOrderedInstrs(block);
+        var instrs = getOrderedInstrs(block);
         var inFlow = in;
         var outFlow = initial();
         copy(outFlow, inFlow);
@@ -125,7 +122,9 @@ public class AvailableExpression
         if (instr.hasNoDef()) return Stream.empty();
         if (instr instanceof CallExternal) return Stream.empty();
         if (instr instanceof Instruction.Alloca) return Stream.empty();
-        if (instr instanceof Instruction.Call it && !it.function.isPure) return Stream.empty();
+        if (instr instanceof Instruction.Call it
+                && getResult(PurenessAnalysis.class).isPure(it.getFunction()))
+            return Stream.empty();
         if (in.containsKey(new Expr(instr))) return Stream.empty();
         return Stream.of(new Expr(instr));
     }
@@ -140,15 +139,5 @@ public class AvailableExpression
                                             && load.address.value.equals(store.address.value));
         }
         return Stream.empty();
-    }
-
-    @Override
-    public void printResult(Function function) {
-        for (var block : function.blocks) {
-            System.out.printf("%s:%n", block.label);
-            System.out.println(getFlowBefore(block));
-            System.out.println(getFlowAfter(block));
-            System.out.println();
-        }
     }
 }

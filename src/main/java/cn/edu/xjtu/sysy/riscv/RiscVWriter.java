@@ -1,45 +1,210 @@
 package cn.edu.xjtu.sysy.riscv;
 
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+
+import cn.edu.xjtu.sysy.riscv.Directives.FuncSize;
+import cn.edu.xjtu.sysy.riscv.Directives.Word;
+import cn.edu.xjtu.sysy.riscv.Directives.Zero;
+import cn.edu.xjtu.sysy.riscv.Global.Obj;
+import cn.edu.xjtu.sysy.riscv.Instr.Auipc;
+import cn.edu.xjtu.sysy.riscv.Instr.Branch;
+import cn.edu.xjtu.sysy.riscv.Instr.BranchZ;
+import cn.edu.xjtu.sysy.riscv.Instr.Call;
+import cn.edu.xjtu.sysy.riscv.Instr.Ecall;
+import cn.edu.xjtu.sysy.riscv.Instr.FBinary;
+import cn.edu.xjtu.sysy.riscv.Instr.FComp;
+import cn.edu.xjtu.sysy.riscv.Instr.FMulAdd;
+import cn.edu.xjtu.sysy.riscv.Instr.FUnary;
+import cn.edu.xjtu.sysy.riscv.Instr.Fclass;
+import cn.edu.xjtu.sysy.riscv.Instr.FloatCvt;
+import cn.edu.xjtu.sysy.riscv.Instr.Flw;
+import cn.edu.xjtu.sysy.riscv.Instr.Fsw;
+import cn.edu.xjtu.sysy.riscv.Instr.Imm;
+import cn.edu.xjtu.sysy.riscv.Instr.IntCvt;
+import cn.edu.xjtu.sysy.riscv.Instr.J;
+import cn.edu.xjtu.sysy.riscv.Instr.Jal;
+import cn.edu.xjtu.sysy.riscv.Instr.Jalr;
+import cn.edu.xjtu.sysy.riscv.Instr.Jr;
+import cn.edu.xjtu.sysy.riscv.Instr.La;
+import cn.edu.xjtu.sysy.riscv.Instr.Li;
+import cn.edu.xjtu.sysy.riscv.Instr.Li_globl;
+import cn.edu.xjtu.sysy.riscv.Instr.Load;
+import cn.edu.xjtu.sysy.riscv.Instr.LocalLabel;
+import cn.edu.xjtu.sysy.riscv.Instr.Lui;
+import cn.edu.xjtu.sysy.riscv.Instr.Reg;
+import cn.edu.xjtu.sysy.riscv.Instr.RegZ;
+import cn.edu.xjtu.sysy.riscv.Instr.Ret;
+import cn.edu.xjtu.sysy.riscv.Instr.Store;
+import cn.edu.xjtu.sysy.riscv.Register.Int;
+import cn.edu.xjtu.sysy.riscv.Label;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import cn.edu.xjtu.sysy.riscv.node.Instr;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Auipc;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Branch;
-import cn.edu.xjtu.sysy.riscv.node.Instr.BranchZ;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Call;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Ecall;
-import cn.edu.xjtu.sysy.riscv.node.Instr.FBinary;
-import cn.edu.xjtu.sysy.riscv.node.Instr.FComp;
-import cn.edu.xjtu.sysy.riscv.node.Instr.FMulAdd;
-import cn.edu.xjtu.sysy.riscv.node.Instr.FUnary;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Fclass;
-import cn.edu.xjtu.sysy.riscv.node.Instr.FloatCvt;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Flw;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Fsw;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Imm;
-import cn.edu.xjtu.sysy.riscv.node.Instr.IntCvt;
-import cn.edu.xjtu.sysy.riscv.node.Instr.J;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Jal;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Jalr;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Jr;
-import cn.edu.xjtu.sysy.riscv.node.Instr.La;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Li;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Load;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Lui;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Reg;
-import cn.edu.xjtu.sysy.riscv.node.Instr.RegZ;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Ret;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Store;
-import cn.edu.xjtu.sysy.symbol.Types;
-import cn.edu.xjtu.sysy.riscv.node.Register;
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import cn.edu.xjtu.sysy.symbol.Type;
 
 public class RiscVWriter {
-    private final List<Instr> instrs = new ArrayList<>();
 
-    public List<Instr> getInstrs() {
-        return instrs;
+    protected final StringWriter asm = new StringWriter();
+
+    private final PrintWriter out = new PrintWriter(asm);
+
+    private List<Directives> directives = new ArrayList<>();
+
+    private List<Directives> values = new ArrayList<>();
+
+    private List<Instr> instrs = new ArrayList<>();
+
+    private final List<Global.Obj> objDefs = new ArrayList<>();
+
+    private final List<Global.Func> funcDefs = new ArrayList<>();
+
+    @Override
+    public String toString() {
+        return asm.toString();
+    }
+
+    public void emit(String str) {
+        out.println(str);
+    }
+
+    protected void emit(Label label) {
+        emit(String.format("%s:", label));
+    }
+
+    protected void emit(Directives dir) {
+        emit(String.format("  %s", dir));
+    }
+
+    protected void emit(Instr insn) {
+        if (insn instanceof LocalLabel label) {
+            emit(String.format("%s:", label));
+        } else {
+            emit(String.format("  %s", insn));
+        }
+    }
+
+    public void emitAll() {
+        for (var obj : objDefs) {
+            obj.directives.forEach(this::emit);
+            emit(obj.label);
+            obj.value.forEach(this::emit);
+        }
+        for (var func : funcDefs) {
+            func.directives.forEach(this::emit);
+            emit(func.label);
+            func.instrs.forEach(this::emit);
+            emit(func.size);
+        }
+        instrs.forEach(this::emit);
+    }
+
+    private RiscVWriter global(Label label) {
+        directives.add(new Directives.Global(label));
+        return this;
+    }
+
+    private RiscVWriter bss() {
+        directives.add(new Directives.Bss());
+        return this;
+    }
+
+    private RiscVWriter data() {
+        directives.add(new Directives.Data());
+        return this;
+    }
+
+    private RiscVWriter text() {
+        directives.add(new Directives.Text());
+        return this;
+    }
+
+    private RiscVWriter align(Type type) {
+        int pow = switch (type) {
+            case Type.Int _, Type.Float _ -> 2;
+            default -> 3;
+        };
+        directives.add(new Directives.Align(pow));
+        return this;
+    }
+
+    private RiscVWriter align(int pow) {
+        directives.add(new Directives.Align(pow));
+        return this;
+    }
+
+    private RiscVWriter type(Symbol sym) {
+        switch (sym) {
+            case Symbol.VarSymbol it ->
+                    directives.add(new Directives.Type(it.label, Directives.Type.SymType.Object));
+            case Symbol.FuncSymbol it ->
+                    directives.add(new Directives.Type(it.label, Directives.Type.SymType.Function));
+        }
+        return this;
+    }
+
+    private RiscVWriter size(Label label, int size) {
+        directives.add(new Directives.VarSize(label, size));
+        return this;
+    }
+
+    public void defVarData(Symbol.VarSymbol sym) {
+        this.global(sym.label)
+            .data()
+            .align(sym.type)
+            .type(sym)
+            .size(sym.label, sym.type.size);
+        objDefs.add(new Obj(sym.label, directives, values));
+        directives = new ArrayList<>();
+        values = new ArrayList<>();
+    }
+
+    public void defVarBss(Symbol.VarSymbol sym) {
+        this.global(sym.label)
+            .bss()
+            .align(sym.type)
+            .type(sym)
+            .size(sym.label, sym.type.size);
+        objDefs.add(new Obj(sym.label, directives, values));
+        directives = new ArrayList<>();
+        values = new ArrayList<>();
+    }
+
+    public void defFunc(Symbol.FuncSymbol sym) {
+        this.align(1)
+            .global(sym.label)
+            .text()
+            .type(sym);
+        var size = new FuncSize(sym.label);
+        funcDefs.add(new Global.Func(sym.label, directives, instrs, size));
+        directives = new ArrayList<>();
+        instrs = new ArrayList<>();
+    }
+
+    public RiscVWriter word(int val) {
+        values.add(new Word(val));
+        return this;
+    }
+
+    public RiscVWriter word(float val) {
+        values.add(new Word(Float.floatToRawIntBits(val)));
+        return this;
+    }
+
+    public RiscVWriter word(Number val) {
+        return switch (val) {
+            case Integer i -> word(i.intValue());
+            case Float f -> word(f.floatValue());
+            default -> unreachable();
+        };
+    }
+
+    public RiscVWriter zero(int size) {
+        values.add(new Zero(size));
+        return this;
     }
 
     private RiscVWriter reg(Reg.Op op, Register.Int rd, Register.Int rs1, Register.Int rs2) {
@@ -550,7 +715,7 @@ public class RiscVWriter {
     }
 
     public RiscVWriter sw(Register.Int rd, Label label, Register.Int tmp) {
-        instrs.add(new Instr.SwGlobal(rd, label, tmp));
+        instrs.add(new Instr.Sw_global(rd, label, tmp));
         return this;
     }
 
@@ -576,7 +741,7 @@ public class RiscVWriter {
     }
 
     public RiscVWriter fsw(Register.Float rd, Label label, Register.Int tmp) {
-        instrs.add(new Instr.FswGlobal(rd, label, tmp));
+        instrs.add(new Instr.Fsw_global(rd, label, tmp));
         return this;
     }
 
@@ -724,6 +889,19 @@ public class RiscVWriter {
 
     public RiscVWriter li(Register.Int rd, float imm) {
         instrs.add(new Li(rd, Float.floatToRawIntBits(imm)));
+        return this;
+    }
+
+    public RiscVWriter li(Register.Int rd, Label imm) {
+        instrs.add(new Li_globl(rd, imm));
+        return this;
+    }
+
+    public RiscVWriter setzero(int start, int size, Register.Int tmp) {
+        while (size > 0) {
+            sw(Int.ZERO, Int.FP, -(start - size + 4), tmp);
+            size -= 4;
+        }
         return this;
     }
 }

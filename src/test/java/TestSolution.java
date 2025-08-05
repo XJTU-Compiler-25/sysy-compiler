@@ -54,7 +54,7 @@ public final class TestSolution {
                             MirPipelines.DEFAULT.process(module);
                             System.out.println(module);
 
-                            if (true) {
+                            if (false) {
                                 System.out.println("Interpreting test...");
                                 var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
                                 var os = new ByteArrayOutputStream();

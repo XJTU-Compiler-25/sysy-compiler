@@ -1,25 +1,22 @@
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 
-import cn.edu.xjtu.sysy.ast.AstBuilder;
-import cn.edu.xjtu.sysy.ast.node.CompUnit;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 
+import cn.edu.xjtu.sysy.ast.AstBuilder;
+import cn.edu.xjtu.sysy.ast.AstPipelines;
+import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
-import cn.edu.xjtu.sysy.mir.pass.MirPassGroups;
-import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.util.Assertions;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 
 /**
  * 根据大赛技术方案规定，编译器的主类名为 Compiler，不带包名。
@@ -40,7 +37,10 @@ public class Compiler {
         var output = args[3];
 
         var em = ErrManager.GLOBAL;
-        var compUnit = compileToAst(em, input);
+        var testCodeStream = new FileInputStream(input);
+        var testCode = new String(testCodeStream.readAllBytes());
+        var compUnit = compileToAst(em, testCode);
+        AstPipelines.DEFAULT.process(compUnit);
         if (em.hasErr()) {
             em.printErrs();
             return;
@@ -56,8 +56,8 @@ public class Compiler {
             em.printErrs();
             return;
         }
-        //System.out.println(mir);
-
+        System.out.println(mir);
+        /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);
         var asm = new RiscVWriter();
@@ -75,6 +75,11 @@ public class Compiler {
             outStream.write(riscVCode.getBytes());
             outStream.close();
         }
+        */
+        var cgen = new cn.edu.xjtu.sysy.mir.pass.RiscVCGen();
+        //cgen.visit(mir);
+        cgen.asm.emitAll();
+        System.out.println(cgen.asm.toString());
     }
 
     public static CompUnit compileToAst(ErrManager em, String s) {

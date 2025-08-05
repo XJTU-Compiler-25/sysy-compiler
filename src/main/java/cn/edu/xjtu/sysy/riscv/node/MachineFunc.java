@@ -19,7 +19,6 @@ public class MachineFunc {
     public MachineFunc(Function function) {
         this.name = function.name;
         this.funcType = function.funcType;
-        this.isPure = function.isPure;
     }
 
     public void setEntry(MachineBasicBlock block) {

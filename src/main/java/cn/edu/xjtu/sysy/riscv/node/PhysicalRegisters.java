@@ -1,6 +1,12 @@
 package cn.edu.xjtu.sysy.riscv.node;
 
 import cn.edu.xjtu.sysy.riscv.node.Register.Int;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
+
+import javax.imageio.spi.RegisterableService;
+
 import cn.edu.xjtu.sysy.riscv.node.Register.Float;
 public final class PhysicalRegisters {
     public static final Int A0 = new Int("a0");
@@ -95,5 +101,23 @@ public final class PhysicalRegisters {
             case 7 -> FA7;
             default -> null;
         };
+    }
+
+    private static final Stream<Register> genStream(Register... registers) {
+        return Arrays.stream(registers);
+    }
+
+    /**
+     * RA 虽然是Caller saved，但是考虑到它一般也是在entry被保存，epilogue被恢复，所以加到这个集合里
+     * @return
+     */
+    public static final Stream<Register> getCalleeSaved() {
+        return genStream(RA, FP, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, 
+            FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11);
+    }
+
+    public static final Stream<Register> getCallerSaved() {
+        return genStream(A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6, 
+            FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7, FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11);
     }
 }

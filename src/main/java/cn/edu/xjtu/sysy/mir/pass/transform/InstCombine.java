@@ -9,6 +9,7 @@ import cn.edu.xjtu.sysy.util.Worklist;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 // 常量折叠和传播，指令合并
 @SuppressWarnings("unchecked")
@@ -40,7 +41,7 @@ public final class InstCombine extends AbstractTransform {
     private Value foldConstant(Instruction inst) {
         return switch (inst) {
             // 诸如 jmp br store 之类不能被折叠为常量值的就不做
-            case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _ -> null;
+            case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _ , Dummy _ -> null;
             // 工作列表里没有加 terminator
             case Terminator _ -> unreachable();
             // 数学运算
@@ -331,6 +332,7 @@ public final class InstCombine extends AbstractTransform {
                     yield floatConst((float) Math.sqrt(lVal));
                 } else yield null;
             }
+            default -> unsupported(inst);
         };
     }
 

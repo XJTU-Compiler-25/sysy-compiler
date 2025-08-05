@@ -49,7 +49,8 @@ public class DCE extends AbstractTransform {
             for (var it : instrs) {
                 if (it instanceof Store
                         || (it instanceof Call call && !pureRes.isPure(call.getFunction()))
-                        || it instanceof CallExternal)
+                        || it instanceof CallExternal
+                        || it instanceof Dummy)
                     reachable.add(it);
             }
 

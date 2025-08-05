@@ -9,7 +9,6 @@ import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
@@ -46,6 +45,21 @@ public abstract sealed class Instruction extends User {
     /** 若label为-1表示没有定义 */
     public boolean hasNoDef() {
         return label == -1;
+    }
+
+    public void frontInsert(Instruction instr) {
+        if (this instanceof Terminator) {
+            block.instructions.add(instr);
+            return;
+        }
+        int idx = block.instructions.indexOf(this);
+        block.instructions.add(idx, instr);
+    }
+
+    public void backInsert(Instruction instr) {
+        Assertions.requires(!(this instanceof Terminator));
+        int idx = block.instructions.indexOf(this);
+        block.instructions.add(idx+1, instr);
     }
 
     // 基本块结束指令
@@ -376,7 +390,7 @@ public abstract sealed class Instruction extends User {
     public static final class I2F extends Instruction {
         public Use value;
 
-        I2F(BasicBlock block, int label, Value value) {
+        public I2F(BasicBlock block, int label, Value value) {
             super(block, label, Types.Float);
             this.value = use(value);
         }
@@ -1006,4 +1020,283 @@ public abstract sealed class Instruction extends User {
         }
     }
 
+    public static final class ILi extends Instruction {
+        public int imm;
+
+        public ILi(BasicBlock block, int label, int imm) {
+            super(block, label, Types.Int);
+            this.imm = imm;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = ili %d", this.shortName(), imm);
+        }
+    }
+
+    public static final class FLi extends Instruction {
+        public float imm;
+
+        public FLi(BasicBlock block, int label, float imm) {
+            super(block, label, Types.Int); // 需要先把浮点数按位赋值给整数寄存器
+            this.imm = imm;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fli %f", this.shortName(), imm);
+        }
+    }
+
+    public static final class IMv extends Instruction {
+        public Value dst;
+        public Use src;
+
+        IMv(BasicBlock block, Value dst, Value src) {
+            super(block, -1, Types.Void);
+            this.src = use(src);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("imv %s, %s", dst.shortName(), src.value.shortName());
+        }
+    }
+
+    public static final class FMv extends Instruction {
+        public Value dst;
+        public Use src;
+
+        FMv(BasicBlock block, Value dst, Value src) {
+            super(block, -1, Types.Void);
+            this.src = use(src);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("fmv %s, %s", dst.shortName(), src.value.shortName());
+        }
+    }
+
+    public static final class FMulAdd extends Instruction {
+        public enum Op {
+            FMADD("fmadd.s"),
+            FMSUB("fmsub.s"),
+            FNMSUB("fnmsub.s"),
+            FNMADD("fnmadd.s");
+
+            private final String op;
+
+            Op(String op) {
+                this.op = op;
+            }
+
+            @Override
+            public String toString() {
+                return op;
+            }
+        }
+
+        Op op;
+        Use rs1;
+        Use rs2;
+        Use rs3;
+
+        FMulAdd(BasicBlock block, int label, Op op, Value rs1, Value rs2, Value rs3) {
+            super(block, label, Types.Float);
+            this.rs1 = use(rs1);
+            this.rs2 = use(rs2);
+            this.rs3 = use(rs3);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = %s %s, %s, %s", shortName(), op, rs1, rs2, rs3);
+        }
+    }
+
+    public static final class BrBinary extends Terminator {
+        public enum Op {
+            BEQ("beq"),
+            BGE("bge"),
+            BGEU("bgeu"),
+            BLT("blt"),
+            BLTU("bltu"),
+            BNE("bne"),
+            BGTU("bgtu"),
+            BLE("ble"),
+            BLEU("bleu"),
+            BGT("bgt");
+
+            private final String op;
+
+            Op(String op) {
+                this.op = op;
+            }
+
+            @Override
+            public String toString() {
+                return op;
+            }
+        }
+
+        public Op op;
+        public Use lhs;
+        public Use rhs;
+        private final Use<BasicBlock> trueTarget;
+        private final Use<BasicBlock> falseTarget;
+        public final HashMap<Var, Use> trueParams = new HashMap<>();
+        public final HashMap<Var, Use> falseParams = new HashMap<>();
+
+        public BrBinary(BasicBlock block, Op op, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block);
+            this.op = op;
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+            this.trueTarget = use(trueTarget);
+            this.falseTarget = use(falseTarget);
+        }
+
+        public void putAllTrueParams(HashMap<Var, Use> trueParams) {
+            this.trueParams.putAll(trueParams);
+        }
+        
+        public void putAllFalseParams(HashMap<Var, Use> falseParams) {
+            this.falseParams.putAll(falseParams);
+        }
+
+        public BasicBlock getTrueTarget() {
+            return trueTarget.value;
+        }
+
+        public BasicBlock getFalseTarget() {
+            return falseTarget.value;
+        }
+
+        public List<BasicBlock> getTargets() {
+            return List.of(getTrueTarget(), getFalseTarget());
+        }
+
+        public void replaceTrueTarget(BasicBlock newTarget) {
+            trueTarget.replaceValue(newTarget);
+        }
+
+        public void replaceFalseTarget(BasicBlock newTarget) {
+            falseTarget.replaceValue(newTarget);
+        }
+
+        @Override
+        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
+            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
+        }
+
+        public void putTrueParam(Var var, Value value) {
+            trueParams.compute(var, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        public void putFalseParam(Var var, Value value) {
+            falseParams.compute(var, (_, use) -> {
+                if (use == null) return use(value);
+                else {
+                    use.replaceValue(value);
+                    return use;
+                }
+            });
+        }
+
+        @Override
+        public void putParam(BasicBlock block, Var var, Value value) {
+            if (block == trueTarget.value) putTrueParam(var, value);
+            if (block == falseTarget.value) putFalseParam(var, value);
+        }
+
+        @Override
+        public String toString() {
+            return op + " " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.entrySet().stream()
+                            .map(param -> param.getKey().name
+                                    + "= " + param.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), "
+                    + falseTarget.value.shortName() + "(" +
+                    falseParams.entrySet().stream()
+                            .map(param -> param.getKey().name
+                                    + "= " + param.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class Dummy extends Instruction {
+        Use[] uses;
+        Dummy(BasicBlock block, int label, Type type, Value... uses) {
+            super(block, label, type);
+            this.uses = new Use[uses.length];
+            for (int i = 0; i < uses.length; i++) {
+                this.uses[i] = use(uses[i]);
+            } 
+        }
+
+        Dummy(BasicBlock block, Value... uses) {
+            super(block, -1, Types.Void);
+            this.uses = new Use[uses.length];
+            for (int i = 0; i < uses.length; i++) {
+                this.uses[i] = use(uses[i]);
+            } 
+        }
+
+        @Override
+        public String toString() {
+            return (hasNoDef() ? "" : shortName() + " = ") + "dummy " + 
+                    Arrays.stream(uses).map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+        }
+    }
+
+    public static final class Imm extends Instruction {
+        public Op op;
+        public Use lhs;
+        public int imm;
+        public Imm(BasicBlock block, int label, Op op, Value lhs, int imm) {
+            super(block, label, lhs.type);
+            this.op = op;
+            this.lhs = use(lhs);
+            this.imm = imm;
+        }
+
+        public enum Op {
+            ADDI("addi"),
+            ANDI("andi"),
+            ORI("ori"),
+            XORI("xori"),
+            SLLI("slli"),
+            SRLI("srli"),
+            SRAI("srai"),
+            SLTI("slti");
+
+            private final String op;
+
+            Op(String op) {
+                this.op = op;
+            }
+
+            @Override
+            public String toString() {
+                return op;
+            }
+        }
+        
+
+        @Override
+        public String toString() {
+            return String.format("%s %s, %s, %d", op, shortName(), lhs.value.shortName(), imm);
+        }
+    }
 }

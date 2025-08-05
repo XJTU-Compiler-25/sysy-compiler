@@ -1,12 +1,12 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.stream.Collectors;
+
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 
 public final class Function extends User {
     public Module module;
@@ -15,6 +15,7 @@ public final class Function extends User {
     public Type.Function funcType;
     public HashSet<BasicBlock> blocks = new HashSet<>();
     public BasicBlock entry;
+    public BasicBlock epilogue;
     private int tempValueCounter = 0;
     public ArrayList<Var> params = new ArrayList<>();
 

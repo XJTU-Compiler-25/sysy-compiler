@@ -26,8 +26,9 @@ public final class CFGSimplify extends AbstractTransform {
         while(changed) {
             changed = false;
             for (var block : cfg.getRPOBlocks(function)) {
-                // 不删入口块
+                // 不删入口块/出口块
                 if (block == function.entry) continue;
+                if (block == function.epilogue) continue;
                 // 单后继才能删除
                 if (!(block.terminator instanceof Instruction.Jmp jmp)) continue;
                 if (!block.instructions.isEmpty()) continue;

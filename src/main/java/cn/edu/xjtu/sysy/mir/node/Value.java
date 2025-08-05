@@ -1,9 +1,9 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-
 import java.util.HashSet;
 import java.util.function.Predicate;
+
+import cn.edu.xjtu.sysy.symbol.Type;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public abstract sealed class Value permits BasicBlock, BlockArgument, ImmediateValue, User, Var {

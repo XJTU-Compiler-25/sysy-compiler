@@ -386,5 +386,4 @@ public final class InstructionHelper {
         block.addInstruction(instr);
         return instr;
     }
-
 }

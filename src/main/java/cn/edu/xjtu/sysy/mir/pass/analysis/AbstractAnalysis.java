@@ -9,6 +9,7 @@ import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.util.Pair;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
@@ -78,63 +79,44 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
     /** 单条语句的转换函数 */
     protected abstract void flowThrough(Instruction instr, Result in, Result out);
 
-    /** 初始化每个基本块 */
-    protected void init(List<BasicBlock> blocks) {
-        for (var b : blocks) {
-            flowBeforeBlock.put(b, initial());
-            flowAfterBlock.put(b, initial());
-        }
-    }
-
     /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
-    protected void meet(BasicBlock block) {
-        var inBlocks = getPredBlocksOf(block);
-        if (inBlocks.isEmpty()) return;
-        var inout = this.flowBeforeBlock.get(block);
-
-        boolean copy = true;
-        for (var e : inBlocks) {
-            var in = this.flowAfterBlock.get(e);
-            if (copy) {
-                copy = false;
-                copy(inout, in);
-            } else {
-                Result tmp = initial();
-                merge(tmp, inout, in);
-                copy(inout, tmp);
-            }
-        }
-    }
-
-    /** 处理基本块 */
-    protected boolean flowThrough(BasicBlock b) {
-        Result in = flowBeforeBlock.get(b);
-        Result out = flowAfterBlock.get(b);
+    protected boolean meet(BasicBlock block, Result in) {
         /* 如果b在一个size > 1的强连通分量或者在自环中
          * i.e. b可能在一个循环结构中
          * 执行是否已经到达不动点的检测
          */
-        if (b.loopDepth > 0) {
-            Result newOut = initial();
-            flowThrough(b, in, newOut);
-            if (newOut.equals(out)) {
-                return false;
-            }
-            copy(out, newOut);
+        if (!flowBeforeBlock.containsKey(block)) {
+            flowBeforeBlock.put(block, in);
             return true;
         }
-        // 在顺序结构中，直接返回true
-        flowThrough(b, in, out);
+        var inout = flowBeforeBlock.get(block);
+        Result tmp = initial();
+        merge(tmp, inout, in);
+        if (block.loopDepth == 0) {
+            flowBeforeBlock.put(block, tmp);
+            return true;
+        }
+        if (tmp.equals(inout)) {
+            return false;
+        }
+        flowBeforeBlock.put(block, tmp);
         return true;
     }
 
+    /** 处理基本块 */
+    protected void flowThrough(BasicBlock b) {
+        Result in = flowBeforeBlock.get(b);
+        flowThrough(b, in);
+    }
+
     /** 基本块的转换函数 */
-    protected void flowThrough(BasicBlock block, Result in, Result out) {
+    protected void flowThrough(BasicBlock block, Result in) {
         var instrs = getOrderedInstrs(block);
         var inFlow = in;
         var outFlow = initial();
         // 按顺序遍历每条指令，进行分析
         for (var instr : instrs) {
+            // System.out.println(instr);
             flowBeforeInstr.put(instr, inFlow);
             flowThrough(instr, inFlow, outFlow);
             flowAfterInstr.put(instr, outFlow);
@@ -142,20 +124,23 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
             inFlow = outFlow;
             outFlow = initial();
         }
-        copy(out, outFlow);
+        flowAfterBlock.put(block, inFlow);
     }
 
     @Override
     public void visit(Function function) {
         var blocks = getOrderedBlocksOf(function);
-        init(blocks);
-        var worklist = new Worklist<>(blocks);
+        var worklist =
+                new Worklist<>(Collections.singleton(new Pair<>(blocks.getFirst(), initial())));
         while (!worklist.isEmpty()) {
             var e = worklist.poll();
-            meet(e);
-            boolean changed = flowThrough(e);
+            var cur = e.first();
+            var in = e.second();
+            boolean changed = meet(cur, in);
             if (changed) {
-                for (var succ : getSuccBlocksOf(e)) worklist.add(succ);
+                flowThrough(cur);
+                for (var succ : getSuccBlocksOf(cur))
+                    worklist.add(new Pair<>(succ, flowAfterBlock.get(cur)));
             }
         }
     }

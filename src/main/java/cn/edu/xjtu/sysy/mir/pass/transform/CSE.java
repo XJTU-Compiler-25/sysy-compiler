@@ -1,39 +1,25 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.Undefined;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
-import cn.edu.xjtu.sysy.mir.node.Var;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.AvailableExpression;
-import cn.edu.xjtu.sysy.mir.pass.AvailableExpression.Expr;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.util.Worklist;
-
+import cn.edu.xjtu.sysy.mir.pass.analysis.AvailableExpression.Expr;
+import cn.edu.xjtu.sysy.mir.pass.analysis.PurenessAnalysis;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommonSubexprElimination extends AbstractTransform {
+public class CSE extends AbstractTransform {
 
     public final AvailableExpression analysis;
 
-    public CommonSubexprElimination(Pipeline<Module> pipeline) {
+    public CSE(Pipeline<Module> pipeline) {
         super(pipeline);
         analysis = new AvailableExpression(pipeline);
     }
@@ -55,7 +41,7 @@ public class CommonSubexprElimination extends AbstractTransform {
             var calculatedSet = map.get(expr);
             if (calculatedSet.size() == 1) {
                 instr.replaceAllUsesWith(calculatedSet.iterator().next());
-                //continue;
+                // continue;
             }
             /* TODO: phi结点
             Set<BasicBlock> dfs = new HashSet<>();
@@ -94,7 +80,9 @@ public class CommonSubexprElimination extends AbstractTransform {
         if (instr.hasNoDef()) return Stream.empty();
         if (instr instanceof Instruction.CallExternal) return Stream.empty();
         if (instr instanceof Instruction.Alloca) return Stream.empty();
-        if (instr instanceof Instruction.Call it && !it.function.isPure) return Stream.empty();
+        if (instr instanceof Instruction.Call it
+                && !getResult(PurenessAnalysis.class).isPure(it.getFunction()))
+            return Stream.empty();
         return Stream.of(new Expr(instr));
     }
 

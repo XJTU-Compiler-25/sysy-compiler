@@ -100,7 +100,7 @@ public final class MirBuilder implements ErrManaged {
 
         var func = curMod.newFunction(symbol.name, funcType);
         var entryBB = func.addNewBlock();
-
+        
         curFunc = func;
         symbol.address = func;
 
@@ -112,7 +112,6 @@ public final class MirBuilder implements ErrManaged {
                 : curFunc.addNewLocalVar(var.name, var.type);
 
         visit(node.body);
-
         if (helper.getBlock() != null && !helper.hasTerminator()) {
             var retType = funcType.returnType;
             if (retType == Types.Int) helper.ret(iZero);
