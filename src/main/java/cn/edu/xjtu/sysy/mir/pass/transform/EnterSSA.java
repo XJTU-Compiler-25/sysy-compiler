@@ -3,6 +3,9 @@ package cn.edu.xjtu.sysy.mir.pass.transform;
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFG;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DomInfo;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
@@ -13,14 +16,14 @@ import java.util.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 @SuppressWarnings("unchecked")
-public final class EnterSSA extends AbstractTransform {
-    public EnterSSA(Pipeline<Module> pipeline) { super(pipeline); }
+public final class EnterSSA extends ModuleTransformer {
 
+    private CFG cfg;
     private DomInfo domInfo;
-
     @Override
     public void visit(Module module) {
-        domInfo = getResult(DominanceAnalysis.class);
+        cfg = CFGAnalysis.run(module);
+        domInfo = DominanceAnalysis.run(module);
         super.visit(module);
     }
 
@@ -108,7 +111,7 @@ public final class EnterSSA extends AbstractTransform {
                 var arg = block.addBlockArgument(varType);
                 // 记录 block argument 和 alloca 的对应关系
                 blockArgToVar.put(arg, var);
-                for (var predTerm : getCFG().getPredTermsOf(block))
+                for (var predTerm : cfg.getPredTermsOf(block))
                     predTerm.putParam(block, arg, ImmediateValues.undefined());
             }
         }

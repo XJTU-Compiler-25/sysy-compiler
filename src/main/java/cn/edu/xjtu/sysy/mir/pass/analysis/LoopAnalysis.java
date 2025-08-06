@@ -1,25 +1,32 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
 
 import java.util.*;
 
-public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
-    public LoopAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class LoopAnalysis extends ModuleAnalysis<LoopInfo> {
+
+    public static LoopInfo run(Module module) {
+        return new LoopAnalysis().process(module);
+    }
+
+    public static LoopInfo run(Function function) {
+        return new LoopAnalysis().process(function);
+    }
 
     private CFG cfg;
     private DomInfo domInfo;
     private HashMap<Function, Set<Loop>> loopsMap;
     private HashMap<BasicBlock, Integer> loopDepthMap;
+
     @Override
     public LoopInfo process(Module module) {
-        cfg = getCFG();
-        domInfo = getDomInfo();
+        cfg = CFGAnalysis.run(module);
+        domInfo = DominanceAnalysis.run(module);
         loopsMap = new HashMap<>();
         loopDepthMap = new HashMap<>();
 
@@ -28,7 +35,17 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
         return new LoopInfo(loopsMap, loopDepthMap);
     }
 
-    @Override
+    public LoopInfo process(Function function) {
+        cfg = CFGAnalysis.run(function);
+        domInfo = DominanceAnalysis.run(function);
+        loopsMap = new HashMap<>();
+        loopDepthMap = new HashMap<>();
+
+        visit(function);
+
+        return new LoopInfo(loopsMap, loopDepthMap);
+    }
+
     public void visit(Function function) {
         var loops = new HashSet<Loop>();
         loopsMap.put(function, loops);
@@ -113,4 +130,5 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
             loopDepthMap.put(block, depth);
         }
     }
+
 }

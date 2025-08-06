@@ -34,4 +34,14 @@ public final class MathUtils {
         return strides;
     }
 
+    public static int saturatedAdd(int a, int b) {
+        var sum = (long) a + (long) b;
+        return (int) Math.min(sum, Integer.MAX_VALUE);
+    }
+
+    public static int saturatedMul(int a, int b) {
+        var product = (long) a * (long) b;
+        return (int) Math.min(product, Integer.MAX_VALUE);
+    }
+
 }

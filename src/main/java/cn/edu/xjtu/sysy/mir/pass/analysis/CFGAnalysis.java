@@ -1,19 +1,55 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
 
 import java.util.*;
 
 // 求出基本块的 pred, succ 列表
-public final class CFGAnalysis extends ModuleVisitor<CFG> {
-    public CFGAnalysis() { super(null); }
-    public CFGAnalysis(Pipeline<Module> pipeline) {
-        super(pipeline);
+public final class CFGAnalysis extends ModuleAnalysis<CFG> {
+
+    public static CFG run(Module module) {
+        return new CFGAnalysis().process(module);
+    }
+
+    public static CFG run(Function function) {
+        return new CFGAnalysis().process(function);
+    }
+
+    public static Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
+        var preds = new HashSet<BasicBlock>();
+        for (var use : block.usedBy) {
+            if (use.user instanceof Instruction.Terminator term) {
+                preds.add(term.getBlock());
+            }
+        }
+        return preds;
+    }
+
+    public static Set<Instruction.Terminator> getPredTermsOf(BasicBlock block) {
+        var preds = new HashSet<Instruction.Terminator>();
+        for (var use : block.usedBy) {
+            if (use.user instanceof Instruction.Terminator term) {
+                preds.add(term);
+            }
+        }
+        return preds;
+    }
+
+    public static Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
+        var succs = new HashSet<BasicBlock>();
+        switch(block.terminator) {
+            case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
+            case Instruction.Br br -> {
+                succs.add(br.getTrueTarget());
+                succs.add(br.getFalseTarget());
+            }
+            default -> { }
+        }
+        return succs;
     }
 
     @Override
@@ -80,41 +116,6 @@ public final class CFGAnalysis extends ModuleVisitor<CFG> {
         }
 
         return new CFG(predMap, succMap, predTermMap);
-    }
-
-    // 某些分析中 CFG 会极快变化，可以就地计算
-
-    public static Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
-        var preds = new HashSet<BasicBlock>();
-        for (var use : block.usedBy) {
-            if (use.user instanceof Instruction.Terminator term) {
-                preds.add(term.getBlock());
-            }
-        }
-        return preds;
-    }
-
-    public static Set<Instruction.Terminator> getPredTermsOf(BasicBlock block) {
-        var preds = new HashSet<Instruction.Terminator>();
-        for (var use : block.usedBy) {
-            if (use.user instanceof Instruction.Terminator term) {
-                preds.add(term);
-            }
-        }
-        return preds;
-    }
-
-    public static Set<BasicBlock> getSuccBlocksOf(BasicBlock block) {
-        var succs = new HashSet<BasicBlock>();
-        switch(block.terminator) {
-            case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
-            case Instruction.Br br -> {
-                succs.add(br.getTrueTarget());
-                succs.add(br.getFalseTarget());
-            }
-            default -> { }
-        }
-        return succs;
     }
 
 }

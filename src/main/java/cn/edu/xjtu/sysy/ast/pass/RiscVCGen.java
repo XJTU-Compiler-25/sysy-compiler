@@ -45,7 +45,7 @@ public class RiscVCGen extends AstVisitor {
 
     protected int nextLabel = 0;
 
-    public RiscVCGen(RiscVWriter asm0) { super(null); asm = asm0; }
+    public RiscVCGen(RiscVWriter asm0) { asm = asm0; }
 
     protected Label genLocalLabel() {
         return new Label(String.format(".L%d", nextLabel++));

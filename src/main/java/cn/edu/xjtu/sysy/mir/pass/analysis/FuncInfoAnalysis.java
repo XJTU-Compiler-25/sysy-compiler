@@ -1,12 +1,11 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BlockArgument;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.Collection;
@@ -14,8 +13,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 // 分析函数的纯性、是否最多被调用一次、是否是叶函数等特性
-public final class FuncInfoAnalysis extends ModuleVisitor<FuncInfo> {
-    public FuncInfoAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class FuncInfoAnalysis extends ModuleAnalysis<FuncInfo> {
+
+    public static FuncInfo run(Module module) {
+        return new FuncInfoAnalysis().process(module);
+    }
 
     private CFG cfg;
     private CallGraph callGraph;
@@ -23,8 +25,8 @@ public final class FuncInfoAnalysis extends ModuleVisitor<FuncInfo> {
 
     @Override
     public FuncInfo process(Module module) {
-        cfg = getCFG();
-        callGraph = getCallGraph();
+        cfg = CFGAnalysis.run(module);
+        callGraph = CallGraphAnalysis.run(module);
         functions = module.getFunctions();
 
         var pureFunctions = pureAnalysis();

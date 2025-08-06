@@ -1,22 +1,14 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.HashSet;
 
-@SuppressWarnings("unchecked")
-public final class CFGSimplify extends AbstractTransform {
-    public CFGSimplify(Pipeline<Module> pipeline) { super(pipeline); }
-
-    @Override
-    public Class<? extends Pass<Module, ?>>[] invalidates() {
-        return new Class[] { CFGAnalysis.class };
-    }
+public final class CFGSimplify extends ModuleTransformer {
 
     private static final InstructionHelper helper = new InstructionHelper();
     @Override

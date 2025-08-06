@@ -17,8 +17,6 @@ public class StackCalculator extends AstVisitor {
     SymbolTable currentST = null;
     Symbol.FuncSymbol currentFunc = null;
     int currentMx = 0;
-    
-    public StackCalculator() { super(null); }
 
     @Override
     public void visit(CompUnit node) {

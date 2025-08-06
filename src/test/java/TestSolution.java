@@ -53,7 +53,7 @@ public final class TestSolution {
                             var module = mirBuilder.build(ast);
                             //System.out.println(module);
                             MirPipelines.DEFAULT.process(module);
-                            System.out.println(module);
+                            //System.out.println(module);
 
                             if (false) {
                                 System.out.println("Interpreting test...");
@@ -66,11 +66,9 @@ public final class TestSolution {
                                 //Assertions.assertEquals(testOut, out);
                             }
 
-                            String riscVCode = Compiler.CompileToRiscV(ast);
-                            File out = new File(f.getParent(), f.getName() + ".s");
-                            if (out.exists()) {
-                                out.delete();
-                            }
+                            var riscVCode = Compiler.CompileToRiscV(ast);
+                            var out = new File(f.getParent(), f.getName() + ".s");
+                            if (out.exists()) out.delete();
                             try (var output = new FileOutputStream(out)) {
                                 output.write(riscVCode.getBytes());
                             }

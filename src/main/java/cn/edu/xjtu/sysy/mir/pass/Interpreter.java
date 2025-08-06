@@ -12,10 +12,9 @@ import java.io.PrintStream;
 import java.util.*;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModuleVisitor<Void> {
+public final class Interpreter extends ModuleTransformer {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -27,7 +26,6 @@ public final class Interpreter extends ModuleVisitor<Void> {
     private final ArrayDeque<Value> retAddrs = new ArrayDeque<>();
 
     public Interpreter(PrintStream out, InputStream in) {
-        super(null);
         this.out = out;
         this.in = in;
         this.sc = new Scanner(in);

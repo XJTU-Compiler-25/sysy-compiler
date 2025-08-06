@@ -6,6 +6,7 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.util.Pair;
 import cn.edu.xjtu.sysy.util.Worklist;
@@ -19,15 +20,8 @@ import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 // Sparse Conditional Constant Propagation
 // 稀有条件常量传播
-@SuppressWarnings("unchecked")
-public final class SCCP extends AbstractTransform {
-    public SCCP(Pipeline<Module> pipeline) { super(pipeline); }
+public final class SCCP extends ModuleTransformer {
 
-    @Override
-    public Class<? extends Pass<Module, ?>>[] invalidates() {
-        // 会 fold const branch 成 jmp 所以
-        return new Class[] { CFGAnalysis.class };
-    }
     @Override
     public void visit(Module module) {
         for (var function : module.getFunctions()) run(function);

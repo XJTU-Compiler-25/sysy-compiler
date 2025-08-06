@@ -14,7 +14,6 @@ public final class AstPrettyPrinter extends AstVisitor {
     private int indentLevel = 0;
 
     public AstPrettyPrinter(PrintStream output) {
-        super(null);
         this.output = output; }
 
     public AstPrettyPrinter() {

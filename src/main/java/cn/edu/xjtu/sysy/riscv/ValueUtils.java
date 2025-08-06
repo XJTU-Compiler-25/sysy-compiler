@@ -31,7 +31,7 @@ public final class ValueUtils {
 
     public static final Register.Int[] callerSavedUsableIntRegs = new Register.Int[] {
             A0, A1, A2, A3, A4, A5, A6, A7,
-            T0, T1, T2, T3, // T4, T5, T6 preserved
+            T0, T1, T2, T3, T4, // T5, T6 preserved
     };
 
     public static final int usableIntRegCount = calleeSavedUsableIntRegs.length + callerSavedUsableIntRegs.length;
@@ -46,5 +46,10 @@ public final class ValueUtils {
     };
 
     public static final int usableFloatRegCount = calleeSavedUsableFloatRegs.length + callerSavedUsableFloatRegs.length;
+
+    public static final Register.Int spillIntReg = T5;
+    public static final Register.Int spillIntReg2 = T6;
+    public static final Register.Float spillFloatReg = FT10;
+    public static final Register.Float spillFloatReg2 = FT11;
 
 }

@@ -4,10 +4,8 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFG;
-import cn.edu.xjtu.sysy.mir.pass.analysis.DomInfo;
-import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfo;
-import cn.edu.xjtu.sysy.mir.pass.analysis.LoopInfo;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,10 +14,7 @@ import java.util.List;
 
 // Global Code Motion
 // 不处理 load store
-public final class GCM extends AbstractTransform {
-    public GCM(Pipeline<Module> pipeline) {
-        super(pipeline);
-    }
+public final class GCM extends ModuleTransformer {
 
     private static final InstructionHelper helper = new InstructionHelper();
     private CFG cfg;
@@ -28,10 +23,10 @@ public final class GCM extends AbstractTransform {
     private DomInfo domInfo;
     @Override
     public void visit(Module module) {
-        funcInfo = getFuncInfo();
-        cfg = getCFG();
-        loopInfo = getLoopInfo();
-        domInfo = getDomInfo();
+        funcInfo = FuncInfoAnalysis.run(module);
+        cfg = CFGAnalysis.run(module);
+        loopInfo = LoopAnalysis.run(module);
+        domInfo = DominanceAnalysis.run(module);
 
         for (var function : module.getFunctions()) run(function);
     }

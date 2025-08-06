@@ -1,16 +1,22 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
 
 import java.util.*;
 
 // 求出函数互相的调用关系
-public final class CallGraphAnalysis extends ModuleVisitor<CallGraph> {
-    public CallGraphAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class CallGraphAnalysis extends ModuleAnalysis<CallGraph> {
+
+    public static CallGraph run(Module module) {
+        return new CallGraphAnalysis().process(module);
+    }
+
+    public static CallGraph run(Function function) {
+        return new CallGraphAnalysis().process(function.getModule());
+    }
 
     @Override
     public CallGraph process(Module module) {

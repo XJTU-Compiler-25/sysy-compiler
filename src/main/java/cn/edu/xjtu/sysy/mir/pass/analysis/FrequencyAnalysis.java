@@ -1,16 +1,17 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.util.MathUtils;
 
 import java.util.HashMap;
 
-public final class FrequencyAnalysis extends ModuleVisitor<FrequencyInfo> {
-    public FrequencyAnalysis(Pipeline<Module> pipeline) {
-        super(pipeline);
+public final class FrequencyAnalysis extends ModuleAnalysis<FrequencyInfo> {
+
+    public static FrequencyInfo run(Module module) {
+        return new FrequencyAnalysis().process(module);
     }
 
     private CFG cfg;
@@ -18,16 +19,15 @@ public final class FrequencyAnalysis extends ModuleVisitor<FrequencyInfo> {
     private HashMap<BasicBlock, Integer> frequencyMap;
     @Override
     public FrequencyInfo process(Module module) {
-        cfg = getCFG();
-        loopInfo = getLoopInfo();
+        cfg = CFGAnalysis.run(module);
+        loopInfo = LoopAnalysis.run(module);
         frequencyMap = new HashMap<>();
 
-        super.process(module);
+        for (var function : module.getFunctions()) visit(function);
 
         return new FrequencyInfo(frequencyMap);
     }
 
-    @Override
     public void visit(Function function) {
         var entry = function.entry;
         frequencyMap.put(entry, 100);
@@ -39,21 +39,11 @@ public final class FrequencyAnalysis extends ModuleVisitor<FrequencyInfo> {
             var freq = 0;
 
             for (var pred : cfg.getPredBlocksOf(block))
-                freq = saturatedAdd(freq, frequencyMap.getOrDefault(pred, 0) / 2);
+                freq = MathUtils.saturatedAdd(freq, frequencyMap.getOrDefault(pred, 0) / 2);
 
-            freq = saturatedMul(freq, 1 << (4 * loopInfo.getLoopDepthOf(block))); // = 16 ^ loopDepth
+            freq = MathUtils.saturatedMul(freq, 1 << (4 * loopInfo.getLoopDepthOf(block))); // = 16 ^ loopDepth
             frequencyMap.put(block, freq);
         }
-    }
-
-    private static int saturatedAdd(int a, int b) {
-        var sum = (long) a + (long) b;
-        return (int) Math.min(sum, Integer.MAX_VALUE);
-    }
-
-    private static int saturatedMul(int a, int b) {
-        var product = (long) a * (long) b;
-        return (int) Math.min(product, Integer.MAX_VALUE);
     }
 
 }

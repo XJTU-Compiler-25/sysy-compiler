@@ -5,6 +5,7 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
@@ -22,8 +23,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
  * 等等。其实都是 runtime 到 compile-time 的优化。
  */
 @SuppressWarnings("unchecked")
-public final class InstCombine extends AbstractTransform {
-    public InstCombine(Pipeline<Module> pipeline) { super(pipeline); }
+public final class InstCombine extends ModuleTransformer {
 
     private final InstructionHelper helper = new InstructionHelper();
 

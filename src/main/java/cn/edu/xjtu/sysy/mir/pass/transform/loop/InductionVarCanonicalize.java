@@ -2,7 +2,7 @@ package cn.edu.xjtu.sysy.mir.pass.transform.loop;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.transform.AbstractTransform;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
 
 /*
  * https://understanding-llvm-transformation-passes.readthedocs.io/en/latest/LLVM-transformation-passes/15-canonicalize-induction-variables.html
@@ -10,8 +10,5 @@ import cn.edu.xjtu.sysy.mir.pass.transform.AbstractTransform;
  * The transformed canonical induction variable 一定是 loop 的 head basic block 的 first PHI node。
  * 指针的递归操作会使用数组角标完成。
  */
-public final class InductionVarCanonicalize extends AbstractTransform {
-    public InductionVarCanonicalize(Pipeline<Module> pipeline) {
-        super(pipeline);
-    }
+public final class InductionVarCanonicalize extends ModuleTransformer {
 }

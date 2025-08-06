@@ -5,31 +5,27 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 
 // T: to process, R: result
 @SuppressWarnings("unchecked")
-public abstract class Pass<T, R> implements ErrManaged {
+public abstract sealed class Pass<T, R> implements ErrManaged {
 
-    protected final Pipeline<T> pipeline;
+    public abstract non-sealed static class Analysis<T, R> extends Pass<T, R> { }
 
-    public Pass(Pipeline<T> pipeline) {
-        this.pipeline = pipeline;
+    public abstract non-sealed static class Transformer<T> extends Pass<T, Void> { }
+
+    private final ErrManager errManager;
+
+    public Pass() {
+        this(ErrManager.GLOBAL);
+    }
+
+    public Pass(ErrManager errManager) {
+        this.errManager = errManager;
     }
 
     @Override
     public ErrManager getErrManager() {
-        return pipeline.errManager;
+        return errManager;
     }
 
     public abstract R process(T obj);
-
-    public Class<? extends Pass<T, ?>>[] invalidates() {
-        return new Class[0];
-    }
-
-    protected final <R> R getResult(Class<? extends Pass<T, R>> passClass) {
-        return pipeline.getResult(passClass);
-    }
-
-    protected final void invalidateResult(Class<? extends Pass<T, ?>> passClass) {
-        pipeline.invalidateResult(passClass);
-    }
 
 }

@@ -4,6 +4,7 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfo;
@@ -14,14 +15,13 @@ import java.util.HashSet;
 // dead code elimination
 // 是一个 aggressively dce，因为预先假设都不可访问
 // dce 是一个 instruction level 的 pass，基本块相关的优化放在 cfg simplify，这样，dce 不会改变 cfg
-public class DCE extends AbstractTransform {
-    public DCE(Pipeline<Module> pipeline) { super(pipeline); }
+public class DCE extends ModuleTransformer {
 
     private FuncInfo funcInfo;
 
     @Override
     public void visit(Module module) {
-        funcInfo = getResult(FuncInfoAnalysis.class);
+        funcInfo = FuncInfoAnalysis.run(module);
 
         var modified = false;
         do {

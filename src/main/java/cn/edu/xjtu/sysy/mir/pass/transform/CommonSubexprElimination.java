@@ -26,7 +26,7 @@ public class CommonSubexprElimination extends AbstractTransform {
     public void visit(Function function) {
         analysis.visit(function);
         analysis.printResult(function);
-        getCFG().getRPOBlocks(function).forEach(this::visit);
+        CFGAnalysis.run(module).getRPOBlocks(function).forEach(this::visit);
     }
 
     @Override
