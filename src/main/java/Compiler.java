@@ -1,22 +1,26 @@
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
+import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
-
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
 import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.util.Assertions;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 
 /**
  * 根据大赛技术方案规定，编译器的主类名为 Compiler，不带包名。
@@ -37,7 +41,10 @@ public class Compiler {
         var output = args[3];
 
         var em = ErrManager.GLOBAL;
-        var compUnit = compileToAst(em, input);
+        var testCodeStream = new FileInputStream(input);
+        var testCode = new String(testCodeStream.readAllBytes());
+        var compUnit = compileToAst(em, testCode);
+        AstPipelines.DEFAULT.process(compUnit);
         if (em.hasErr()) {
             em.printErrs();
             return;
@@ -53,8 +60,16 @@ public class Compiler {
             em.printErrs();
             return;
         }
-        //System.out.println(mir);
+        System.out.println(mir);
 
+        System.out.println("Interpreting test...");
+        var is = new ByteArrayInputStream(new byte[0]);
+        var os = new ByteArrayOutputStream();
+        var interpreter = new Interpreter(new PrintStream(os), is);
+        interpreter.process(mir);
+        var out = os.toString();
+        System.out.println("Test output: \n" + out);
+        /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);
         var asm = new RiscVWriter();
@@ -72,6 +87,7 @@ public class Compiler {
             outStream.write(riscVCode.getBytes());
             outStream.close();
         }
+        */
     }
 
     public static CompUnit compileToAst(ErrManager em, String s) {

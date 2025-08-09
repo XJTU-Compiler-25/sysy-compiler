@@ -76,7 +76,7 @@ public final class CFGAnalysis extends ModuleAnalysis<CFG> {
 
                 switch(block.terminator) {
                     case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
-                    case Instruction.Br br -> succs.addAll(br.getTargets());
+                    case Instruction.AbstractBr br -> succs.addAll(br.getTargets());
                     default -> { }
                 }
             }
@@ -107,7 +107,7 @@ public final class CFGAnalysis extends ModuleAnalysis<CFG> {
 
             switch(block.terminator) {
                 case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
-                case Instruction.Br br -> {
+                case Instruction.AbstractBr br -> {
                     succs.add(br.getTrueTarget());
                     succs.add(br.getFalseTarget());
                 }

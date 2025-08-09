@@ -36,6 +36,7 @@ import cn.edu.xjtu.sysy.riscv.Instr.RegZ;
 import cn.edu.xjtu.sysy.riscv.Instr.Ret;
 import cn.edu.xjtu.sysy.riscv.Instr.Store;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
+import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.symbol.Symbol;
 
 import java.io.PrintWriter;
@@ -98,6 +99,7 @@ public class RiscVWriter {
             func.instrs.forEach(this::emit);
             emit(func.size);
         }
+        instrs.forEach(this::emit);
     }
 
     private RiscVWriter global(Label label) {

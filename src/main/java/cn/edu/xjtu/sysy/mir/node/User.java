@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.HashSet;
 import java.util.ArrayList;
@@ -18,13 +19,18 @@ public sealed abstract class User extends Value permits Instruction {
     }
 
     public void addUsed(Use use) {
-        if (used.add(use))
-            usedList.add(use);
+        used.add(use);
+        usedList.add(use);
     }
 
     public void removeUsed(Use use) {
-        if (used.remove(use))
-            usedList.remove(use);
+        int idx = usedList.lastIndexOf(use);
+        if (idx == -1) {
+            used.remove(use);
+            return;
+        }
+        usedList.remove(idx);
+        if (!usedList.contains(use)) used.remove(use);
     }
 
     public <V extends Value> Use<V> use(V value) {
