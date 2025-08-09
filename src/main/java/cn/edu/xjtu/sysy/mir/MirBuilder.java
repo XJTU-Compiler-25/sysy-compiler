@@ -107,7 +107,6 @@ public final class MirBuilder implements ErrManaged {
         for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
 
         visit(node.body);
-
         if (helper.getBlock() != null && !helper.hasTerminator()) {
             var retType = funcType.returnType;
             if (retType == Types.Int) helper.ret(iZero);

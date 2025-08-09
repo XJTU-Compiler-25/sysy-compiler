@@ -7,9 +7,15 @@ import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.riscv.Label;
+import cn.edu.xjtu.sysy.riscv.RiscVWriter;
+import cn.edu.xjtu.sysy.symbol.Symbol;
+import cn.edu.xjtu.sysy.symbol.SymbolTable;
+import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
+
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FA0;
 import static cn.edu.xjtu.sysy.riscv.Register.Float.FT0;
-import static cn.edu.xjtu.sysy.riscv.Register.Int.A;
+import static cn.edu.xjtu.sysy.riscv.Register.A;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.A0;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.FP;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.RA;
@@ -17,12 +23,6 @@ import static cn.edu.xjtu.sysy.riscv.Register.Int.SP;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.T0;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.T1;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.ZERO;
-import cn.edu.xjtu.sysy.riscv.RiscVWriter;
-import cn.edu.xjtu.sysy.symbol.Symbol;
-import cn.edu.xjtu.sysy.symbol.SymbolTable;
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
-
 import static cn.edu.xjtu.sysy.util.Assertions.requires;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 

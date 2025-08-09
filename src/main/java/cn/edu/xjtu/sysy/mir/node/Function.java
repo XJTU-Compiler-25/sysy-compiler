@@ -1,12 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
-import cn.edu.xjtu.sysy.util.Pair;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Pair;
 import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 public final class Function extends Value {
@@ -15,6 +14,7 @@ public final class Function extends Value {
     public String name;
     public Type.Function funcType;
     public BasicBlock entry = new BasicBlock(this);
+    public BasicBlock epilogue = new BasicBlock(this);
     public HashSet<BasicBlock> blocks = new HashSet<>();
     // 函数参数是入口块的参数，是保插入序的
     public ArrayList<Pair<String, BlockArgument>> params = new ArrayList<>();

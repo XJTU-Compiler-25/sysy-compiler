@@ -1,11 +1,10 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
-
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Objects;
+
+import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 
 /**
  * 立即的值
@@ -44,6 +43,14 @@ public abstract sealed class ImmediateValue extends Value {
         }
 
         @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + value;
+            return result;
+        }
+
+        @Override
         public boolean equals(Object obj) {
             return obj instanceof IntConst iConst && value == iConst.value;
         }
@@ -60,6 +67,14 @@ public abstract sealed class ImmediateValue extends Value {
         @Override
         String buildStringRepresent() {
             return Float.toString(value);
+        }
+        
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + Float.floatToIntBits(value);
+            return result;
         }
 
         @Override

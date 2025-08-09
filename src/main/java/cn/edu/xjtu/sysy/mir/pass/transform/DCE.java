@@ -1,15 +1,19 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import java.util.HashSet;
+
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Alloca;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Call;
+import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfo;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
-
-import java.util.HashSet;
 
 // dead code elimination
 // 是一个 aggressively dce，因为预先假设都不可访问

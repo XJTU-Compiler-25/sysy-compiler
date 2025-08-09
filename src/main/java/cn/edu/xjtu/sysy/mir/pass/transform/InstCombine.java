@@ -1,14 +1,24 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
-import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue.IntConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Alloca;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Call;
+import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
+import cn.edu.xjtu.sysy.mir.node.Instruction.GetElemPtr;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IAdd;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Load;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
+import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.util.Worklist;
-
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
+import cn.edu.xjtu.sysy.mir.node.Use;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 /*
  * https://understanding-llvm-transformation-passes.readthedocs.io/en/latest/LLVM-transformation-passes/18-combine-redundant-instructions.html
