@@ -1,3 +1,4 @@
+package cn.edu.xjtu.sysy.mir.pass.analysis;
 /*
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
@@ -22,11 +23,9 @@ import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
 
-/** 可用表达式分析 */
 public class AvailableExpression
         extends AbstractAnalysis<Map<AvailableExpression.Expr, Set<Instruction>>> {
 
-    /** 表达式类 */
     public record Expr(Instruction data) {
         @Override
         public int hashCode() {
@@ -147,4 +146,4 @@ public class AvailableExpression
         return Stream.empty();
     }
 }
-*/
+ */

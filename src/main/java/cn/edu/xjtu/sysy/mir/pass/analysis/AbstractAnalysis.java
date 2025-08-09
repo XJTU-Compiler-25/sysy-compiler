@@ -80,12 +80,8 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
     // 单条语句的转换函数
     protected abstract void flowThrough(Instruction instr, Result in, Result out);
 
-    /** 处理控制流交汇（TODO: 基本块参数相关的部分还没写） */
     protected boolean meet(BasicBlock block, Result in) {
-        /* 如果b在一个size > 1的强连通分量或者在自环中
-         * i.e. b可能在一个循环结构中
-         * 执行是否已经到达不动点的检测
-         */
+==
         if (!flowBeforeBlock.containsKey(block)) {
             flowBeforeBlock.put(block, in);
             return true;
@@ -104,13 +100,11 @@ public abstract class AbstractAnalysis<Result> extends ModuleVisitor<Result> {
         return true;
     }
 
-    /** 处理基本块 */
     protected void flowThrough(BasicBlock b) {
         Result in = flowBeforeBlock.get(b);
         flowThrough(b, in);
     }
 
-    /** 基本块的转换函数 */
     protected void flowThrough(BasicBlock block, Result in) {
         var instrs = getOrderedInstrs(block);
         var inFlow = in;

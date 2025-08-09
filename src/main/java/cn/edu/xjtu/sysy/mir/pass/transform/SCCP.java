@@ -4,6 +4,7 @@ import cn.edu.xjtu.sysy.Pass;
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
@@ -138,7 +139,8 @@ public final class SCCP extends AbstractTransform {
     private LatticeValue fold(Instruction inst) {
         switch (inst) {
             // 不能被折叠的指令
-            case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _ -> {
+            case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _, 
+                Dummy _, DummyDef _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
                 return BOT;
             }
             case Terminator _ -> {

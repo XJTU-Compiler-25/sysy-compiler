@@ -2,7 +2,6 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,9 +9,8 @@ import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
-import cn.edu.xjtu.sysy.util.Pair;
-
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+import cn.edu.xjtu.sysy.util.Pair;
 import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 /**
@@ -45,7 +43,7 @@ public abstract sealed class Instruction extends User {
     @Override
     public abstract String toString();
 
-    public void frontInsert(Instruction instr) {
+    public void insertBefore(Instruction instr) {
         if (this instanceof Terminator) {
             block.instructions.add(instr);
             return;
@@ -54,10 +52,17 @@ public abstract sealed class Instruction extends User {
         block.instructions.add(idx, instr);
     }
 
-    public void backInsert(Instruction instr) {
+    public void insertAfter(Instruction instr) {
         Assertions.requires(!(this instanceof Terminator));
         int idx = block.instructions.indexOf(this);
         block.instructions.add(idx+1, instr);
+    }
+
+    public void replaceWith(Instruction instr) {
+        int idx = block.instructions.indexOf(this);
+        block.instructions.set(idx, instr);
+        replaceAllUsesWith(instr);
+        dispose();
     }
 
     // 基本块结束指令
@@ -185,27 +190,16 @@ public abstract sealed class Instruction extends User {
         }
     }
 
-    // 分支 branch
-    public static final class Br extends Terminator {
-        private final Use condition;
-        private final Use<BasicBlock> trueTarget;
-        private final Use<BasicBlock> falseTarget;
+    public abstract sealed static class AbstractBr extends Terminator {
+        protected final Use<BasicBlock> trueTarget;
+        protected final Use<BasicBlock> falseTarget;
         public final ArrayList<Pair<Use<BlockArgument>, Use>> trueParams = new ArrayList<>();
         public final ArrayList<Pair<Use<BlockArgument>, Use>> falseParams = new ArrayList<>();
 
-        Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
+        AbstractBr(BasicBlock block, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
-            this.condition = use(condition);
             this.trueTarget = use(trueTarget);
             this.falseTarget = use(falseTarget);
-        }
-
-        public Value getCondition() {
-            return condition.value;
-        }
-
-        public void replaceCondition(Value newCondition) {
-            condition.replaceValue(newCondition);
         }
 
         public BasicBlock getTrueTarget() {
@@ -298,6 +292,24 @@ public abstract sealed class Instruction extends User {
                 }
             }
         }
+    }
+
+    // 分支 branch
+    public static final class Br extends AbstractBr {
+        private final Use condition;
+
+        Br(BasicBlock block, Value condition, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.condition = use(condition);
+        }
+
+        public Value getCondition() {
+            return condition.value;
+        }
+
+        public void replaceCondition(Value newCondition) {
+            condition.replaceValue(newCondition);
+        }
 
         @Override
         public String toString() {
@@ -317,16 +329,23 @@ public abstract sealed class Instruction extends User {
 
     // 函数调用
 
-    public static final class Call extends Instruction {
-        private final Use<Function> function;
+    public static sealed abstract class AbstractCall extends Instruction {
         public Use[] args;
 
-        Call(BasicBlock block, Function function, Value... args) {
-            super(block, function.funcType.returnType);
-            this.function = use(function);
+        AbstractCall(BasicBlock block, Type type, Value... args) {
+            super(block, type);
             var argLen = args.length;
             this.args = new Use[argLen];
             for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
+        }
+    }
+
+    public static final class Call extends AbstractCall {
+        private final Use<Function> function;
+
+        Call(BasicBlock block, Function function, Value... args) {
+            super(block, function.funcType.returnType, args);
+            this.function = use(function);
         }
 
         public void setFunction(Function newFunc) {
@@ -345,20 +364,16 @@ public abstract sealed class Instruction extends User {
         }
     }
 
-    public static final class CallExternal extends Instruction {
+    public static final class CallExternal extends AbstractCall {
         public BuiltinFunction function;
-        public Use[] args;
 
         CallExternal(BasicBlock block, String function, Value... args) {
             this(block, BuiltinFunction.of(function), args);
         }
 
         CallExternal(BasicBlock block, BuiltinFunction function, Value... args) {
-            super(block, function.symbol.funcType.returnType);
+            super(block, function.symbol.funcType.returnType, args);
             this.function = function;
-            var argLen = args.length;
-            this.args = new Use[argLen];
-            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
         }
 
         @Override
@@ -1089,8 +1104,8 @@ public abstract sealed class Instruction extends User {
     public static final class ILi extends Instruction {
         public int imm;
 
-        public ILi(BasicBlock block, int label, int imm) {
-            super(block, label, Types.Int);
+        public ILi(BasicBlock block, int imm) {
+            super(block, Types.Int);
             this.imm = imm;
         }
 
@@ -1103,8 +1118,8 @@ public abstract sealed class Instruction extends User {
     public static final class FLi extends Instruction {
         public float imm;
 
-        public FLi(BasicBlock block, int label, float imm) {
-            super(block, label, Types.Int); // 需要先把浮点数按位赋值给整数寄存器
+        public FLi(BasicBlock block, float imm) {
+            super(block, Types.Int); // 需要先把浮点数按位赋值给整数寄存器
             this.imm = imm;
         }
 
@@ -1119,7 +1134,7 @@ public abstract sealed class Instruction extends User {
         public Use src;
 
         IMv(BasicBlock block, Value dst, Value src) {
-            super(block, -1, Types.Void);
+            super(block, Types.Void);
             this.src = use(src);
         }
 
@@ -1134,13 +1149,41 @@ public abstract sealed class Instruction extends User {
         public Use src;
 
         FMv(BasicBlock block, Value dst, Value src) {
-            super(block, -1, Types.Void);
+            super(block, Types.Void);
             this.src = use(src);
         }
 
         @Override
         public String toString() {
             return String.format("fmv %s, %s", dst.shortName(), src.value.shortName());
+        }
+    }
+
+    public static final class ICpy extends Instruction {
+        public Use src;
+
+        ICpy(BasicBlock block, Value src) {
+            super(block, src.type);
+            this.src = use(src);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = icpy %s", shortName(), src.value.shortName());
+        }
+    }
+
+    public static final class FCpy extends Instruction {
+        public Use src;
+
+        FCpy(BasicBlock block, Value src) {
+            super(block, src.type);
+            this.src = use(src);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = fcpy %s", shortName(), src.value.shortName());
         }
     }
 
@@ -1168,8 +1211,8 @@ public abstract sealed class Instruction extends User {
         Use rs2;
         Use rs3;
 
-        FMulAdd(BasicBlock block, int label, Op op, Value rs1, Value rs2, Value rs3) {
-            super(block, label, Types.Float);
+        FMulAdd(BasicBlock block, Op op, Value rs1, Value rs2, Value rs3) {
+            super(block, Types.Float);
             this.rs1 = use(rs1);
             this.rs2 = use(rs2);
             this.rs3 = use(rs3);
@@ -1181,121 +1224,163 @@ public abstract sealed class Instruction extends User {
         }
     }
 
-    public static final class BrBinary extends Terminator {
-        public enum Op {
-            BEQ("beq"),
-            BGE("bge"),
-            BGEU("bgeu"),
-            BLT("blt"),
-            BLTU("bltu"),
-            BNE("bne"),
-            BGTU("bgtu"),
-            BLE("ble"),
-            BLEU("bleu"),
-            BGT("bgt");
-
-            private final String op;
-
-            Op(String op) {
-                this.op = op;
-            }
-
-            @Override
-            public String toString() {
-                return op;
-            }
-        }
-
-        public Op op;
+    public static final class BEq extends AbstractBr {
         public Use lhs;
         public Use rhs;
-        private final Use<BasicBlock> trueTarget;
-        private final Use<BasicBlock> falseTarget;
-        public final HashMap<Var, Use> trueParams = new HashMap<>();
-        public final HashMap<Var, Use> falseParams = new HashMap<>();
 
-        public BrBinary(BasicBlock block, Op op, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
-            super(block);
-            this.op = op;
+        BEq(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
             this.lhs = use(lhs);
             this.rhs = use(rhs);
-            this.trueTarget = use(trueTarget);
-            this.falseTarget = use(falseTarget);
-        }
-
-        public void putAllTrueParams(HashMap<Var, Use> trueParams) {
-            this.trueParams.putAll(trueParams);
-        }
-        
-        public void putAllFalseParams(HashMap<Var, Use> falseParams) {
-            this.falseParams.putAll(falseParams);
-        }
-
-        public BasicBlock getTrueTarget() {
-            return trueTarget.value;
-        }
-
-        public BasicBlock getFalseTarget() {
-            return falseTarget.value;
-        }
-
-        public List<BasicBlock> getTargets() {
-            return List.of(getTrueTarget(), getFalseTarget());
-        }
-
-        public void replaceTrueTarget(BasicBlock newTarget) {
-            trueTarget.replaceValue(newTarget);
-        }
-
-        public void replaceFalseTarget(BasicBlock newTarget) {
-            falseTarget.replaceValue(newTarget);
-        }
-
-        @Override
-        public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
-            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
-            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
-        }
-
-        public void putTrueParam(Var var, Value value) {
-            trueParams.compute(var, (_, use) -> {
-                if (use == null) return use(value);
-                else {
-                    use.replaceValue(value);
-                    return use;
-                }
-            });
-        }
-
-        public void putFalseParam(Var var, Value value) {
-            falseParams.compute(var, (_, use) -> {
-                if (use == null) return use(value);
-                else {
-                    use.replaceValue(value);
-                    return use;
-                }
-            });
-        }
-
-        @Override
-        public void putParam(BasicBlock block, Var var, Value value) {
-            if (block == trueTarget.value) putTrueParam(var, value);
-            if (block == falseTarget.value) putFalseParam(var, value);
         }
 
         @Override
         public String toString() {
-            return op + " " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+            return "beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(param -> param.getKey().name
-                                    + "= " + param.getValue().value.shortName())
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
                             .collect(Collectors.joining(", "))
-                    + "), "
-                    + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(param -> param.getKey().name
-                                    + "= " + param.getValue().value.shortName())
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class BNe extends AbstractBr {
+        public Use lhs;
+        public Use rhs;
+
+        BNe(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return "bne " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class BLt extends AbstractBr {
+        public Use lhs;
+        public Use rhs;
+
+        BLt(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return "blt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class BGe extends AbstractBr {
+        public Use lhs;
+        public Use rhs;
+
+        BGe(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return "bge " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class BLe extends AbstractBr {
+        public Use lhs;
+        public Use rhs;
+
+        BLe(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return "ble " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
+    }
+
+    public static final class BGt extends AbstractBr {
+        public Use lhs;
+        public Use rhs;
+
+        BGt(BasicBlock block, Value lhs, Value rhs, BasicBlock trueTarget, BasicBlock falseTarget) {
+            super(block, trueTarget, falseTarget);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        @Override
+        public String toString() {
+            return "bgt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+                    + trueTarget.value.shortName() + "(" +
+                    trueParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.stream()
+                            .map(pair -> pair.first().value.shortName()
+                                    + "= " + pair.second().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1303,8 +1388,8 @@ public abstract sealed class Instruction extends User {
 
     public static final class Dummy extends Instruction {
         Use[] uses;
-        Dummy(BasicBlock block, int label, Type type, Value... uses) {
-            super(block, label, type);
+        Dummy(BasicBlock block, Type type, Value... uses) {
+            super(block, type);
             this.uses = new Use[uses.length];
             for (int i = 0; i < uses.length; i++) {
                 this.uses[i] = use(uses[i]);
@@ -1312,7 +1397,7 @@ public abstract sealed class Instruction extends User {
         }
 
         Dummy(BasicBlock block, Value... uses) {
-            super(block, -1, Types.Void);
+            super(block, Types.Void);
             this.uses = new Use[uses.length];
             for (int i = 0; i < uses.length; i++) {
                 this.uses[i] = use(uses[i]);
@@ -1321,48 +1406,123 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return (hasNoDef() ? "" : shortName() + " = ") + "dummy " + 
-                    Arrays.stream(uses).map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+            return "dummy use " + Arrays.stream(uses)
+                                        .map(v -> v.value.shortName())
+                                        .collect(Collectors.joining(", "));
         }
     }
 
-    public static final class Imm extends Instruction {
-        public Op op;
-        public Use lhs;
-        public int imm;
-        public Imm(BasicBlock block, int label, Op op, Value lhs, int imm) {
-            super(block, label, lhs.type);
-            this.op = op;
-            this.lhs = use(lhs);
-            this.imm = imm;
+    public static final class DummyDef extends Instruction {
+        Instruction[] defs;
+        DummyDef(BasicBlock block, Instruction... defs) {
+            super(block, Types.Void);
+            this.defs = new Instruction[defs.length];
+            System.arraycopy(defs, 0, this.defs, 0, defs.length); 
         }
-
-        public enum Op {
-            ADDI("addi"),
-            ANDI("andi"),
-            ORI("ori"),
-            XORI("xori"),
-            SLLI("slli"),
-            SRLI("srli"),
-            SRAI("srai"),
-            SLTI("slti");
-
-            private final String op;
-
-            Op(String op) {
-                this.op = op;
-            }
-
-            @Override
-            public String toString() {
-                return op;
-            }
-        }
-        
 
         @Override
         public String toString() {
-            return String.format("%s %s, %s, %d", op, shortName(), lhs.value.shortName(), imm);
+            return Arrays.stream(defs).map(v -> v.shortName())
+                                        .collect(Collectors.joining(", ")) + " = dummy def";
+        }
+    }
+
+    /** 对应RV中的I类型指令，需要保证imm的值在范围内 */
+    public abstract sealed static class Imm extends Instruction {
+        public Use lhs;
+        public int imm;
+        public Imm(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs.type);
+            this.lhs = use(lhs);
+            this.imm = imm;
+        }
+    }
+
+    public static final class Addi extends Imm {
+        Addi(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = addi %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Andi extends Imm {
+        Andi(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = andi %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Ori extends Imm {
+        Ori(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = ori %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Xori extends Imm {
+        Xori(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = xori %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Slli extends Imm {
+        Slli(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = slli %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Srli extends Imm {
+        Srli(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = srli %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Srai extends Imm {
+        Srai(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = srai %s, %d", shortName(), lhs.value.shortName(), imm);
+        }
+    }
+
+    public static final class Slti extends Imm {
+        Slti(BasicBlock block, Value lhs, int imm) {
+            super(block, lhs, imm);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s = slti %s, %d", shortName(), lhs.value.shortName(), imm);
         }
     }
 }

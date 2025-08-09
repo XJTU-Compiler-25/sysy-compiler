@@ -1,5 +1,8 @@
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -12,6 +15,7 @@ import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
@@ -57,6 +61,14 @@ public class Compiler {
             return;
         }
         System.out.println(mir);
+
+        System.out.println("Interpreting test...");
+        var is = new ByteArrayInputStream(new byte[0]);
+        var os = new ByteArrayOutputStream();
+        var interpreter = new Interpreter(new PrintStream(os), is);
+        interpreter.process(mir);
+        var out = os.toString();
+        System.out.println("Test output: \n" + out);
         /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);
@@ -76,10 +88,6 @@ public class Compiler {
             outStream.close();
         }
         */
-        var cgen = new cn.edu.xjtu.sysy.mir.pass.RiscVCGen();
-        //cgen.visit(mir);
-        cgen.asm.emitAll();
-        System.out.println(cgen.asm.toString());
     }
 
     public static CompUnit compileToAst(ErrManager em, String s) {

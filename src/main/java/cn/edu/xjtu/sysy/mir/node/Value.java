@@ -1,8 +1,10 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.function.Predicate;
 
+import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -12,7 +14,9 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, Function, 
     public final int id = counter++;
 
     public Type type;
-    public final HashSet<Use> usedBy = new HashSet<>();
+    public final ArrayList<Use> usedBy = new ArrayList<>();
+
+    public ValuePosition constraint = null;
 
     public Value(Type type) {
         this.type = type;
@@ -37,13 +41,13 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, Function, 
     }
 
     public final void replaceAllUsesWith(Value newValue) {
-        for (var use : (HashSet<Use>) usedBy.clone()) {
+        for (var use : (ArrayList<Use>) usedBy.clone()) {
             use.replaceValue(newValue);
         }
     }
 
     public final void replaceAllUsesWithIf(Value newValue, Predicate<Use> predicate) {
-        for (var use : (HashSet<Use>) usedBy.clone()) {
+        for (var use : (ArrayList<Use>) usedBy.clone()) {
             if (predicate.test(use)) use.replaceValue(newValue);
         }
     }

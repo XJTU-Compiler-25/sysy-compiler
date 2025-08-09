@@ -9,8 +9,8 @@ import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.BlockArgument;
 import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.DenseArray;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.FloatConst;
@@ -19,8 +19,7 @@ import cn.edu.xjtu.sysy.mir.node.ImmediateValue.SparseArray;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.ZeroInit;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iFalse;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iTrue;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseToDense;
@@ -32,7 +31,6 @@ import cn.edu.xjtu.sysy.mir.node.Instruction.And;
 import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastF2I;
 import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastI2F;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Br;
-import cn.edu.xjtu.sysy.mir.node.Instruction.BrBinary;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Call;
 import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
@@ -72,7 +70,6 @@ import cn.edu.xjtu.sysy.mir.node.Instruction.IMv;
 import cn.edu.xjtu.sysy.mir.node.Instruction.INe;
 import cn.edu.xjtu.sysy.mir.node.Instruction.INeg;
 import cn.edu.xjtu.sysy.mir.node.Instruction.ISub;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Imm;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Jmp;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Load;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Not;
@@ -85,11 +82,8 @@ import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Xor;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.mir.node.Var;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 // 用于解释执行 MIR 代码，以检测正确性
 public final class Interpreter extends ModuleVisitor<Void> {
@@ -285,17 +279,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                         currentBlock = it.getFalseTarget();
                     }
                 }
-                case BrBinary it -> {
+                case Instruction.BEq it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    var cond = switch (it.op) {
-                        case BEQ -> lhs == rhs ? iTrue : iFalse;
-                        case BGE, BGEU -> lhs >= rhs ? iTrue : iFalse;
-                        case BGT, BGTU -> lhs > rhs ? iTrue : iFalse;
-                        case BLE, BLEU -> lhs <= rhs ? iTrue : iFalse;
-                        case BLT, BLTU -> lhs < rhs ? iTrue : iFalse;
-                        case BNE -> lhs != rhs ? iTrue : iFalse;
-                    };
+                    var cond = lhs == rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach(pair ->
                                 stackframe.put(pair.first().value, toImm(pair.second().value)));
@@ -306,22 +293,73 @@ public final class Interpreter extends ModuleVisitor<Void> {
                         currentBlock = it.getFalseTarget();
                     }
                 }
-                case BrBinary it -> {
+                case Instruction.BNe it -> {
                     var lhs = getInt(it.lhs.value);
                     var rhs = getInt(it.rhs.value);
-                    var cond = switch (it.op) {
-                        case BEQ -> lhs == rhs ? iTrue : iFalse;
-                        case BGE, BGEU -> lhs >= rhs ? iTrue : iFalse;
-                        case BGT, BGTU -> lhs > rhs ? iTrue : iFalse;
-                        case BLE, BLEU -> lhs <= rhs ? iTrue : iFalse;
-                        case BLT, BLTU -> lhs < rhs ? iTrue : iFalse;
-                        case BNE -> lhs != rhs ? iTrue : iFalse;
-                    };
+                    var cond = lhs != rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getFalseTarget();
+                    }
+                }
+                case Instruction.BLt it -> {
+                    var lhs = getInt(it.lhs.value);
+                    var rhs = getInt(it.rhs.value);
+                    var cond = lhs < rhs ? iOne : iZero;
+                    if (!cond.equals(iZero)) {
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getTrueTarget();
+                    } else {
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getFalseTarget();
+                    }
+                }
+                case Instruction.BLe it -> {
+                    var lhs = getInt(it.lhs.value);
+                    var rhs = getInt(it.rhs.value);
+                    var cond = lhs <= rhs ? iOne : iZero;
+                    if (!cond.equals(iZero)) {
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getTrueTarget();
+                    } else {
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getFalseTarget();
+                    }
+                }
+                case Instruction.BGt it -> {
+                    var lhs = getInt(it.lhs.value);
+                    var rhs = getInt(it.rhs.value);
+                    var cond = lhs > rhs ? iOne : iZero;
+                    if (!cond.equals(iZero)) {
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getTrueTarget();
+                    } else {
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getFalseTarget();
+                    }
+                }
+                case Instruction.BGe it -> {
+                    var lhs = getInt(it.lhs.value);
+                    var rhs = getInt(it.rhs.value);
+                    var cond = lhs >= rhs ? iOne : iZero;
+                    if (!cond.equals(iZero)) {
+                        it.trueParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        currentBlock = it.getTrueTarget();
+                    } else {
+                        it.falseParams.forEach(pair ->
+                                stackframe.put(pair.first().value, toImm(pair.second().value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -579,17 +617,56 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 }
                 case IMv it -> {
                     var src = getInt(it.src.value);
-                    stackframe.put(it, intConst(src));
+                    stackframe.put(it.dst, intConst(src));
                 }
                 case FMv it -> {
                     var src = getFloat(it.src.value);
-                    stackframe.put(it, floatConst(src));
+                    stackframe.put(it.dst, floatConst(src));
                 }
-                case Imm it -> {
-                    
+                case Instruction.ICpy it -> {
+                    stackframe.put(it, toImm(it.src.value));
                 }
-                case FMulAdd _ -> {}
-                case Dummy _ -> {}
+                case Instruction.FCpy it -> {
+                    stackframe.put(it, toImm(it.src.value));
+                }
+                case Instruction.Addi it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs + it.imm));
+                }
+                case Instruction.Andi it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs & it.imm));
+                }
+                case Instruction.Ori it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs | it.imm));
+                }
+                case Instruction.Xori it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs ^ it.imm));
+                }
+                case Instruction.Slli it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs << it.imm));
+                }
+                case Instruction.Srli it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs >> it.imm));
+                }
+                case Instruction.Srai it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, intConst(lhs >>> it.imm));
+                }
+                case Instruction.Slti it -> {
+                    var lhs = getInt(it.lhs.value);
+                    stackframe.put(it, lhs < it.imm ? iOne : iZero);
+                }
+                case FMulAdd _ -> {
+                    // TODO
+                }
+                case Dummy _, Instruction.DummyDef _ -> {
+                    // Ignore
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

@@ -1,5 +1,5 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
-
+/* 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
@@ -43,7 +43,6 @@ public class CSE extends AbstractTransform {
                 instr.replaceAllUsesWith(calculatedSet.iterator().next());
                 // continue;
             }
-            /* TODO: phi结点
             Set<BasicBlock> dfs = new HashSet<>();
             Worklist<BasicBlock> worklist =
                     new Worklist<>(
@@ -55,7 +54,7 @@ public class CSE extends AbstractTransform {
                 dfs.addAll(cur.df);
                 for (var df : cur.df) worklist.add(df);
             }
-                */
+                
         }
     }
 
@@ -98,3 +97,4 @@ public class CSE extends AbstractTransform {
         return Stream.empty();
     }
 }
+*/

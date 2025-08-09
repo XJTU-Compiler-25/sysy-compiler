@@ -1,13 +1,15 @@
 package cn.edu.xjtu.sysy.riscv;
 
-import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-
 import java.util.stream.Stream;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 public sealed interface Register extends ValuePosition {
+
+    public abstract Type getType();
+    
     /** 整数寄存器 */
     enum Int implements Register {
         A0("a0"), A1("a1"), A2("a2"), A3("a3"), A4("a4"), A5("a5"), A6("a6"),

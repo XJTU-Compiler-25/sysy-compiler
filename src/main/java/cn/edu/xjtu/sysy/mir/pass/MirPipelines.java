@@ -5,14 +5,14 @@ import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.OnceAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.PurenessAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FrequencyAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.transform.CFGSimplify;
+import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
 import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
-import cn.edu.xjtu.sysy.mir.pass.transform.ExitSSA;
-import cn.edu.xjtu.sysy.mir.pass.transform.InstCombine;
 import cn.edu.xjtu.sysy.mir.pass.transform.LIRInstCombine;
 import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
 
@@ -36,12 +36,11 @@ public final class MirPipelines {
             //GCM::new,
             CFGSimplify::new,
             DCE::new,
-            CFGAnalysis::new
             CFGAnalysis::new,
-            // CommonSubexprElimination::new
             EnterLIR::new,
+            CFGAnalysis::new,
             LIRInstCombine::new,
-            ExitSSA::new
+            CFGAnalysis::new
     );
 
     public static final Pipeline<Module> UNOPTIMIZED = new Pipeline<>(

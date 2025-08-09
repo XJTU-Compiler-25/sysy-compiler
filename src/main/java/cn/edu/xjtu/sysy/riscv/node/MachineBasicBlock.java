@@ -7,9 +7,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.edu.xjtu.sysy.mir.node.BlockArgument;
-import cn.edu.xjtu.sysy.mir.node.Var;
-import cn.edu.xjtu.sysy.symbol.Types;
 
 public class MachineBasicBlock {
     public String label;

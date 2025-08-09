@@ -1,6 +1,8 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
@@ -10,8 +12,8 @@ import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
 import cn.edu.xjtu.sysy.mir.node.LIRInstrHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.node.Var;
 import cn.edu.xjtu.sysy.riscv.Register;
+import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 public class EnterLIR extends AbstractTransform {
@@ -20,8 +22,6 @@ public class EnterLIR extends AbstractTransform {
         super(pipeline);
     }
 
-    Var curRetVal = null;
-
     /** 插入epilogue块和callee saved */
     @Override
     public void visit(Function function) {
@@ -29,22 +29,21 @@ public class EnterLIR extends AbstractTransform {
         helper.changeBlock(function.entry);
         var dummies = Register.calleeSaved().map(reg -> {
             var dummy = helper.dummyDef(reg.getType());
-            // TODO:为dummy结点进行预着色
-            function.entry.instructions.addFirst(dummy);
+            dummy.constraint = reg;
             return dummy;
         }).toArray(Dummy[]::new);
-        var epilogue = function.addNewBlock();
-        function.epilogue = epilogue;
+        function.entry.instructions.addFirst(helper.dummyDef(dummies));
+
+        var epilogue = function.epilogue;
+        function.addBlock(epilogue);
         helper.changeBlock(epilogue);
         if (!function.funcType.returnType.equals(Types.Void)) {
-            curRetVal = function.addNewLocalVar("@.retval", function.funcType.returnType);
-            var arg = epilogue.addBlockArgument(curRetVal);
-            helper.ret(arg);
+            var arg = epilogue.addBlockArgument(function.funcType.returnType);
+            epilogue.terminator = helper.ret(arg);
         } else {
-            helper.ret();
+            epilogue.terminator = helper.ret();
         }
         var dummyUse = helper.dummyUse(dummies);
-        System.out.println(dummyUse);
         epilogue.addInstruction(dummyUse);
         function.blocks.forEach(this::visit);
     }
@@ -56,29 +55,91 @@ public class EnterLIR extends AbstractTransform {
         var instrs = new ArrayList<>(block.instructions);
         instrs.forEach(this::visit);
         visit(block.terminator);
+        instrs = new ArrayList<>(block.instructions);
+        instrs.forEach(this::insertLi);
+        insertLi(block.terminator);
     }
 
     @Override
     public void visit(Instruction instruction) {
-        insertLi(instruction);
         switch (instruction) {
-            case Instruction.Call it -> insertCallerSaved(it);
-            case Instruction.CallExternal it -> insertCallerSaved(it);
+            case Instruction.AbstractCall it -> insertCallerSaved(it);
+            case Instruction.GetElemPtr it -> visit(it);
             case Instruction.Ret it -> visit(it);
             case Instruction.RetV it -> visit(it);
             default -> {}
         }
     }
+
+    public void visit(Instruction.GetElemPtr instr) {
+        //TODO: 细化GetElemPtr的语义
+    }
     
-    public void insertCallerSaved(Instruction call) {
+    public void insertCallerSaved(Instruction.AbstractCall call) {
         // 插入caller saved
         var dummies = Register.calleeSaved().map(reg -> {
             var dummy = helper.dummyDef(reg.getType());
-            // TODO:为dummy结点进行预着色
-            call.frontInsert(dummy);
+            dummy.constraint = reg;
             return dummy;
         }).toArray(Dummy[]::new);
-        call.backInsert(helper.dummyUse(dummies));
+        call.insertBefore(helper.dummyDef(dummies));
+
+        var floatArgs = Arrays.stream(call.args).filter(
+            arg -> arg.value.type.equals(Types.Float)
+        ).collect(Collectors.toList());
+
+        var intArgs = Arrays.stream(call.args).filter(
+            arg -> !arg.value.type.equals(Types.Float)
+        ).collect(Collectors.toList());
+
+        int offset = 0;
+        for (int i = 0; i < floatArgs.size(); i++) {
+            var arg = floatArgs.get(i);
+            var fcpy = helper.fcpy(arg.value);
+            call.insertBefore(fcpy);
+            arg.replaceValue(fcpy);
+            var reg = Register.FA(i);
+            if (reg != null) {
+                fcpy.constraint = reg;
+                continue;
+            }
+            fcpy.constraint = new StackPosition(offset);
+            offset += 4;
+        }
+
+        for (int i = 0; i < intArgs.size(); i++) {
+            var arg = intArgs.get(i);
+            if (i <= 7) {
+                var icpy = helper.icpy(arg.value);
+                call.insertBefore(icpy);
+                arg.replaceValue(icpy);
+                var reg = Register.A(i);
+                icpy.constraint = reg;
+                continue;
+            }
+            if (arg.value.type.equals(Types.Int)) {
+                var icpy = helper.icpy(arg.value);
+                call.insertBefore(icpy);
+                arg.replaceValue(icpy);
+                icpy.constraint = new StackPosition(offset);
+                offset += 4;
+            }
+        }
+
+        offset = offset / 8 * 8 + 8;
+
+        for (int i = 8; i < intArgs.size(); i++) {
+            var arg = intArgs.get(i);
+            if (!arg.value.type.equals(Types.Int)) {
+                var icpy = helper.icpy(arg.value);
+                call.insertBefore(icpy);
+                arg.replaceValue(icpy);
+                icpy.constraint = new StackPosition(offset);
+                offset += 8;
+            }
+        }
+
+        call.insertAfter(helper.dummyUse(dummies));
     }
 
     /**
@@ -89,7 +150,8 @@ public class EnterLIR extends AbstractTransform {
         var block = ret.getBlock();
         var func = block.getFunction();
         var jmp = helper.jmp(func.epilogue);
-        jmp.putParam(func.epilogue, curRetVal, ret.retVal.value);
+        jmp.putParam(func.epilogue, func.epilogue.args.getFirst(), ret.retVal.value);
+        block.terminator = jmp;
         ret.dispose();
     }
 
@@ -100,7 +162,7 @@ public class EnterLIR extends AbstractTransform {
     public void visit(Instruction.RetV ret) {
         var block = ret.getBlock();
         var func = block.getFunction();
-        helper.jmp(func.epilogue);
+        block.terminator = helper.jmp(func.epilogue);
         ret.dispose();
     }
 
@@ -109,19 +171,13 @@ public class EnterLIR extends AbstractTransform {
      * @param instruction
      */
     public void insertLi(Instruction instruction) {
-        var block = instruction.getBlock();
         instruction.usedList.forEach(use -> {
             switch (use.value) {
-                case ImmediateValue.IntConst it -> {
-                    var li = helper.ili(it.value);
-                    instruction.frontInsert(li);
-                    use.replaceValue(li);
-                }
                 case ImmediateValue.FloatConst it -> {
                     var li = helper.fli(it.value);
-                    instruction.frontInsert(li);
+                    instruction.insertBefore(li);
                     var i2f = helper.i2f(li);
-                    instruction.frontInsert(i2f);
+                    instruction.insertBefore(i2f);
                     use.replaceValue(i2f);
                 }
                 default -> {}

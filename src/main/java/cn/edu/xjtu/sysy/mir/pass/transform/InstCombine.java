@@ -2,7 +2,6 @@ package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.IntConst;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
