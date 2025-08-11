@@ -85,14 +85,8 @@ import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
-import java.io.InputStream;
-import java.io.PrintStream;
-import java.util.*;
-
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModuleTransformer {
+public final class Interpreter extends ModulePass {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -268,19 +262,16 @@ public final class Interpreter extends ModuleTransformer {
                 }
                 case Jmp it -> {
                     var target = it.getTarget();
-                    it.params.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                    it.params.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                     currentBlock = target;
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -289,12 +280,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs == rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -303,12 +292,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs != rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -317,12 +304,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs < rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -331,12 +316,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs <= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -345,12 +328,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs > rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -359,12 +340,10 @@ public final class Interpreter extends ModuleTransformer {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs >= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }

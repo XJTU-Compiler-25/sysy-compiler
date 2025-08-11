@@ -43,6 +43,11 @@ public final class BasicBlock extends Value {
         this.terminator = terminator;
     }
 
+    public Instruction getFirstInstruction() {
+        var instrs = this.instructions;
+        return instrs.isEmpty() ? terminator : instrs.getFirst();
+    }
+
     public BlockArgument addBlockArgument(Type type) {
         var arg = new BlockArgument(this, type);
         args.add(arg);

@@ -1,7 +1,7 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public final class JumpThreading extends ModuleTransformer {
+public final class JumpThreading extends ModulePass {
 
 }

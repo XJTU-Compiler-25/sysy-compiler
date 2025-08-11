@@ -3,24 +3,16 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
-public final class DominanceAnalysis extends ModuleAnalysis<DomInfo> {
-
-    public static DomInfo run(Module module) {
-        return new DominanceAnalysis().process(module);
-    }
-
-    public static DomInfo run(Function function) {
-        return new DominanceAnalysis().process(function.getModule());
-    }
+public final class DominanceAnalysis extends ModulePass<DomInfo> {
 
     @Override
     public DomInfo process(Module module) {
-        var cfg = CFGAnalysis.run(module);
+        var cfg = getResult(CFGAnalysis.class);
         var idomMap = new HashMap<BasicBlock, BasicBlock>();
         var idomeeMap = new HashMap<BasicBlock, Set<BasicBlock>>();
         var dfMap = new HashMap<BasicBlock, Set<BasicBlock>>();

@@ -1,7 +1,7 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public final class Reassociate extends ModuleTransformer {
+public final class Reassociate extends ModulePass {
 
 }

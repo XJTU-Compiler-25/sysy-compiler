@@ -5,10 +5,10 @@ import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 
-public abstract class ModuleTransformer extends Pass.Transformer<Module> {
+public abstract class ModulePass<R> extends Pass<Module, R> {
 
     @Override
-    public Void process(Module module) {
+    public R process(Module module) {
         visit(module);
         return null;
     }
@@ -18,7 +18,7 @@ public abstract class ModuleTransformer extends Pass.Transformer<Module> {
     }
 
     public void visit(Function function) {
-        for (var basicBlock : CFGAnalysis.run(function).getRPOBlocks(function)) visit(basicBlock);
+        for (var basicBlock : getResult(CFGAnalysis.class).getRPOBlocks(function)) visit(basicBlock);
     }
 
     public void visit(BasicBlock block) {

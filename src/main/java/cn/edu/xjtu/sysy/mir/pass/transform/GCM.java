@@ -1,10 +1,9 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 
 import java.util.ArrayList;
@@ -14,19 +13,19 @@ import java.util.List;
 
 // Global Code Motion
 // 不处理 load store
-public final class GCM extends ModuleTransformer {
+public final class GCM extends ModulePass<Void> {
 
     private static final InstructionHelper helper = new InstructionHelper();
-    private CFG cfg;
     private FuncInfo funcInfo;
+    private CFG cfg;
     private LoopInfo loopInfo;
     private DomInfo domInfo;
     @Override
     public void visit(Module module) {
-        funcInfo = FuncInfoAnalysis.run(module);
-        cfg = CFGAnalysis.run(module);
-        loopInfo = LoopAnalysis.run(module);
-        domInfo = DominanceAnalysis.run(module);
+        funcInfo = getResult(FuncInfoAnalysis.class);
+        cfg = getResult(CFGAnalysis.class);
+        loopInfo = getResult(LoopAnalysis.class);
+        domInfo = getResult(DominanceAnalysis.class);
 
         for (var function : module.getFunctions()) run(function);
     }

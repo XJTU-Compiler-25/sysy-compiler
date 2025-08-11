@@ -3,24 +3,20 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.util.MathUtils;
 
 import java.util.HashMap;
 
-public final class FrequencyAnalysis extends ModuleAnalysis<FrequencyInfo> {
-
-    public static FrequencyInfo run(Module module) {
-        return new FrequencyAnalysis().process(module);
-    }
+public final class FrequencyAnalysis extends ModulePass<FrequencyInfo> {
 
     private CFG cfg;
     private LoopInfo loopInfo;
     private HashMap<BasicBlock, Integer> frequencyMap;
     @Override
     public FrequencyInfo process(Module module) {
-        cfg = CFGAnalysis.run(module);
-        loopInfo = LoopAnalysis.run(module);
+        cfg = getResult(CFGAnalysis.class);
+        loopInfo = getResult(LoopAnalysis.class);
         frequencyMap = new HashMap<>();
 
         for (var function : module.getFunctions()) visit(function);

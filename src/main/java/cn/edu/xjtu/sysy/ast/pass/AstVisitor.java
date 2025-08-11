@@ -17,7 +17,7 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * 抽象类，用于遍历AST。
  * 派生类应该重写所有需要使用的方法。
  */
-public abstract class AstVisitor extends Pass.Transformer<CompUnit> {
+public abstract class AstVisitor extends Pass<CompUnit, Void> {
 
     public void err(Node node, String msg) {
         err(new SemanticError(node, msg));

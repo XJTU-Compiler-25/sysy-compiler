@@ -39,7 +39,7 @@ import cn.edu.xjtu.sysy.riscv.Instr.Reg;
 import cn.edu.xjtu.sysy.riscv.Instr.RegZ;
 import cn.edu.xjtu.sysy.riscv.Instr.Ret;
 import cn.edu.xjtu.sysy.riscv.Instr.Store;
-import cn.edu.xjtu.sysy.riscv.regalloc.AllocatedResult;
+import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.AllocatedResult;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 

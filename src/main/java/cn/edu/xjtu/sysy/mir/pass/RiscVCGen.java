@@ -1,13 +1,6 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package cn.edu.xjtu.sysy.mir.pass;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-
-import java.util.stream.Collectors;
 
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
@@ -15,20 +8,21 @@ import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Value;
+import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.RegisterAllocator;
 import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
 import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.Register.Float;
-import cn.edu.xjtu.sysy.riscv.regalloc.AllocatedResult;
+import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.AllocatedResult;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 
-public class RiscVCGen extends ModuleTransformer {
+public class RiscVCGen extends ModulePass<Void> {
 
     public RiscVCGen() {
-        result = null;
+        result = getResult(RegisterAllocator.class);
         asm = new AsmWriter(result);
     }
 
@@ -50,7 +44,7 @@ public class RiscVCGen extends ModuleTransformer {
                 return Register.Int.T0;
             }
             default -> {
-                var position = result.allocated().get(val);
+                var position = result.getPosition(val);
                 return switch(position) {
                     case Register.Int r -> r;
                     case StackPosition(int offset) -> {
@@ -70,7 +64,7 @@ public class RiscVCGen extends ModuleTransformer {
     }
 
     private Register.Float useFloat(Value val) {
-        var position = result.allocated().get(val);
+        var position = result.getPosition(val);
         return switch(position) {
             case Register.Float r -> r;
             case StackPosition(int offset) -> {
@@ -89,10 +83,8 @@ public class RiscVCGen extends ModuleTransformer {
         asm.label(new Label(func.shortName()));
         var entry = func.entry;
         var entryParams = entry.args;
-        var intParams = entryParams.stream().filter(param -> !param.type.equals(Types.Float))
-                .collect(Collectors.toList());
-        var floatParams = entryParams.stream().filter(param -> param.type.equals(Types.Float))
-                .collect(Collectors.toList());
+        var intParams = entryParams.stream().filter(param -> !param.type.equals(Types.Float)).toList();
+        var floatParams = entryParams.stream().filter(param -> param.type.equals(Types.Float)).toList();
         int offset = 0;
         for (int i = 0; i < floatParams.size(); i++) {
             var param = floatParams.get(i);

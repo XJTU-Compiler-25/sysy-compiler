@@ -4,19 +4,11 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
 import java.util.*;
 
-public final class LoopAnalysis extends ModuleAnalysis<LoopInfo> {
-
-    public static LoopInfo run(Module module) {
-        return new LoopAnalysis().process(module);
-    }
-
-    public static LoopInfo run(Function function) {
-        return new LoopAnalysis().process(function);
-    }
+public final class LoopAnalysis extends ModulePass<LoopInfo> {
 
     private CFG cfg;
     private DomInfo domInfo;
@@ -25,23 +17,12 @@ public final class LoopAnalysis extends ModuleAnalysis<LoopInfo> {
 
     @Override
     public LoopInfo process(Module module) {
-        cfg = CFGAnalysis.run(module);
-        domInfo = DominanceAnalysis.run(module);
+        cfg = getResult(CFGAnalysis.class);
+        domInfo = getResult(DominanceAnalysis.class);
         loopsMap = new HashMap<>();
         loopDepthMap = new HashMap<>();
 
         for (var function : module.getFunctions()) visit(function);
-
-        return new LoopInfo(loopsMap, loopDepthMap);
-    }
-
-    public LoopInfo process(Function function) {
-        cfg = CFGAnalysis.run(function);
-        domInfo = DominanceAnalysis.run(function);
-        loopsMap = new HashMap<>();
-        loopDepthMap = new HashMap<>();
-
-        visit(function);
 
         return new LoopInfo(loopsMap, loopDepthMap);
     }

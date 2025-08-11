@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -116,8 +117,7 @@ public abstract sealed class Instruction extends User {
     // 无条件跳转 jump
     public static final class Jmp extends Terminator {
         private final Use<BasicBlock> target;
-        // 对下个块中 var 对应的最新的值进行更新，所以用 var 作为 key
-        public final ArrayList<Pair<Use<BlockArgument>, Use>> params = new ArrayList<>();
+        public final HashMap<BlockArgument, Use> params = new HashMap<>();
 
         Jmp(BasicBlock block, BasicBlock target) {
             super(block);
@@ -138,15 +138,10 @@ public abstract sealed class Instruction extends User {
             replaceTarget(newTarget);
         }
 
-        private Pair<Use<BlockArgument>, Use> getParamPair(BlockArgument arg) {
-            for (var pair : params) if (pair.first().value == arg) return pair;
-            return null;
-        }
-
         public void putParam(BlockArgument arg, Value value) {
-            var pair = getParamPair(arg);
-            if (pair == null) params.add(pair(use(arg), use(value)));
-            else pair.second().replaceValue(value);
+            var use = params.get(arg);
+            if (use == null) params.put(arg, use(value));
+            else use.replaceValue(value);
         }
 
         @Override
@@ -158,19 +153,13 @@ public abstract sealed class Instruction extends User {
         @Override
         public Value getParam(BasicBlock block, BlockArgument arg) {
             Assertions.requires(block == getTarget());
-            var pair = getParamPair(arg);
-            return pair == null ? null : pair.second().value;
+            var use = params.get(arg);
+            return use == null ? null : use.value;
         }
 
         public void removeParam(BlockArgument arg) {
-            for (var iter = params.iterator(); iter.hasNext(); ) {
-                var pair = iter.next();
-                if (pair.first().value == arg) {
-                    iter.remove();
-                    pair.first().dispose();
-                    pair.second().dispose();
-                }
-            }
+            var use = params.remove(arg);
+            if (use != null) use.dispose();
         }
 
         @Override
@@ -182,9 +171,9 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return "jmp " + target.value.shortName() + "(" +
-                    params.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    params.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", ")) +
                     ')';
         }
@@ -193,8 +182,8 @@ public abstract sealed class Instruction extends User {
     public abstract sealed static class AbstractBr extends Terminator {
         protected final Use<BasicBlock> trueTarget;
         protected final Use<BasicBlock> falseTarget;
-        public final ArrayList<Pair<Use<BlockArgument>, Use>> trueParams = new ArrayList<>();
-        public final ArrayList<Pair<Use<BlockArgument>, Use>> falseParams = new ArrayList<>();
+        public final HashMap<BlockArgument, Use> trueParams = new HashMap<>();
+        public final HashMap<BlockArgument, Use> falseParams = new HashMap<>();
 
         AbstractBr(BasicBlock block, BasicBlock trueTarget, BasicBlock falseTarget) {
             super(block);
@@ -228,26 +217,16 @@ public abstract sealed class Instruction extends User {
             if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
         }
 
-        private Pair<Use<BlockArgument>, Use> getTrueParamPair(BlockArgument arg) {
-            for (var pair : trueParams) if (pair.first().value == arg) return pair;
-            return null;
-        }
-
         public void putTrueParam(BlockArgument arg, Value value) {
-            var pair = getTrueParamPair(arg);
-            if (pair == null) trueParams.add(pair(use(arg), use(value)));
-            else pair.second().replaceValue(value);
-        }
-
-        private Pair<Use<BlockArgument>, Use> getFalseParamPair(BlockArgument arg) {
-            for (var pair : falseParams) if (pair.first().value == arg) return pair;
-            return null;
+            var use = trueParams.get(arg);
+            if (use == null) trueParams.put(arg, use(value));
+            else use.replaceValue(value);
         }
 
         public void putFalseParam(BlockArgument arg, Value value) {
-            var pair = getFalseParamPair(arg);
-            if (pair == null) falseParams.add(pair(use(arg), use(value)));
-            else pair.second().replaceValue(value);
+            var use = trueParams.get(arg);
+            if (use == null) falseParams.put(arg, use(value));
+            else use.replaceValue(value);
         }
 
         @Override
@@ -259,12 +238,12 @@ public abstract sealed class Instruction extends User {
         @Override
         public Value getParam(BasicBlock block, BlockArgument arg) {
             if (block == trueTarget.value) {
-                var pair = getTrueParamPair(arg);
-                return pair == null ? null : pair.second().value;
+                var use = trueParams.get(arg);
+                return use == null ? null : use.value;
             }
             if (block == falseTarget.value) {
-                var pair = getFalseParamPair(arg);
-                return pair == null ? null : pair.second().value;
+                var use = falseParams.get(arg);
+                return use == null ? null : use.value;
             }
             return null; // 不在这两个分支中
         }
@@ -272,24 +251,12 @@ public abstract sealed class Instruction extends User {
         @Override
         public void removeParam(BasicBlock block, BlockArgument arg) {
             if (block == getTrueTarget()) {
-                for (var iter = trueParams.iterator(); iter.hasNext(); ) {
-                    var pair = iter.next();
-                    if (pair.first().value == arg) {
-                        iter.remove();
-                        pair.first().dispose();
-                        pair.second().dispose();
-                    }
-                }
+                var use = trueParams.remove(arg);
+                if (use != null) use.dispose();
             }
             if (block == getFalseTarget()) {
-                for (var iter = falseParams.iterator(); iter.hasNext(); ) {
-                    var pair = iter.next();
-                    if (pair.first().value == arg) {
-                        iter.remove();
-                        pair.first().dispose();
-                        pair.second().dispose();
-                    }
-                }
+                var use = falseParams.remove(arg);
+                if (use != null) use.dispose();
             }
         }
     }
@@ -314,14 +281,14 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return "br " + condition.value.shortName() + ", " + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1236,16 +1203,17 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
+
+            return "beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", "
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1265,14 +1233,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "bne " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1292,14 +1260,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "blt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1319,14 +1287,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "bge " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1346,14 +1314,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "ble " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }
@@ -1373,14 +1341,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return "bgt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
                     + trueTarget.value.shortName() + "(" +
-                    trueParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.stream()
-                            .map(pair -> pair.first().value.shortName()
-                                    + "= " + pair.second().value.shortName())
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
                             .collect(Collectors.joining(", "))
                     + ")";
         }

@@ -1,6 +1,5 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.IntConst;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
@@ -15,14 +14,11 @@ import cn.edu.xjtu.sysy.mir.node.Instruction.Load;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
 import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
-import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.util.Worklist;
 
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import cn.edu.xjtu.sysy.mir.node.Use;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-import cn.edu.xjtu.sysy.util.Worklist;
 
 /*
  * https://understanding-llvm-transformation-passes.readthedocs.io/en/latest/LLVM-transformation-passes/18-combine-redundant-instructions.html
@@ -36,7 +32,7 @@ import cn.edu.xjtu.sysy.util.Worklist;
  * 等等。其实都是 runtime 到 compile-time 的优化。
  */
 @SuppressWarnings("unchecked")
-public final class InstCombine extends ModuleTransformer {
+public final class InstCombine extends ModulePass {
 
     private final InstructionHelper helper = new InstructionHelper();
 

@@ -1,9 +1,8 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFG;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.mir.pass.analysis.DomInfo;
@@ -16,14 +15,14 @@ import java.util.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 @SuppressWarnings("unchecked")
-public final class EnterSSA extends ModuleTransformer {
+public final class EnterSSA extends ModulePass<Void> {
 
     private CFG cfg;
     private DomInfo domInfo;
     @Override
     public void visit(Module module) {
-        cfg = CFGAnalysis.run(module);
-        domInfo = DominanceAnalysis.run(module);
+        cfg = getResult(CFGAnalysis.class);
+        domInfo = getResult(DominanceAnalysis.class);
         super.visit(module);
     }
 
@@ -178,15 +177,12 @@ public final class EnterSSA extends ModuleTransformer {
 
         switch (block.terminator) {
             case Instruction.Jmp jmp -> {
-                jmp.params.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
+                jmp.params.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
                 renamingRecursive(jmp.getTarget(), visited, new HashMap<>(incomingVals));
             }
             case Instruction.Br br -> {
-                br.trueParams.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
-                br.falseParams.forEach(pair ->
-                        pair.second().replaceValue(incomingVals.get(blockArgToVar.get(pair.first().value))));
+                br.trueParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
+                br.falseParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
                 renamingRecursive(br.getTrueTarget(), visited, new HashMap<>(incomingVals));
                 renamingRecursive(br.getFalseTarget(), visited, new HashMap<>(incomingVals));
             }

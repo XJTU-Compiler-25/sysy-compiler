@@ -1,4 +1,4 @@
-package cn.edu.xjtu.sysy.riscv.regalloc;
+package cn.edu.xjtu.sysy.mir.pass.transform.regalloc;
 
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;

@@ -5,7 +5,7 @@ import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
-import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.Collection;
@@ -13,11 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 // 分析函数的纯性、是否最多被调用一次、是否是叶函数等特性
-public final class FuncInfoAnalysis extends ModuleAnalysis<FuncInfo> {
-
-    public static FuncInfo run(Module module) {
-        return new FuncInfoAnalysis().process(module);
-    }
+public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
 
     private CFG cfg;
     private CallGraph callGraph;
@@ -25,8 +21,8 @@ public final class FuncInfoAnalysis extends ModuleAnalysis<FuncInfo> {
 
     @Override
     public FuncInfo process(Module module) {
-        cfg = CFGAnalysis.run(module);
-        callGraph = CallGraphAnalysis.run(module);
+        cfg = getResult(CFGAnalysis.class);
+        callGraph = getResult(CallGraphAnalysis.class);
         functions = module.getFunctions();
 
         var pureFunctions = pureAnalysis();

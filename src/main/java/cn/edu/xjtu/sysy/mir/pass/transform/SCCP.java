@@ -1,14 +1,14 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleTransformer;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
 import cn.edu.xjtu.sysy.util.Pair;
 import cn.edu.xjtu.sysy.util.Worklist;
 
@@ -21,10 +21,11 @@ import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 // Sparse Conditional Constant Propagation
 // 稀有条件常量传播
-public final class SCCP extends ModuleTransformer {
+public final class SCCP extends ModulePass<Void> {
 
     @Override
     public void visit(Module module) {
+        invalidateAll();
         for (var function : module.getFunctions()) run(function);
     }
 
@@ -595,16 +596,14 @@ public final class SCCP extends ModuleTransformer {
                         helper.changeBlock(block);
                         var target = br.getTrueTarget();
                         var jmp = helper.jmp(target);
-                        br.trueParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.trueParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     } else {
                         helper.changeBlock(block);
                         var target = br.getFalseTarget();
                         var jmp = helper.jmp(target);
-                        br.falseParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.falseParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     }

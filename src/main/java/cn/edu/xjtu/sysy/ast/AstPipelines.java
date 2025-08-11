@@ -9,9 +9,8 @@ public final class AstPipelines {
 
     private AstPipelines() {}
 
-    public static final Pipeline<CompUnit> DEFAULT = new Pipeline<>(
-            AstAnnotator::new,
-            ArrayNormalizer::new
-    );
+    public static final Pipeline<CompUnit> DEFAULT = Pipeline.builder(CompUnit.class)
+            .addTransformers(AstAnnotator::new, ArrayNormalizer::new)
+            .build();
 
 }

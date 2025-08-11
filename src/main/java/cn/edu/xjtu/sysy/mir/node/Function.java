@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
@@ -50,6 +51,15 @@ public final class Function extends Value {
     public BlockArgument getParam(String name) {
         for (var param : params) if (param.first().equals(name)) return param.second();
         return null;
+    }
+
+    public Set<Instruction> getAllInstructions() {
+        var result = new HashSet<Instruction>();
+        for (var block : blocks) {
+            result.addAll(block.instructions);
+            result.add(block.terminator);
+        }
+        return result;
     }
 
     @Override

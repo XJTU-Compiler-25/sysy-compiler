@@ -4,20 +4,12 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
 import java.util.*;
 
 // 求出基本块的 pred, succ 列表
-public final class CFGAnalysis extends ModuleAnalysis<CFG> {
-
-    public static CFG run(Module module) {
-        return new CFGAnalysis().process(module);
-    }
-
-    public static CFG run(Function function) {
-        return new CFGAnalysis().process(function);
-    }
+public final class CFGAnalysis extends ModulePass<CFG> {
 
     public static Set<BasicBlock> getPredBlocksOf(BasicBlock block) {
         var preds = new HashSet<BasicBlock>();
