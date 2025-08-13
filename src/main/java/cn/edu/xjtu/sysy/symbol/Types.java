@@ -1,7 +1,9 @@
 package cn.edu.xjtu.sysy.symbol;
 
-import cn.edu.xjtu.sysy.util.Assertions;
+import cn.edu.xjtu.sysy.symbol.Type.Float;
+import cn.edu.xjtu.sysy.symbol.Type.Void;
 
+import cn.edu.xjtu.sysy.symbol.Type.*;
 import java.util.Arrays;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
@@ -10,66 +12,66 @@ public final class Types {
 
     private Types() {}
 
-    public static final Type.Int Int = new Type.Int();
-    public static final Type.Float Float = new Type.Float();
-    public static final Type.Void Void = new Type.Void();
+    public static final Int Int = new Int();
+    public static final Float Float = new Float();
+    public static final Void Void = new Void();
 
-    public static final Type.Pointer IntPtr = ptrOf(Int);
-    public static final Type.Pointer FloatPtr = ptrOf(Float);
+    public static final Pointer IntPtr = ptrOf(Int);
+    public static final Pointer FloatPtr = ptrOf(Float);
 
-    public static Type.Pointer ptrOf(Type type) {
-        return new Type.Pointer(type);
+    public static Pointer ptrOf(Type type) {
+        return new Pointer(type);
     }
 
-    public static Type.Array arrayOf(Type type, int size) {
+    public static Array arrayOf(Type type, int size) {
         return switch (type) {
             case Type.Scalar s -> arrayOf(s, size);
-            case Type.Array a -> arrayOf(a, size);
+            case Array a -> arrayOf(a, size);
             default -> unsupported(type);
         };
     }
 
-    public static Type.Array arrayOf(Type.Array array, int size) {
+    public static Array arrayOf(Array array, int size) {
         var oldDim = array.dimensions;
         var oldDimLen = oldDim.length;
         var newDim = Arrays.copyOf(oldDim, oldDimLen + 1);
         newDim[oldDimLen] = size;
-        return new Type.Array(array.elementType, newDim);
+        return new Array(array.elementType, newDim);
     }
 
-    public static Type.Array arrayOf(Type.Scalar type, int size) {
-        return new Type.Array(type, new int[] { size });
+    public static Array arrayOf(Type.Scalar type, int size) {
+        return new Array(type, new int[] { size });
     }
 
-    public static Type.Array arrayOf(Type.Scalar type, int[] dims) {
-        return new Type.Array(type, Arrays.copyOf(dims, dims.length));
+    public static Array arrayOf(Type.Scalar type, int[] dims) {
+        return new Array(type, Arrays.copyOf(dims, dims.length));
     }
 
-    public static Type.Function function(Type retType, Type... argTypes) {
-        return new Type.Function(retType, argTypes);
+    public static Function function(Type retType, Type... argTypes) {
+        return new Function(retType, argTypes);
     }
 
-    public static Type.Pointer decay(Type.Array arr) {
+    public static Pointer decay(Array arr) {
         return ptrOf(arr.getIndexElementType(1));
     }
 
     // 将指针指向的大小固定，使之成为数组
-    public static Type.Array fixed(Type.Pointer ptr, int size) {
+    public static Array fixed(Pointer ptr, int size) {
         return arrayOf(ptr.baseType, size);
     }
 
     public static int[] strides(Type t) {
         return switch (t) {
-            case Type.Pointer ptr -> strides(ptr);
-            case Type.Array array -> strides(array);
+            case Pointer ptr -> strides(ptr);
+            case Array array -> strides(array);
             default -> unsupported(t);
         };
     }
 
-    public static int[] strides(Type.Pointer ptr) {
+    public static int[] strides(Pointer ptr) {
         var base = ptr.baseType;
         return switch (base) {
-            case Type.Array it -> {
+            case Array it -> {
                 var dims = it.dimensions;
                 var len = dims.length;
                 var strides = new int[len + 1];
@@ -81,7 +83,7 @@ public final class Types {
                 strides[0] = accmu;
                 yield strides;
             }
-            case Type.Pointer it -> {
+            case Pointer it -> {
                 var s = strides(it);
                 var len = s.length;
                 var strides = new int[len + 1];
@@ -94,7 +96,7 @@ public final class Types {
     }
 
 
-    public static int[] strides(Type.Array array) {
+    public static int[] strides(Array array) {
         var dims = array.dimensions;
         var len = dims.length;
         var strides = new int[len];
@@ -104,6 +106,24 @@ public final class Types {
             accmu *= array.dimensions[i];
         }
         return strides;
+    }
+
+    public static int sizeOf(Type type) {
+        return switch (type) {
+            case Array array -> sizeOf(array.elementType) * array.elementCount;
+            case Pointer _ -> 8;
+            case Int _, Float _ -> 4;
+            default -> unsupported(type);
+        };
+    }
+
+    public static int alignmentOf(Type type) {
+        return switch (type) {
+            case Array array -> alignmentOf(array.elementType);
+            case Pointer _ -> 8;
+            case Int _, Float _ -> 4;
+            default ->  unsupported(type);
+        };
     }
 
 }

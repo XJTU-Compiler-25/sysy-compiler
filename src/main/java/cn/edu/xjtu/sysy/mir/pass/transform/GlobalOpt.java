@@ -1,12 +1,12 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 
-public final class GlobalOpt extends AbstractTransform {
-    public GlobalOpt(Pipeline<Module> pipeline) { super(pipeline); }
+public final class GlobalOpt extends ModulePass<Void> {
 
     private static final InstructionHelper helper = new InstructionHelper();
 
@@ -18,7 +18,7 @@ public final class GlobalOpt extends AbstractTransform {
     }
 
     public void removeUncalledFunction(Module module) {
-        var callgraph = getCallGraph();
+        var callgraph = getResult(CallGraphAnalysis.class);
 
         for (var iterator = module.getFunctions().iterator(); iterator.hasNext(); ) {
             var func = iterator.next();

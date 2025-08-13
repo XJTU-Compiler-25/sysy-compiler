@@ -1,13 +1,14 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
 import cn.edu.xjtu.sysy.util.Pair;
 import cn.edu.xjtu.sysy.util.Worklist;
 
@@ -20,17 +21,11 @@ import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 // Sparse Conditional Constant Propagation
 // 稀有条件常量传播
-@SuppressWarnings("unchecked")
-public final class SCCP extends AbstractTransform {
-    public SCCP(Pipeline<Module> pipeline) { super(pipeline); }
+public final class SCCP extends ModulePass<Void> {
 
     @Override
-    public Class<? extends Pass<Module, ?>>[] invalidates() {
-        // 会 fold const branch 成 jmp 所以
-        return new Class[] { CFGAnalysis.class };
-    }
-    @Override
     public void visit(Module module) {
+        invalidateAll();
         for (var function : module.getFunctions()) run(function);
     }
 
@@ -140,7 +135,7 @@ public final class SCCP extends AbstractTransform {
         switch (inst) {
             // 不能被折叠的指令
             case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _, 
-                Dummy _, DummyDef _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
+                Dummy _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
                 return BOT;
             }
             case Terminator _ -> {
@@ -601,16 +596,14 @@ public final class SCCP extends AbstractTransform {
                         helper.changeBlock(block);
                         var target = br.getTrueTarget();
                         var jmp = helper.jmp(target);
-                        br.trueParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.trueParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     } else {
                         helper.changeBlock(block);
                         var target = br.getFalseTarget();
                         var jmp = helper.jmp(target);
-                        br.falseParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.falseParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     }

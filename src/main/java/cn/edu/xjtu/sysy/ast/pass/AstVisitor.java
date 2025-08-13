@@ -18,7 +18,6 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * 派生类应该重写所有需要使用的方法。
  */
 public abstract class AstVisitor extends Pass<CompUnit, Void> {
-    public AstVisitor(Pipeline<CompUnit> pipeline) { super(pipeline); }
 
     public void err(Node node, String msg) {
         err(new SemanticError(node, msg));

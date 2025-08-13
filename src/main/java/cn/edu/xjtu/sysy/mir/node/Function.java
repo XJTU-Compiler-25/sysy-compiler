@@ -2,6 +2,7 @@ package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
@@ -18,8 +19,7 @@ public final class Function extends Value {
     public HashSet<BasicBlock> blocks = new HashSet<>();
     // 函数参数是入口块的参数，是保插入序的
     public ArrayList<Pair<String, BlockArgument>> params = new ArrayList<>();
-
-    // 以下都为分析用的字段
+    public StackState stackState = new StackState();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);
@@ -50,6 +50,15 @@ public final class Function extends Value {
     public BlockArgument getParam(String name) {
         for (var param : params) if (param.first().equals(name)) return param.second();
         return null;
+    }
+
+    public Set<Instruction> getAllInstructions() {
+        var result = new HashSet<Instruction>();
+        for (var block : blocks) {
+            result.addAll(block.instructions);
+            result.add(block.terminator);
+        }
+        return result;
     }
 
     @Override

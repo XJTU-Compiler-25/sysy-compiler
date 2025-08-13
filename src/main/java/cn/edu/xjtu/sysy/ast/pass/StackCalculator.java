@@ -1,7 +1,6 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
 import static java.lang.Integer.max;
-import java.util.Stack;
 
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
@@ -10,6 +9,8 @@ import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.symbol.Symbol;
 import cn.edu.xjtu.sysy.symbol.SymbolTable;
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
+
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 /** 计算栈帧大小以及每个变量在栈帧的相对位置 */
@@ -17,8 +18,6 @@ public class StackCalculator extends AstVisitor {
     SymbolTable currentST = null;
     Symbol.FuncSymbol currentFunc = null;
     int currentMx = 0;
-    
-    public StackCalculator() { super(null); }
 
     @Override
     public void visit(CompUnit node) {
@@ -45,9 +44,9 @@ public class StackCalculator extends AstVisitor {
 
     public int visit(Decl.VarDef node, int nt) {
         updateMax(nt);
-        node.resolution.addr = nt + node.resolution.type.size - 4;
-        if (node.init != null) visit(node.init, nt + node.resolution.type.size - 4);
-        return node.resolution.type.size; 
+        node.resolution.addr = nt + Types.sizeOf(node.resolution.type) - 4;
+        if (node.init != null) visit(node.init, nt + Types.sizeOf(node.resolution.type) - 4);
+        return Types.sizeOf(node.resolution.type);
     }
 
     public int visit(Stmt node, int nt) {

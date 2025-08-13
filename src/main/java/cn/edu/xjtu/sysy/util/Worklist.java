@@ -38,4 +38,7 @@ public final class Worklist<E> {
         set.clear();
     }
 
+    public void addAll(Collection<? extends E> needToSpill) {
+        for (var e : needToSpill) if (set.add(e)) queue.addLast(e);
+    }
 }

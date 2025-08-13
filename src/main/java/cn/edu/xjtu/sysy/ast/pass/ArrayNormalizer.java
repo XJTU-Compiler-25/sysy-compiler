@@ -17,9 +17,6 @@ import cn.edu.xjtu.sysy.symbol.Type;
 
 /** 把 Array 正规化为只有 单值 或 数组 元素 */
 public final class ArrayNormalizer extends AstVisitor {
-    public ArrayNormalizer(Pipeline<CompUnit> pipeline) {
-        super(pipeline);
-    }
 
     @Override
     public void visit(Decl.VarDef node) {

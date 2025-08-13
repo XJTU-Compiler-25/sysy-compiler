@@ -1,45 +1,29 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package cn.edu.xjtu.sysy.mir.pass;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
-import java.util.stream.Collectors;
-
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.mir.pass.transform.AbstractTransform;
 import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.riscv.Register;
-import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
+import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.Register.Float;
-import cn.edu.xjtu.sysy.riscv.regalloc.AllocatedResult;
-import cn.edu.xjtu.sysy.riscv.regalloc.RegisterAllocator;
-import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
-import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 
-public class RiscVCGen extends AbstractTransform {
-    public RiscVCGen(Pipeline<Module> pipeline) {
-        super(pipeline);
-        result = getResult(RegisterAllocator.class);
-        asm = new AsmWriter(result);
+public class RiscVCGen extends ModulePass<Void> {
+
+    public RiscVCGen() {
+        asm = new AsmWriter();
     }
 
     public AsmWriter asm;
-    public AllocatedResult result;
     
     private Register.Int useInt(Value val) {
         switch (val) {
@@ -56,18 +40,13 @@ public class RiscVCGen extends AbstractTransform {
                 return Register.Int.T0;
             }
             default -> {
-                var position = result.allocated().get(val);
-                return switch(position) {
+                return switch(val.position) {
                     case Register.Int r -> r;
                     case StackPosition(int offset) -> {
                         Assertions.requires(!val.type.equals(Types.Float));
-                        if (val.type.equals(Types.Int)) {
-                            asm.lw(Int.T0, Int.FP, offset);
-                            yield Int.T0;
-                        } else {
-                            asm.ld(Int.T0, Int.FP, offset);
-                            yield Int.T0;
-                        }
+                        if (val.type == Types.Int) asm.lw(Int.T0, Int.FP, offset);
+                        else asm.ld(Int.T0, Int.FP, offset);
+                        yield Int.T0;
                     }
                     default -> unreachable();
                 };
@@ -76,11 +55,10 @@ public class RiscVCGen extends AbstractTransform {
     }
 
     private Register.Float useFloat(Value val) {
-        var position = result.allocated().get(val);
-        return switch(position) {
+        return switch(val.position) {
             case Register.Float r -> r;
             case StackPosition(int offset) -> {
-                if (val.type.equals(Types.Float)) {
+                if (val.type == Types.Float) {
                     asm.flw(Float.FT0, Int.FP, offset);
                     yield Float.FT0;
                 }
@@ -95,10 +73,8 @@ public class RiscVCGen extends AbstractTransform {
         asm.label(new Label(func.shortName()));
         var entry = func.entry;
         var entryParams = entry.args;
-        var intParams = entryParams.stream().filter(param -> !param.type.equals(Types.Float))
-                .collect(Collectors.toList());
-        var floatParams = entryParams.stream().filter(param -> param.type.equals(Types.Float))
-                .collect(Collectors.toList());
+        var intParams = entryParams.stream().filter(param -> !param.type.equals(Types.Float)).toList();
+        var floatParams = entryParams.stream().filter(param -> param.type.equals(Types.Float)).toList();
         int offset = 0;
         for (int i = 0; i < floatParams.size(); i++) {
             var param = floatParams.get(i);
@@ -213,7 +189,7 @@ public class RiscVCGen extends AbstractTransform {
                 }
             }
             case Instruction.Alloca it -> {
-                var size = it.allocatedType.size;
+                var size = Types.sizeOf(it.allocatedType);
                 asm.addi(it, Register.Int.FP, -size);
             }
             case Instruction.Load it -> {
@@ -369,9 +345,6 @@ public class RiscVCGen extends AbstractTransform {
                 // TODO
             }
             case Instruction.Dummy it -> {
-                // DO NOTHING
-            }
-            case Instruction.DummyDef it -> {
                 // DO NOTHING
             }
             case Instruction.Addi it -> {

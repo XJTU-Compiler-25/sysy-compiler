@@ -1,7 +1,6 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
-import cn.edu.xjtu.sysy.mir.node.Instruction.DummyDef;
+import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
@@ -33,10 +32,6 @@ public final class LIRInstrHelper {
 
     public Dummy dummyDef(Type type, Value... values) {
         return new Dummy(block, type, values);
-    }
-
-    public DummyDef dummyDef(Instruction... values) {
-        return new DummyDef(block, values);
     }
 
     public Instruction.Jmp jmp(BasicBlock bb) {

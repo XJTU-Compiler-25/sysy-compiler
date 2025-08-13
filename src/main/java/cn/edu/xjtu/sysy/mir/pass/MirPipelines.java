@@ -2,51 +2,61 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.FrequencyAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.transform.CFGSimplify;
+import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
 import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
 import cn.edu.xjtu.sysy.mir.pass.transform.LIRInstCombine;
 import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
+import cn.edu.xjtu.sysy.mir.pass.transform.RegisterAllocator;
 
 public final class MirPipelines {
 
     private MirPipelines() { }
 
-    public static final Pipeline<Module> DEFAULT = new Pipeline<>(
-            CallGraphAnalysis::new,
-            //GlobalOpt::new,
-            CFGAnalysis::new,
-            FuncInfoAnalysis::new,
-            DominanceAnalysis::new,
-            EnterSSA::new,
-            SCCP::new,
-            ConstFold::new,
-            DCE::new,
-            CFGAnalysis::new,
-            LoopAnalysis::new,
-            FrequencyAnalysis::new,
-            //GCM::new,
-            CFGSimplify::new,
-            DCE::new,
-            CFGAnalysis::new,
-            EnterLIR::new,
-            CFGAnalysis::new,
-            LIRInstCombine::new,
-            CFGAnalysis::new
-    );
+    public static final Pipeline<Module> DEFAULT = Pipeline.builder(Module.class)
+            .addAnalyses(
+                    AliasAnalysis::new,
+                    CFGAnalysis::new,
+                    CallGraphAnalysis::new,
+                    DominanceAnalysis::new,
+                    FrequencyAnalysis::new,
+                    FuncInfoAnalysis::new,
+                    LoopAnalysis::new,
+                    LiveRangeAnalysis::new,
+                    SCEV::new
+            )
+            .addTransformers(
+                    //GlobalOpt::new,
+                    EnterSSA::new,
+                    SCCP::new,
+                    ConstFold::new,
+                    DCE::new,
+                    //GCM::new,
+                    DCE::new,
+                    EnterLIR::new,
+                    LIRInstCombine::new,
+                    RegisterAllocator::new,
+                    RiscVCGen::new
+            )
+            .build();
 
-    public static final Pipeline<Module> UNOPTIMIZED = new Pipeline<>(
-            CFGAnalysis::new,
-            DominanceAnalysis::new,
-            EnterSSA::new
-    );
+    public static final Pipeline<Module> UNOPTIMIZED = Pipeline.builder(Module.class)
+            .addAnalyses(
+                    AliasAnalysis::new,
+                    CFGAnalysis::new,
+                    CallGraphAnalysis::new,
+                    DominanceAnalysis::new,
+                    FrequencyAnalysis::new,
+                    FuncInfoAnalysis::new,
+                    LoopAnalysis::new,
+                    LiveRangeAnalysis::new,
+                    SCEV::new
+            )
+            .addTransformers(
+                    EnterSSA::new
+            )
+            .build();
 
 }

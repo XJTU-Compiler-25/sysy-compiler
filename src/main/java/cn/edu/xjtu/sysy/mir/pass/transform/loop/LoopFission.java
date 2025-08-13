@@ -1,12 +1,7 @@
 package cn.edu.xjtu.sysy.mir.pass.transform.loop;
 
-import cn.edu.xjtu.sysy.Pipeline;
-import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.transform.AbstractTransform;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public final class LoopFission extends AbstractTransform {
-    public LoopFission(Pipeline<Module> pipeline) {
-        super(pipeline);
-    }
+public final class LoopFission extends ModulePass {
 
 }

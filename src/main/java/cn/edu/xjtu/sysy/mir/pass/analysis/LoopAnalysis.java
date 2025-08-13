@@ -1,25 +1,24 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
 import java.util.*;
 
-public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
-    public LoopAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class LoopAnalysis extends ModulePass<LoopInfo> {
 
     private CFG cfg;
     private DomInfo domInfo;
     private HashMap<Function, Set<Loop>> loopsMap;
     private HashMap<BasicBlock, Integer> loopDepthMap;
+
     @Override
     public LoopInfo process(Module module) {
-        cfg = getCFG();
-        domInfo = getDomInfo();
+        cfg = getResult(CFGAnalysis.class);
+        domInfo = getResult(DominanceAnalysis.class);
         loopsMap = new HashMap<>();
         loopDepthMap = new HashMap<>();
 
@@ -28,7 +27,6 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
         return new LoopInfo(loopsMap, loopDepthMap);
     }
 
-    @Override
     public void visit(Function function) {
         var loops = new HashSet<Loop>();
         loopsMap.put(function, loops);
@@ -113,4 +111,5 @@ public final class LoopAnalysis extends ModuleVisitor<LoopInfo> {
             loopDepthMap.put(block, depth);
         }
     }
+
 }

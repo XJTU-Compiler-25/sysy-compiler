@@ -65,16 +65,27 @@ public record DomInfo(
         return null;
     }
 
-    // depth first numbering，先序遍历
+    // depth first numbering，前序遍历
     public List<BasicBlock> getDFN(Function function) {
         var preOrder = new ArrayList<BasicBlock>();
-        dfs(function.entry, preOrder);
+        preOrder(function.entry, preOrder);
         return preOrder;
     }
 
-    private void dfs(BasicBlock block, ArrayList<BasicBlock> preOrder) {
+    private void preOrder(BasicBlock block, ArrayList<BasicBlock> preOrder) {
         preOrder.add(block);
-        for (var domChild : domChildrenMap.get(block)) dfs(domChild, preOrder);
+        for (var domChild : domChildrenMap.get(block)) preOrder(domChild, preOrder);
+    }
+
+    public List<BasicBlock> getRPO(Function function) {
+        var rpo = new ArrayList<BasicBlock>();
+        postOrder(function.entry, rpo);
+        return rpo.reversed();
+    }
+
+    private void postOrder(BasicBlock block, List<BasicBlock> postOrder) {
+        for (var domChild : domChildrenMap.get(block)) postOrder(domChild, postOrder);
+        postOrder.add(block);
     }
 
 }

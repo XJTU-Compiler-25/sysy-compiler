@@ -1,19 +1,13 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import javax.rmi.ssl.SslRMIClientSocketFactory;
-
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.LIRInstrHelper;
-import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public class LIRInstCombine extends AbstractTransform {
+public class LIRInstCombine extends ModulePass {
     LIRInstrHelper helper = new LIRInstrHelper();
-    public LIRInstCombine(Pipeline<Module> pipeline) {
-        super(pipeline);
-    }
     
     @Override
     public void visit(BasicBlock bb) {
@@ -111,8 +105,8 @@ public class LIRInstCombine extends AbstractTransform {
         switch (cond) {
             case Instruction.ILt it -> {
                 var branch = helper.blt(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {
@@ -122,8 +116,8 @@ public class LIRInstCombine extends AbstractTransform {
             }
             case Instruction.ILe it -> {
                 var branch = helper.ble(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {
@@ -133,8 +127,8 @@ public class LIRInstCombine extends AbstractTransform {
             }
             case Instruction.IGe it -> {
                 var branch = helper.bge(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {
@@ -144,8 +138,8 @@ public class LIRInstCombine extends AbstractTransform {
             }
             case Instruction.IGt it -> {
                 var branch = helper.bgt(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {
@@ -155,8 +149,8 @@ public class LIRInstCombine extends AbstractTransform {
             }
             case Instruction.IEq it -> {
                 var branch = helper.beq(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {
@@ -166,8 +160,8 @@ public class LIRInstCombine extends AbstractTransform {
             }
             case Instruction.INe it -> {
                 var branch = helper.bne(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
-                br.trueParams.forEach(p -> branch.putTrueParam(p.first().value, p.second().value));
-                br.falseParams.forEach(p -> branch.putFalseParam(p.first().value, p.second().value));
+                br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
+                br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
                 br.dispose();
                 if (it.usedBy.isEmpty()) {

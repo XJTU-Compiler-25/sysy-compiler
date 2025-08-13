@@ -24,6 +24,7 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    maxHeapSize = '2g'
 }
 
 compileJava {

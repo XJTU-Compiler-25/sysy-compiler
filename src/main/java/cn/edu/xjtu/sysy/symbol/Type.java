@@ -3,23 +3,16 @@ package cn.edu.xjtu.sysy.symbol;
 import java.util.Arrays;
 
 public abstract sealed class Type {
-    public final int size;
 
     @Override
     public abstract String toString();
-
-    public Type(int size) {
-        this.size = size;
-    }
 
     /**
      * void 类型，只能出现在函数返回值处
      * EmptyArray 这一临时类型现在可以用 void 代替标注
      */
     public static final class Void extends Type {
-        Void() {
-            super(0);
-        }
+        Void() { }
 
         @Override
         public String toString() {
@@ -27,16 +20,10 @@ public abstract sealed class Type {
         }
     }
 
-    public static abstract sealed class Scalar extends Type {
-        public Scalar(int size) {
-            super(size);
-        }
-    }
+    public static abstract sealed class Scalar extends Type { }
 
     public static final class Int extends Scalar {
-        Int() {
-            super(4);
-        }
+        Int() { }
 
         @Override
         public String toString() {
@@ -45,9 +32,7 @@ public abstract sealed class Type {
     }
 
     public static final class Float extends Scalar {
-        Float() {
-            super(4);
-        }
+        Float() { }
 
         @Override
         public String toString() {
@@ -62,7 +47,6 @@ public abstract sealed class Type {
         public final Type baseType;
 
         Pointer(Type baseType) {
-            super(8);
             this.baseType = baseType;
         }
 
@@ -104,16 +88,11 @@ public abstract sealed class Type {
         public final int[] dimensions;
 
         Array(Scalar elementType, int[] dimensions) {
-            super(calcSize(elementType.size, dimensions));
             this.elementType = elementType;
             this.dimensions = dimensions;
-            this.elementCount = calcSize(1, dimensions);
-        }
-
-        private static int calcSize(int baseSize, int[] dimensionLens) {
-            var size = baseSize;
-            for (int dim : dimensionLens) size *= dim;
-            return size;
+            var size = 1;
+            for (int dim : dimensions) size *= dim;
+            this.elementCount = size;
         }
 
         @Override
@@ -159,7 +138,6 @@ public abstract sealed class Type {
         public final Type[] paramTypes;
 
         Function(Type returnType, Type[] paramTypes) {
-            super(0);
             this.returnType = returnType;
             this.paramTypes = paramTypes;
         }

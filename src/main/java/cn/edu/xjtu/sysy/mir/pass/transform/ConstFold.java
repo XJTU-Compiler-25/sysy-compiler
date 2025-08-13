@@ -1,17 +1,16 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Terminator;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 
 // 由于 sccp, gvn, inst combine 都得做常量折叠，把常量折叠计算的逻辑单独提取出来了
-public final class ConstFold extends AbstractTransform {
-    public ConstFold(Pipeline<Module> pipeline) { super(pipeline); }
+public final class ConstFold extends ModulePass {
 
     @Override
     public void visit(Module module) {
@@ -40,8 +39,8 @@ public final class ConstFold extends AbstractTransform {
         ImmediateValue result = null;
         switch (inst) {
             // 不能被折叠为常量值的指令
-            case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _, Terminator _, 
-                Dummy _, DummyDef _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> { }
+            case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _, Terminator _,
+                Dummy _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> { }
             // 数学运算
             case IAdd it -> {
                 var l = it.lhs.value;

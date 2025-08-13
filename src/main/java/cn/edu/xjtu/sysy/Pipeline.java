@@ -2,46 +2,101 @@ package cn.edu.xjtu.sysy;
 
 import cn.edu.xjtu.sysy.error.ErrManager;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked"})
 public final class Pipeline<T> {
 
     public final ErrManager errManager;
-    private final Pass<T, ?>[] passes;
-    private final HashMap<Class, Object> cachedResults = new HashMap<>();
+    private final Pass<T, ?>[] analyses;
+    private final Pass<T, ?>[] transformers;
+    private T processingObj;
+    private final HashMap<Class<? extends Pass<T, ?>>, Object> cache = new HashMap<>();
 
-    @SafeVarargs
-    public Pipeline(Function<Pipeline<T>, ? extends Pass<T, ?>>... passes) {
-        this(ErrManager.GLOBAL, passes);
-    }
-
-    @SafeVarargs
-    public Pipeline(ErrManager errManager, Function<Pipeline<T>, ? extends Pass<T, ?>>... passes) {
+    private Pipeline(ErrManager errManager,
+                    Supplier<? extends Pass<T, ?>>[] analyses,
+                    Supplier<? extends Pass<T, ?>>[] transformers) {
         this.errManager = errManager;
-        var count = passes.length;
-        this.passes = new Pass[count];
-        for (int i = 0; i < count; i++) this.passes[i] = passes[i].apply(this);
+        this.analyses = Arrays.stream(analyses).map(Supplier::get).toArray(Pass[]::new);
+        this.transformers = Arrays.stream(transformers).map(Supplier::get).toArray(Pass[]::new);
     }
 
     public void process(T input) {
-        for (var pass : passes) {
-            cachedResults.put(pass.getClass(), pass.process(input));
-            for (var pc : pass.invalidates()) cachedResults.remove(pc);
+        this.processingObj = input;
+        cache.clear();
+        for (var pass : transformers) {
+            pass.setCurrentPipeline(this);
+            var result = pass.process(input);
+            cache.put((Class<? extends Pass<T, ?>>) pass.getClass(), result);
         }
     }
 
-    public <R> void putResult(Class<? extends Pass<T, R>> passClass, R result) {
-        cachedResults.put(passClass, result);
+    public <E, P extends Pass<T, E>> E getResult(Class<P> clazz) {
+        E result = (E) cache.get(clazz);
+        if (result != null) return result;
+
+        P analysis = (P) Arrays.stream(analyses).filter(clazz::isInstance).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No analysis found for " + clazz.getName()));
+        analysis.setCurrentPipeline(this);
+        result = analysis.process(processingObj);
+        cache.put(clazz, result);
+        return result;
     }
 
-    public <R> R getResult(Class<? extends Pass<T, R>> passClass) {
-        return (R) cachedResults.get(passClass);
+    public void invalidate(Class<? extends Pass<T, ?>> pass) {
+        cache.remove(pass);
     }
 
-    public void invalidateResult(Class<? extends Pass<T, ?>> passClass) {
-        cachedResults.remove(passClass);
+    public void invalidate(Class<? extends Pass<T, ?>>... passes) {
+        for (var pass : passes) invalidate(pass);
+    }
+
+    public void invalidateAll() {
+        cache.clear();
+    }
+
+    public static <T> Builder<T> builder(Class<T> ignored) {
+        return new Builder<>();
+    }
+
+    public static final class Builder<T> {
+        private ErrManager errManager = ErrManager.GLOBAL;
+        private final ArrayList<Supplier<? extends Pass<T, ?>>> analyses = new ArrayList<>();
+        private final ArrayList<Supplier<? extends Pass<T, ?>>> transformers = new ArrayList<>();
+
+        public Builder<T> withErrManager(ErrManager errManager) {
+            this.errManager = errManager;
+            return this;
+        }
+
+        public Builder<T> addAnalysis(Supplier<? extends Pass<T, ?>> analysis) {
+            analyses.add(analysis);
+            return this;
+        }
+
+        @SafeVarargs
+        public final Builder<T> addAnalyses(Supplier<? extends Pass<T, ?>>... analyses) {
+            for (var p : analyses) addAnalysis(p);
+            return this;
+        }
+
+        public Builder<T> addTransformer(Supplier<? extends Pass<T, ?>> transformer) {
+            transformers.add(transformer);
+            return this;
+        }
+
+        @SafeVarargs
+        public final Builder<T> addTransformers(Supplier<? extends Pass<T, ?>>... transformers) {
+            for (var p : transformers) addTransformer(p);
+            return this;
+        }
+
+        public Pipeline<T> build() {
+            return new Pipeline<>(errManager, analyses.toArray(new Supplier[0]), transformers.toArray(new Supplier[0]));
+        }
     }
 
 }

@@ -4,6 +4,7 @@ import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseToDense;
 
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 
 public final class Global {
     public String name;
@@ -37,7 +38,7 @@ public final class Global {
         builder.append(shortName()).append(":\n");
         switch (initVal) {
             case ImmediateValue.Undefined _, ImmediateValue.ZeroInit _-> {
-                builder.append("    .zero ").append(varType.size).append("\n");
+                builder.append("    .zero ").append(Types.sizeOf(varType)).append("\n");
             }
             case ImmediateValue.IntConst it -> {
                 builder.append("    .word ").append(it.value).append("\n");

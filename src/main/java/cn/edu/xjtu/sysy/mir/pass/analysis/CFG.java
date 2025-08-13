@@ -1,8 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,4 +61,12 @@ public record CFG(
     public List<BasicBlock> getPOBlocks(Function function) {
         return getPOBlocks(function.entry);
     }
+
+    public Set<Value> getIncomingValues(BlockArgument arg) {
+        var block = arg.block;
+        return getPredTermsOf(block).stream()
+                .map(term -> term.getParam(block, arg))
+                .collect(Collectors.toSet());
+    }
+
 }

@@ -1,19 +1,18 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
-public final class DominanceAnalysis extends ModuleVisitor<DomInfo> {
-    public DominanceAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class DominanceAnalysis extends ModulePass<DomInfo> {
 
     @Override
     public DomInfo process(Module module) {
-        var cfg = getCFG();
+        var cfg = getResult(CFGAnalysis.class);
         var idomMap = new HashMap<BasicBlock, BasicBlock>();
         var idomeeMap = new HashMap<BasicBlock, Set<BasicBlock>>();
         var dfMap = new HashMap<BasicBlock, Set<BasicBlock>>();

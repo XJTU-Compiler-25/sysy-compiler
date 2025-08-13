@@ -1,26 +1,21 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import cn.edu.xjtu.sysy.Pass;
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.HashSet;
 
-@SuppressWarnings("unchecked")
-public final class CFGSimplify extends AbstractTransform {
-    public CFGSimplify(Pipeline<Module> pipeline) { super(pipeline); }
-
-    @Override
-    public Class<? extends Pass<Module, ?>>[] invalidates() {
-        return new Class[] { CFGAnalysis.class };
-    }
+public final class CFGSimplify extends ModulePass<Void> {
 
     private static final InstructionHelper helper = new InstructionHelper();
     @Override
     public void visit(Module module) {
+        invalidateAll();
         var modified = false;
         do {
             modified = false;
@@ -87,7 +82,7 @@ public final class CFGSimplify extends AbstractTransform {
             var predTerms = CFGAnalysis.getPredTermsOf(block);
             if (block.args.isEmpty()) {
                 for (var term : predTerms) {
-                    jmp.params.forEach(pair -> term.putParam(block, pair.first().value, pair.second().value));
+                    jmp.params.forEach((param, use) -> term.putParam(block, param, use.value));
                     term.replaceTarget(block, succ);
                 }
 
@@ -116,34 +111,17 @@ public final class CFGSimplify extends AbstractTransform {
                         helper.changeBlock(block);
                         var target = br.getTrueTarget();
                         var jmp = helper.jmp(target);
-                        br.trueParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.trueParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     } else {
                         helper.changeBlock(block);
                         var target = br.getFalseTarget();
                         var jmp = helper.jmp(target);
-                        br.falseParams.forEach(pair ->
-                                jmp.putParam(target, pair.first().value, pair.second().value));
+                        br.falseParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     }
-                } else if (br.getTrueTarget() == br.getFalseTarget()) {
-                    for (var i = 0; i < br.trueParams.size(); i++) {
-                        var tp = br.trueParams.get(i);
-                        var fp = br.falseParams.get(i);
-                        if (tp.first().value != fp.first().value || tp.second().value != fp.second().value)
-                            return modified;
-                    }
-                    modified = true;
-                    helper.changeBlock(block);
-                    var target = br.getTrueTarget();
-                    var jmp = helper.jmp(target);
-                    br.trueParams.forEach(pair ->
-                            jmp.putParam(target, pair.first().value, pair.second().value));
-                    helper.changeBlockToNull();
-                    br.dispose();
                 }
             }
         }

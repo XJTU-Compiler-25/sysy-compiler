@@ -1,14 +1,13 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.function.Predicate;
 
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
-public abstract sealed class Value permits BasicBlock, BlockArgument, Function, GlobalVar, ImmediateValue, User {
+public abstract class Value {
 
     private static int counter = 0;
     public final int id = counter++;
@@ -16,7 +15,7 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, Function, 
     public Type type;
     public final ArrayList<Use> usedBy = new ArrayList<>();
 
-    public ValuePosition constraint = null;
+    public ValuePosition position;
 
     public Value(Type type) {
         this.type = type;

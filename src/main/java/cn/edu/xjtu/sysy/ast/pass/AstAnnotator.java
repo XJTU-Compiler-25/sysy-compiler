@@ -23,7 +23,6 @@ import cn.edu.xjtu.sysy.util.Placeholder;
  * <p>应当注意此时处理的数组仍然是 RawArray
  */
 public final class AstAnnotator extends AstVisitor {
-    public AstAnnotator(Pipeline<CompUnit> pipeline) { super(pipeline); }
 
     private SymbolTable.Global globalST;
     private SymbolTable currentST;

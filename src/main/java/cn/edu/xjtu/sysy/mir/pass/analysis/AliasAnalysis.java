@@ -1,12 +1,13 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModuleVisitor;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public final class AliasAnalysis extends ModuleVisitor<AliasAnalysis.Result> {
-    public AliasAnalysis(Pipeline<Module> pipeline) { super(pipeline); }
+public final class AliasAnalysis extends ModulePass<AliasInfo> {
 
-    public record Result() {}
+    @Override
+    public AliasInfo process(Module obj) {
+        return null;
+    }
 
 }

@@ -86,7 +86,7 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModuleVisitor<Void> {
+public final class Interpreter extends ModulePass<Void> {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -98,7 +98,6 @@ public final class Interpreter extends ModuleVisitor<Void> {
     private final ArrayDeque<Value> retAddrs = new ArrayDeque<>();
 
     public Interpreter(PrintStream out, InputStream in) {
-        super(null);
         this.out = out;
         this.in = in;
         this.sc = new Scanner(in);
@@ -263,19 +262,16 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 }
                 case Jmp it -> {
                     var target = it.getTarget();
-                    it.params.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                    it.params.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                     currentBlock = target;
                 }
                 case Br it -> {
                     var cond = toImm(it.getCondition());
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -284,12 +280,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs == rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -298,12 +292,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs != rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -312,12 +304,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs < rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -326,12 +316,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs <= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -340,12 +328,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs > rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -354,12 +340,10 @@ public final class Interpreter extends ModuleVisitor<Void> {
                     var rhs = getInt(it.rhs.value);
                     var cond = lhs >= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
-                        it.trueParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getTrueTarget();
                     } else {
-                        it.falseParams.forEach(pair ->
-                                stackframe.put(pair.first().value, toImm(pair.second().value)));
+                        it.falseParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
                         currentBlock = it.getFalseTarget();
                     }
                 }
@@ -664,7 +648,7 @@ public final class Interpreter extends ModuleVisitor<Void> {
                 case FMulAdd _ -> {
                     // TODO
                 }
-                case Dummy _, Instruction.DummyDef _ -> {
+                case Dummy _ -> {
                     // Ignore
                 }
             }
