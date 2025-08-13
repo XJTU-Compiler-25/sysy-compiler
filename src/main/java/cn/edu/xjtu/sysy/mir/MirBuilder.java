@@ -107,11 +107,12 @@ public final class MirBuilder implements ErrManaged {
         for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
 
         visit(node.body);
+
         if (helper.getBlock() != null && !helper.hasTerminator()) {
             var retType = funcType.returnType;
-            if (retType == Types.Int) helper.ret(iZero);
-            else if (retType == Types.Float) helper.ret(fZero);
-            else if (retType == Types.Void) helper.ret();
+            if (retType == Types.Int) helper.insertRet(iZero);
+            else if (retType == Types.Float) helper.insertRet(fZero);
+            else if (retType == Types.Void) helper.insertRetV();
         }
     }
 
@@ -135,11 +136,11 @@ public final class MirBuilder implements ErrManaged {
     public void visit(Stmt.LocalVarDef node) {
         for (var varDef : node.varDefs) {
             var symbol = varDef.resolution;
-            var address = helper.alloca(symbol.type);
+            var address = helper.insertAlloca(symbol.type);
             symbol.address = address;
             var initExpr = varDef.init;
             if (initExpr != null) {
-                if (!(varDef.type instanceof Type.Array arr)) helper.store(address, visit(initExpr));
+                if (!(varDef.type instanceof Type.Array arr)) helper.insertStore(address, visit(initExpr));
                 else {
                     if (!(initExpr instanceof Expr.Array init)) {
                         err("array variable must be initialized with an array literal, but got: " + initExpr);
@@ -148,14 +149,14 @@ public final class MirBuilder implements ErrManaged {
 
                     var indices = new Value[arr.dimensions.length + 1];
                     Arrays.fill(indices, iZero);
-                    var decayAll = helper.getElementPtr(address, indices);
+                    var decayAll = helper.insertGetElementPtr(address, indices);
 
                     var indexes = init.indexes;
                     var values = init.elements;
                     for (int i = 0, size = init.indexes.size(); i < size; i++) {
                         var value = visit(values.get(i));
-                        var ptr = helper.getElementPtr(decayAll, intConst(indexes.get(i)));
-                        helper.store(ptr, value);
+                        var ptr = helper.insertGetElementPtr(decayAll, intConst(indexes.get(i)));
+                        helper.insertStore(ptr, value);
                     }
                 }
             }
@@ -178,8 +179,8 @@ public final class MirBuilder implements ErrManaged {
     public void visit(Stmt.Return node) {
         var retVal = node.value;
 
-        if (retVal == null) helper.ret();
-        else helper.ret(visit(retVal));
+        if (retVal == null) helper.insertRetV();
+        else helper.insertRet(visit(retVal));
     }
 
     public void visit(Stmt.Assign node) {
@@ -189,18 +190,18 @@ public final class MirBuilder implements ErrManaged {
         switch (target) {
             case Expr.VarAccess varAccess -> {
                 var symbol = varAccess.resolution;
-                helper.store(symbol.address, visit(value));
+                helper.insertStore(symbol.address, visit(value));
             }
             case Expr.IndexAccess indexAccess -> {
                 var symbol = indexAccess.lhs.resolution;
                 var indexes = indexAccess.indexes;
                 var indexSize = indexes.size();
                 var indices = new Value[indexSize + 1];
-                // “数组类型的变量”的值（Alloca） 的类型是 指向数组的指针，需要先解引用
+                // "数组类型的变量"的值（Alloca） 的类型是 指向数组的指针，需要先解引用
                 indices[0] = iZero;
                 for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
-                var getPtr = helper.getElementPtr(symbol.address, indices);
-                helper.store(getPtr, visit(value));
+                var getPtr = helper.insertGetElementPtr(symbol.address, indices);
+                helper.insertStore(getPtr, visit(value));
             }
             default -> unsupported(target);
         }
@@ -229,7 +230,7 @@ public final class MirBuilder implements ErrManaged {
         // 如果里面有 break 等等，有可能本来就有 terminator，不能覆盖
         if (helper.getBlock() != null && !helper.hasTerminator()) {
             needMerge = true;
-            helper.jmp(mergeBB);
+            helper.insertJmp(mergeBB);
         }
 
         if (hasElse) {
@@ -239,7 +240,7 @@ public final class MirBuilder implements ErrManaged {
 
             if (helper.getBlock() != null && !helper.hasTerminator()) {
                 needMerge = true;
-                helper.jmp(mergeBB);
+                helper.insertJmp(mergeBB);
             }
         } else needMerge = true; // 如果没有 else，那肯定需要 merge block
 
@@ -263,7 +264,7 @@ public final class MirBuilder implements ErrManaged {
         curFunc.addBlock(headBB);
         helper.changeBlock(headBB);
         visit(node.body);
-        if (helper.getBlock() != null && !helper.hasTerminator()) helper.jmp(latchBB);
+        if (helper.getBlock() != null && !helper.hasTerminator()) helper.insertJmp(latchBB);
 
         curFunc.addBlock(latchBB);
         helper.changeBlock(latchBB);
@@ -307,7 +308,7 @@ public final class MirBuilder implements ErrManaged {
         }
         // 普通的表达式
         var condVal = visit(cond);
-        helper.br(condVal, trueTarget, falseTarget);
+        helper.insertBr(condVal, trueTarget, falseTarget);
     }
 
     public void visit(Stmt.Break ignored) {
@@ -317,7 +318,7 @@ public final class MirBuilder implements ErrManaged {
         }
 
         var exitBB = loopExits.getLast();
-        helper.jmp(exitBB);
+        helper.insertJmp(exitBB);
     }
 
     public void visit(Stmt.Continue ignored) {
@@ -327,7 +328,7 @@ public final class MirBuilder implements ErrManaged {
         }
 
         var loopBB = loopLatches.getLast();
-        helper.jmp(loopBB);
+        helper.insertJmp(loopBB);
     }
 
     public Value visit(Expr node) {
@@ -352,21 +353,21 @@ public final class MirBuilder implements ErrManaged {
             var op = ops.get(i);
             var oper = visit(opers.get(i + 1));
             result = switch (op) {
-                case ADD -> helper.add(result, oper);
-                case SUB -> helper.sub(result, oper);
-                case MUL -> helper.mul(result, oper);
-                case DIV -> helper.div(result, oper);
-                case MOD -> helper.mod(result, oper);
+                case ADD -> helper.insertAdd(result, oper);
+                case SUB -> helper.insertSub(result, oper);
+                case MUL -> helper.insertMul(result, oper);
+                case DIV -> helper.insertDiv(result, oper);
+                case MOD -> helper.insertMod(result, oper);
 
-                case EQ -> helper.eq(result, oper);
-                case NE -> helper.ne(result, oper);
-                case GT -> helper.gt(result, oper);
-                case GE -> helper.ge(result, oper);
-                case LT -> helper.lt(result, oper);
-                case LE -> helper.le(result, oper);
+                case EQ -> helper.insertEq(result, oper);
+                case NE -> helper.insertNe(result, oper);
+                case GT -> helper.insertGt(result, oper);
+                case GE -> helper.insertGe(result, oper);
+                case LT -> helper.insertLt(result, oper);
+                case LE -> helper.insertLe(result, oper);
 
-                case AND -> helper.and(result, oper);
-                case OR -> helper.or(result, oper);
+                case AND -> helper.insertAnd(result, oper);
+                case OR -> helper.insertOr(result, oper);
                 default -> (Instruction) unsupported(op);
             };
         }
@@ -378,8 +379,8 @@ public final class MirBuilder implements ErrManaged {
         for (var op : node.operators) {
             result = switch (op) {
                 case ADD -> result; // unary plus, do nothing
-                case SUB -> helper.neg(result);
-                case NOT -> helper.not(result);
+                case SUB -> helper.insertNeg(result);
+                case NOT -> helper.insertNot(result);
                 default -> (Instruction) unsupported(node.operators);
             };
         }
@@ -391,8 +392,8 @@ public final class MirBuilder implements ErrManaged {
         var args = new Value[node.args.size()];
         for (int i = 0; i < node.args.size(); i++) args[i] = visit(node.args.get(i));
 
-        return symbol.isExternal ? helper.callBuiltin(symbol.name, args)
-                : helper.call(symbol.address, args);
+        return symbol.isExternal ? helper.insertCallBuiltin(symbol.name, args)
+                : helper.insertCall(symbol.address, args);
     }
 
     public Value visit(Expr.Assignable node) {
@@ -405,7 +406,7 @@ public final class MirBuilder implements ErrManaged {
     public Value visit(Expr.VarAccess node) {
         var symbol = node.resolution;
 
-        return helper.load(symbol.address);
+        return helper.insertLoad(symbol.address);
     }
 
     public Value visit(Expr.IndexAccess node) {
@@ -415,9 +416,9 @@ public final class MirBuilder implements ErrManaged {
         var indices = new Value[indexSize + 1];
         indices[0] = iZero; // 数组类型的变量的值（Alloca） 的类型是 指向数组的指针，需要先解引用
         for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
-        var elementPtr = helper.getElementPtr(symbol.address, indices);
+        var elementPtr = helper.insertGetElementPtr(symbol.address, indices);
 
-        return helper.load(elementPtr);
+        return helper.insertLoad(elementPtr);
     }
 
     public Value visit(Expr.Literal node) {
@@ -440,16 +441,16 @@ public final class MirBuilder implements ErrManaged {
     public Value visit(Expr.Cast node) {
         var nv = node.value;
         return switch (node.kind) {
-            case Float2Int -> helper.f2i(visit(nv));
-            case Int2Float -> helper.i2f(visit(nv));
+            case Float2Int -> helper.insertF2i(visit(nv));
+            case Int2Float -> helper.insertI2f(visit(nv));
             case Ptr2Bool -> iOne; // !ptr 的场景 ptr 都当 true 吧
-            case Decay -> nv instanceof Expr.VarAccess va ? helper.getElementPtr(va.resolution.address, iZero)
-                    : helper.getElementPtr(visit(nv), iZero);
+            case Decay -> nv instanceof Expr.VarAccess va ? helper.insertGetElementPtr(va.resolution.address, iZero)
+                    : helper.insertGetElementPtr(visit(nv), iZero);
             case DecayAll -> {
                 var indices = new Value[((Type.Array) nv.type).dimensions.length];
                 Arrays.fill(indices, iZero);
-                yield nv instanceof Expr.VarAccess va ? helper.getElementPtr(va.resolution.address, indices)
-                        : helper.getElementPtr(visit(nv), iZero);
+                yield nv instanceof Expr.VarAccess va ? helper.insertGetElementPtr(va.resolution.address, indices)
+                        : helper.insertGetElementPtr(visit(nv), iZero);
             }
         };
     }

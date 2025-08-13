@@ -8,26 +8,22 @@ import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.RegisterAllocator;
 import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.riscv.Register;
-import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
+import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.Register.Float;
-import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.AllocatedResult;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 public class RiscVCGen extends ModulePass<Void> {
 
     public RiscVCGen() {
-        result = getResult(RegisterAllocator.class);
-        asm = new AsmWriter(result);
+        asm = new AsmWriter();
     }
 
     public AsmWriter asm;
-    public AllocatedResult result;
     
     private Register.Int useInt(Value val) {
         switch (val) {
@@ -44,18 +40,13 @@ public class RiscVCGen extends ModulePass<Void> {
                 return Register.Int.T0;
             }
             default -> {
-                var position = result.getPosition(val);
-                return switch(position) {
+                return switch(val.position) {
                     case Register.Int r -> r;
                     case StackPosition(int offset) -> {
                         Assertions.requires(!val.type.equals(Types.Float));
-                        if (val.type.equals(Types.Int)) {
-                            asm.lw(Int.T0, Int.FP, offset);
-                            yield Int.T0;
-                        } else {
-                            asm.ld(Int.T0, Int.FP, offset);
-                            yield Int.T0;
-                        }
+                        if (val.type == Types.Int) asm.lw(Int.T0, Int.FP, offset);
+                        else asm.ld(Int.T0, Int.FP, offset);
+                        yield Int.T0;
                     }
                     default -> unreachable();
                 };
@@ -64,11 +55,10 @@ public class RiscVCGen extends ModulePass<Void> {
     }
 
     private Register.Float useFloat(Value val) {
-        var position = result.getPosition(val);
-        return switch(position) {
+        return switch(val.position) {
             case Register.Float r -> r;
             case StackPosition(int offset) -> {
-                if (val.type.equals(Types.Float)) {
+                if (val.type == Types.Float) {
                     asm.flw(Float.FT0, Int.FP, offset);
                     yield Float.FT0;
                 }
@@ -199,7 +189,7 @@ public class RiscVCGen extends ModulePass<Void> {
                 }
             }
             case Instruction.Alloca it -> {
-                var size = it.allocatedType.size;
+                var size = Types.sizeOf(it.allocatedType);
                 asm.addi(it, Register.Int.FP, -size);
             }
             case Instruction.Load it -> {
@@ -355,9 +345,6 @@ public class RiscVCGen extends ModulePass<Void> {
                 // TODO
             }
             case Instruction.Dummy it -> {
-                // DO NOTHING
-            }
-            case Instruction.DummyDef it -> {
                 // DO NOTHING
             }
             case Instruction.Addi it -> {

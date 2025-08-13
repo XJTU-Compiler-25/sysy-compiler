@@ -6,14 +6,11 @@ import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.stream.Stream;
 
-import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.symbol.Types;
+import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSaved;
+import static cn.edu.xjtu.sysy.riscv.ValueUtils.callerSaved;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
-public sealed abstract class Register extends Value implements ValuePosition {
-    public Register(Type type) {
-        super(type);
-    }
+public sealed abstract class Register implements ValuePosition {
 
     public abstract Type getType();
 
@@ -60,13 +57,7 @@ public sealed abstract class Register extends Value implements ValuePosition {
         public final Type type = Types.Int;
 
         private Int(String name) {
-            super(Types.Int);
             this.name = name;
-        }
-
-        @Override
-        public String shortName() {
-            return name;
         }
 
         @Override
@@ -135,13 +126,7 @@ public sealed abstract class Register extends Value implements ValuePosition {
         public final Type type = Types.Float;
 
         private Float(String name) {
-            super(Types.Float);
             this.name = name;
-        }
-
-        @Override
-        public String shortName() {
-            return name;
         }
 
         @Override
@@ -183,18 +168,4 @@ public sealed abstract class Register extends Value implements ValuePosition {
         };
     }
 
-    public static Stream<Register> calleeSaved() {
-        return Stream.of(Int.FP, Int.S1, Int.S2, Int.S3, Int.S4, Int.S5, Int.S6,
-            Int.S7, Int.S8, Int.S9, Int.S10, Int.S11,
-            Float.FS0, Float.FS1, Float.FS2, Float.FS3, Float.FS4, Float.FS5, Float.FS6,
-            Float.FS7, Float.FS8, Float.FS9, Float.FS10, Float.FS11);
-    }
-
-    public static Stream<Register> callerSaved() {
-        return Stream.of(Int.RA, Int.A0, Int.A1, Int.A2, Int.A3, Int.A4, Int.A5, Int.A6, Int.A7,
-            Int.T0, Int.T1, Int.T2, Int.T3, Int.T4, Int.T5, Int.T6,
-            Float.FA0, Float.FA1, Float.FA2, Float.FA3, Float.FA4, Float.FA5, Float.FA6, Float.FA7,
-            Float.FT0, Float.FT1, Float.FT2, Float.FT3, Float.FT4, Float.FT5, Float.FT6,
-            Float.FT7, Float.FT8, Float.FT9, Float.FT10, Float.FT11);
-    }
 }

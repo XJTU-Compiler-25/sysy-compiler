@@ -1,9 +1,10 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
 import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
+import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -67,19 +68,20 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
     }
 
     private void markFunction(Function function) {
-        for (var block : cfg.getRPOBlocks(function)) {
+        var worklist = new Worklist<BasicBlock>();
+        worklist.add(function.epilogue);
+        while (!worklist.isEmpty()) {
+            var block = worklist.poll();
             for (var arg : block.args) markAliveBefore(arg, null);
-
-            for (var inst : block.instructions) {
-                switch (inst) {
-                    case Terminator _, Store _, IMv _, FMv _, Dummy _, DummyDef _ -> {}
-                    default -> markAliveBefore(inst, inst);
-                }
-            }
+            for (var inst : block.instructions) markAliveBefore(inst, inst);
+            for (var succ : cfg.getSuccBlocksOf(block)) worklist.add(succ);
         }
     }
 
     private void markAliveBefore(Value value, Instruction stop) {
+        // 如果一个指令不产生值，则不用 mark，比如 term, store, dummy 等
+        if (value.type == Types.Void) return;
+
         for (var use : value.usedBy) {
             if (use.user instanceof Instruction inst) markAliveBefore(inst, value, stop);
         }

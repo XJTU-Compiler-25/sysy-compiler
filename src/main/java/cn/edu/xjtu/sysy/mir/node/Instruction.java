@@ -1,18 +1,16 @@
 package cn.edu.xjtu.sysy.mir.node;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
-import cn.edu.xjtu.sysy.util.Pair;
-import static cn.edu.xjtu.sysy.util.Pair.pair;
 
 /**
  * 建议通过 {@link InstructionHelper} 构造指令
@@ -56,7 +54,7 @@ public abstract sealed class Instruction extends User {
     public void insertAfter(Instruction instr) {
         Assertions.requires(!(this instanceof Terminator));
         int idx = block.instructions.indexOf(this);
-        block.instructions.add(idx+1, instr);
+        block.instructions.add(idx + 1, instr);
     }
 
     public void replaceWith(Instruction instr) {
@@ -83,6 +81,8 @@ public abstract sealed class Instruction extends User {
         public Value getParam(BasicBlock block, BlockArgument arg) { return unsupported(this); }
 
         public void removeParam(BasicBlock block, BlockArgument arg) { unsupported(this); }
+
+        public BlockArgument findParamByArg(BasicBlock block, Value value) { return unsupported(this); }
     }
 
     // 带值返回 return
@@ -166,6 +166,15 @@ public abstract sealed class Instruction extends User {
         public void removeParam(BasicBlock block, BlockArgument arg) {
             Assertions.requires(block == getTarget());
             removeParam(arg);
+        }
+
+        @Override
+        public BlockArgument findParamByArg(BasicBlock block, Value value) {
+            Assertions.requires(block == getTarget());
+            for (var entry : params.entrySet()) {
+                if (entry.getValue().value == value) return entry.getKey();
+            }
+            return null;
         }
 
         @Override
@@ -258,6 +267,21 @@ public abstract sealed class Instruction extends User {
                 var use = falseParams.remove(arg);
                 if (use != null) use.dispose();
             }
+        }
+
+        @Override
+        public BlockArgument findParamByArg(BasicBlock block, Value value) {
+            if (block == trueTarget.value) {
+                for (var entry : trueParams.entrySet()) {
+                    if (entry.getValue().value == value) return entry.getKey();
+                }
+            }
+            if (block == falseTarget.value) {
+                for (var entry : falseParams.entrySet()) {
+                    if (entry.getValue().value == value) return entry.getKey();
+                }
+            }
+            return null; // 不在这两个分支中
         }
     }
 
@@ -1356,20 +1380,15 @@ public abstract sealed class Instruction extends User {
 
     public static final class Dummy extends Instruction {
         Use[] uses;
+
         Dummy(BasicBlock block, Type type, Value... uses) {
             super(block, type);
             this.uses = new Use[uses.length];
-            for (int i = 0; i < uses.length; i++) {
-                this.uses[i] = use(uses[i]);
-            } 
+            for (int i = 0; i < uses.length; i++) this.uses[i] = use(uses[i]);
         }
 
         Dummy(BasicBlock block, Value... uses) {
-            super(block, Types.Void);
-            this.uses = new Use[uses.length];
-            for (int i = 0; i < uses.length; i++) {
-                this.uses[i] = use(uses[i]);
-            } 
+            this(block, Types.Void, uses);
         }
 
         @Override
@@ -1377,21 +1396,6 @@ public abstract sealed class Instruction extends User {
             return "dummy use " + Arrays.stream(uses)
                                         .map(v -> v.value.shortName())
                                         .collect(Collectors.joining(", "));
-        }
-    }
-
-    public static final class DummyDef extends Instruction {
-        Instruction[] defs;
-        DummyDef(BasicBlock block, Instruction... defs) {
-            super(block, Types.Void);
-            this.defs = new Instruction[defs.length];
-            System.arraycopy(defs, 0, this.defs, 0, defs.length); 
-        }
-
-        @Override
-        public String toString() {
-            return Arrays.stream(defs).map(v -> v.shortName())
-                                        .collect(Collectors.joining(", ")) + " = dummy def";
         }
     }
 
@@ -1493,4 +1497,5 @@ public abstract sealed class Instruction extends User {
             return String.format("%s = slti %s, %d", shortName(), lhs.value.shortName(), imm);
         }
     }
+
 }

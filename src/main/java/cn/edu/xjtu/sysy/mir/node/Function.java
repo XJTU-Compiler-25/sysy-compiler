@@ -19,8 +19,7 @@ public final class Function extends Value {
     public HashSet<BasicBlock> blocks = new HashSet<>();
     // 函数参数是入口块的参数，是保插入序的
     public ArrayList<Pair<String, BlockArgument>> params = new ArrayList<>();
-
-    // 以下都为分析用的字段
+    public StackState stackState = new StackState();
 
     public Function(Module module, String name, Type.Function funcType) {
         super(Types.Void);

@@ -86,7 +86,7 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 // 用于解释执行 MIR 代码，以检测正确性
-public final class Interpreter extends ModulePass {
+public final class Interpreter extends ModulePass<Void> {
     private final PrintStream out;
     private final InputStream in;
     private final Scanner sc;
@@ -648,7 +648,7 @@ public final class Interpreter extends ModulePass {
                 case FMulAdd _ -> {
                     // TODO
                 }
-                case Dummy _, Instruction.DummyDef _ -> {
+                case Dummy _ -> {
                     // Ignore
                 }
             }

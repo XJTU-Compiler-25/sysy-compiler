@@ -36,7 +36,6 @@ import cn.edu.xjtu.sysy.riscv.Instr.RegZ;
 import cn.edu.xjtu.sysy.riscv.Instr.Ret;
 import cn.edu.xjtu.sysy.riscv.Instr.Store;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
-import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.symbol.Symbol;
 
 import java.io.PrintWriter;
@@ -45,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import cn.edu.xjtu.sysy.symbol.Type;
+import cn.edu.xjtu.sysy.symbol.Types;
 
 public class RiscVWriter {
 
@@ -156,7 +156,7 @@ public class RiscVWriter {
             .data()
             .align(sym.type)
             .type(sym)
-            .size(sym.label, sym.type.size);
+            .size(sym.label, Types.sizeOf(sym.type));
         objDefs.add(new Obj(sym.label, directives, values));
         directives = new ArrayList<>();
         values = new ArrayList<>();
@@ -167,7 +167,7 @@ public class RiscVWriter {
             .bss()
             .align(sym.type)
             .type(sym)
-            .size(sym.label, sym.type.size);
+            .size(sym.label, Types.sizeOf(sym.type));
         objDefs.add(new Obj(sym.label, directives, values));
         directives = new ArrayList<>();
         values = new ArrayList<>();

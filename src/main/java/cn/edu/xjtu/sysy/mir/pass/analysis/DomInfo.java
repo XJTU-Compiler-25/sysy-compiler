@@ -65,7 +65,7 @@ public record DomInfo(
         return null;
     }
 
-    // depth first numbering，先序遍历
+    // depth first numbering，前序遍历
     public List<BasicBlock> getDFN(Function function) {
         var preOrder = new ArrayList<BasicBlock>();
         preOrder(function.entry, preOrder);

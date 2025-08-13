@@ -3,13 +3,13 @@ package cn.edu.xjtu.sysy.mir.pass;
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
-import cn.edu.xjtu.sysy.mir.pass.transform.CFGSimplify;
 import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
 import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
 import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
 import cn.edu.xjtu.sysy.mir.pass.transform.LIRInstCombine;
 import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
+import cn.edu.xjtu.sysy.mir.pass.transform.RegisterAllocator;
 
 public final class MirPipelines {
 
@@ -37,7 +37,8 @@ public final class MirPipelines {
                     DCE::new,
                     EnterLIR::new,
                     LIRInstCombine::new,
-                    LiveRangeAnalysis::new
+                    RegisterAllocator::new,
+                    RiscVCGen::new
             )
             .build();
 

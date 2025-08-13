@@ -44,4 +44,10 @@ public final class MathUtils {
         return (int) Math.min(product, Integer.MAX_VALUE);
     }
 
+    public static int roundTo(int val, int d) {
+        var mod = val % d;
+        if (mod == 0) return val;
+        return val + (d - mod);
+    }
+
 }

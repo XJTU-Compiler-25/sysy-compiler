@@ -1,7 +1,6 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.function.Predicate;
 
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
@@ -16,7 +15,7 @@ public abstract class Value {
     public Type type;
     public final ArrayList<Use> usedBy = new ArrayList<>();
 
-    public ValuePosition constraint = null;
+    public ValuePosition position;
 
     public Value(Type type) {
         this.type = type;

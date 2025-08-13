@@ -61,7 +61,7 @@ public abstract sealed class Symbol {
             inSize = 0;
             for (var param : params) {
                 if (param.type instanceof Type.Int || param.type instanceof Type.Float) {
-                    inSize += param.type.size;
+                    inSize += Types.sizeOf(param.type);
                 } else {
                     inSize = alignExc(inSize, 8) + 16;
                 }

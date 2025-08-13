@@ -40,7 +40,7 @@ public final class ConstFold extends ModulePass {
         switch (inst) {
             // 不能被折叠为常量值的指令
             case Call _, CallExternal _, Alloca _, Load _, Store _, GetElemPtr _, Terminator _,
-                Dummy _, DummyDef _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> { }
+                Dummy _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> { }
             // 数学运算
             case IAdd it -> {
                 var l = it.lhs.value;

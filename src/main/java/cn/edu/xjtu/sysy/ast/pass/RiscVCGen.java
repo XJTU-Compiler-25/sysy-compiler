@@ -1,7 +1,5 @@
 package cn.edu.xjtu.sysy.ast.pass;
 
-import java.util.Stack;
-
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
 import cn.edu.xjtu.sysy.ast.node.Decl;
 import cn.edu.xjtu.sysy.ast.node.Expr;
@@ -23,6 +21,7 @@ import static cn.edu.xjtu.sysy.riscv.Register.Int.SP;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.T0;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.T1;
 import static cn.edu.xjtu.sysy.riscv.Register.Int.ZERO;
+import static cn.edu.xjtu.sysy.symbol.Types.sizeOf;
 import static cn.edu.xjtu.sysy.util.Assertions.requires;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
@@ -141,14 +140,14 @@ public class RiscVCGen extends AstVisitor {
         var sym = node.resolution;
         sym.declared = true;
         if (node.init == null) {
-            asm .zero(sym.type.size)
+            asm .zero(sizeOf(sym.type))
                     .defVarBss(sym);
             return;
         }
         switch (sym.type) {
             case Type.Int _, Type.Float _ -> {
                 if (node.init.getComptimeValue().floatValue() == 0) {
-                    asm.zero(sym.type.size);
+                    asm.zero(sizeOf(sym.type));
                     asm.defVarBss(sym);
                 } else {
                     asm.word(node.init.getComptimeValue());
@@ -173,7 +172,7 @@ public class RiscVCGen extends AstVisitor {
                     }
                     lasti = index;
                 }
-                int tailSize = sym.type.size - 4*(lasti+1);
+                int tailSize = sizeOf(sym.type) - 4*(lasti+1);
                 if (tailSize > 0)
                     asm.zero(tailSize);
                 if (allZero) asm.defVarBss(sym);
@@ -188,7 +187,7 @@ public class RiscVCGen extends AstVisitor {
         var sym = node.resolution;
         sym.declared = true;
         if (node.init == null) {
-            return sym.type.size;
+            return sizeOf(sym.type);
         }
         switch (sym.type) {
             case Type.Int _, Type.Float _ -> {
@@ -226,14 +225,14 @@ public class RiscVCGen extends AstVisitor {
                     }
                     lasti = index;
                 }
-                int tailSize = sym.type.size - 4*(lasti+1);
+                int tailSize = sizeOf(sym.type) - 4*(lasti+1);
                 if (tailSize > 0)
                     asm.setzero(arrayIndex - 4*(lasti+1), tailSize, T0);
 
             }
             default -> unreachable();
         }
-        return sym.type.size;
+        return sizeOf(sym.type);
     }
 
     public int visit(Stmt node, int nt) {

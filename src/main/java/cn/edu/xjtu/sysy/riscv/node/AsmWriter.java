@@ -1,57 +1,22 @@
 package cn.edu.xjtu.sysy.riscv.node;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.riscv.Instr;
+import cn.edu.xjtu.sysy.riscv.Instr.*;
 import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
-import cn.edu.xjtu.sysy.riscv.Instr.Auipc;
-import cn.edu.xjtu.sysy.riscv.Instr.Branch;
-import cn.edu.xjtu.sysy.riscv.Instr.BranchZ;
-import cn.edu.xjtu.sysy.riscv.Instr.Call;
-import cn.edu.xjtu.sysy.riscv.Instr.Ecall;
-import cn.edu.xjtu.sysy.riscv.Instr.FBinary;
-import cn.edu.xjtu.sysy.riscv.Instr.FComp;
-import cn.edu.xjtu.sysy.riscv.Instr.FMulAdd;
-import cn.edu.xjtu.sysy.riscv.Instr.FUnary;
-import cn.edu.xjtu.sysy.riscv.Instr.Fclass;
-import cn.edu.xjtu.sysy.riscv.Instr.FloatCvt;
-import cn.edu.xjtu.sysy.riscv.Instr.FloatIntMv;
-import cn.edu.xjtu.sysy.riscv.Instr.Flw;
-import cn.edu.xjtu.sysy.riscv.Instr.Fsw;
-import cn.edu.xjtu.sysy.riscv.Instr.Imm;
-import cn.edu.xjtu.sysy.riscv.Instr.IntCvt;
-import cn.edu.xjtu.sysy.riscv.Instr.IntFloatMv;
-import cn.edu.xjtu.sysy.riscv.Instr.J;
-import cn.edu.xjtu.sysy.riscv.Instr.Jal;
-import cn.edu.xjtu.sysy.riscv.Instr.Jalr;
-import cn.edu.xjtu.sysy.riscv.Instr.Jr;
-import cn.edu.xjtu.sysy.riscv.Instr.La;
-import cn.edu.xjtu.sysy.riscv.Instr.Li;
-import cn.edu.xjtu.sysy.riscv.Instr.Li_globl;
-import cn.edu.xjtu.sysy.riscv.Instr.Load;
-import cn.edu.xjtu.sysy.riscv.Instr.LocalLabel;
-import cn.edu.xjtu.sysy.riscv.Instr.Lui;
-import cn.edu.xjtu.sysy.riscv.Instr.Reg;
-import cn.edu.xjtu.sysy.riscv.Instr.RegZ;
-import cn.edu.xjtu.sysy.riscv.Instr.Ret;
-import cn.edu.xjtu.sysy.riscv.Instr.Store;
-import cn.edu.xjtu.sysy.mir.pass.transform.regalloc.AllocatedResult;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static cn.edu.xjtu.sysy.riscv.Instr.Reg.Op.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
-public class AsmWriter {
+@SuppressWarnings({"unused"})
+public final class AsmWriter {
 
     private final List<Instr> instrs = new ArrayList<>();
-
-    private final AllocatedResult result;
-    
-    public AsmWriter(AllocatedResult result) {
-        this.result = result;
-    }
 
     private AsmWriter reg(Reg.Op op, Register.Int rd, Register.Int rs1, Register.Int rs2) {
         instrs.add(new Reg(op, rd, rs1, rs2));
@@ -59,115 +24,115 @@ public class AsmWriter {
     }
 
     public AsmWriter add(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.ADD, rd, rs1, rs2);
+        return reg(ADD, rd, rs1, rs2);
     }
 
     public AsmWriter addw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.ADDW, rd, rs1, rs2);
+        return reg(ADDW, rd, rs1, rs2);
     }
 
     public AsmWriter sub(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SUB, rd, rs1, rs2);
+        return reg(SUB, rd, rs1, rs2);
     }
 
     public AsmWriter subw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SUBW, rd, rs1, rs2);
+        return reg(SUBW, rd, rs1, rs2);
     }
 
     public AsmWriter and(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.AND, rd, rs1, rs2);
+        return reg(AND, rd, rs1, rs2);
     }
 
     public AsmWriter or(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.OR, rd, rs1, rs2);
+        return reg(OR, rd, rs1, rs2);
     }
 
     public AsmWriter xor(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.XOR, rd, rs1, rs2);
+        return reg(XOR, rd, rs1, rs2);
     }
 
     public AsmWriter sll(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLL, rd, rs1, rs2);
+        return reg(SLL, rd, rs1, rs2);
     }
 
     public AsmWriter sllw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLLW, rd, rs1, rs2);
+        return reg(SLLW, rd, rs1, rs2);
     }
 
     public AsmWriter srl(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRL, rd, rs1, rs2);
+        return reg(SRL, rd, rs1, rs2);
     }
 
     public AsmWriter srlw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRLW, rd, rs1, rs2);
+        return reg(SRLW, rd, rs1, rs2);
     }
 
     public AsmWriter sra(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRA, rd, rs1, rs2);
+        return reg(SRA, rd, rs1, rs2);
     }
 
     public AsmWriter sraw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRAW, rd, rs1, rs2);
+        return reg(SRAW, rd, rs1, rs2);
     }
 
     public AsmWriter slt(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLT, rd, rs1, rs2);
+        return reg(SLT, rd, rs1, rs2);
     }
 
     public AsmWriter sltu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLTU, rd, rs1, rs2);
+        return reg(SLTU, rd, rs1, rs2);
     }
 
     public AsmWriter mul(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MUL, rd, rs1, rs2);
+        return reg(MUL, rd, rs1, rs2);
     }
 
     public AsmWriter mulw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULW, rd, rs1, rs2);
+        return reg(MULW, rd, rs1, rs2);
     }
 
     public AsmWriter mulh(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULH, rd, rs1, rs2);
+        return reg(MULH, rd, rs1, rs2);
     }
 
     public AsmWriter mulhu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULHU, rd, rs1, rs2);
+        return reg(MULHU, rd, rs1, rs2);
     }
 
     public AsmWriter mulhsu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULHSU, rd, rs1, rs2);
+        return reg(MULHSU, rd, rs1, rs2);
     }
 
     public AsmWriter div(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIV, rd, rs1, rs2);
+        return reg(DIV, rd, rs1, rs2);
     }
 
     public AsmWriter divu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIVU, rd, rs1, rs2);
+        return reg(DIVU, rd, rs1, rs2);
     }
 
     public AsmWriter divw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIVW, rd, rs1, rs2);
+        return reg(DIVW, rd, rs1, rs2);
     }
 
     public AsmWriter divuw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIVUW, rd, rs1, rs2);
+        return reg(DIVUW, rd, rs1, rs2);
     }
 
     public AsmWriter rem(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REM, rd, rs1, rs2);
+        return reg(REM, rd, rs1, rs2);
     }
 
     public AsmWriter remu(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REMU, rd, rs1, rs2);
+        return reg(REMU, rd, rs1, rs2);
     }
 
     public AsmWriter remw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REMW, rd, rs1, rs2);
+        return reg(REMW, rd, rs1, rs2);
     }
 
     public AsmWriter remuw(Register.Int rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REMUW, rd, rs1, rs2);
+        return reg(REMUW, rd, rs1, rs2);
     }
 
     private AsmWriter regz(RegZ.Op op, Register.Int rd, Register.Int rs1) {
@@ -521,7 +486,7 @@ public class AsmWriter {
     }
 
     private AsmWriter regw(Reg.Op op, Value dst, Register.Int rs1, Register.Int rs2) {
-        var position = result.allocated().get(dst);
+        var position = dst.position;
         switch(position) {
             case Register.Int rd -> { 
                 instrs.add(new Reg(op, rd, rs1, rs2));
@@ -536,7 +501,7 @@ public class AsmWriter {
     }
 
     private AsmWriter reg(Reg.Op op, Value dst, Register.Int rs1, Register.Int rs2) {
-        var position = result.allocated().get(dst);
+        var position = dst.position;
         switch(position) {
             case Register.Int rd -> { 
                 instrs.add(new Reg(op, rd, rs1, rs2));
@@ -551,119 +516,119 @@ public class AsmWriter {
     }
 
     public AsmWriter add(Value dst, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.ADD, dst, rs1, rs2);   
+        return reg(ADD, dst, rs1, rs2);   
     }
 
     public AsmWriter addw(Value dst, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.ADDW, dst, rs1, rs2);
+        return regw(ADDW, dst, rs1, rs2);
     }
 
     public AsmWriter sub(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SUB, rd, rs1, rs2);
+        return reg(SUB, rd, rs1, rs2);
     }
 
     public AsmWriter subw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.SUBW, rd, rs1, rs2);
+        return regw(SUBW, rd, rs1, rs2);
     }
 
     public AsmWriter and(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.AND, rd, rs1, rs2);
+        return reg(AND, rd, rs1, rs2);
     }
 
     public AsmWriter or(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.OR, rd, rs1, rs2);
+        return reg(OR, rd, rs1, rs2);
     }
 
     public AsmWriter xor(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.XOR, rd, rs1, rs2);
+        return reg(XOR, rd, rs1, rs2);
     }
 
     public AsmWriter sll(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLL, rd, rs1, rs2);
+        return reg(SLL, rd, rs1, rs2);
     }
 
     public AsmWriter sllw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.SLLW, rd, rs1, rs2);
+        return regw(SLLW, rd, rs1, rs2);
     }
 
     public AsmWriter srl(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRL, rd, rs1, rs2);
+        return reg(SRL, rd, rs1, rs2);
     }
 
     public AsmWriter srlw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.SRLW, rd, rs1, rs2);
+        return regw(SRLW, rd, rs1, rs2);
     }
 
     public AsmWriter sra(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SRA, rd, rs1, rs2);
+        return reg(SRA, rd, rs1, rs2);
     }
 
     public AsmWriter sraw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.SRAW, rd, rs1, rs2);
+        return regw(SRAW, rd, rs1, rs2);
     }
 
     public AsmWriter slt(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLT, rd, rs1, rs2);
+        return reg(SLT, rd, rs1, rs2);
     }
 
     public AsmWriter sltu(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.SLTU, rd, rs1, rs2);
+        return reg(SLTU, rd, rs1, rs2);
     }
 
     public AsmWriter mul(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MUL, rd, rs1, rs2);
+        return reg(MUL, rd, rs1, rs2);
     }
 
     public AsmWriter mulw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.MULW, rd, rs1, rs2);
+        return regw(MULW, rd, rs1, rs2);
     }
 
     public AsmWriter mulh(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULH, rd, rs1, rs2);
+        return reg(MULH, rd, rs1, rs2);
     }
 
     public AsmWriter mulhu(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULHU, rd, rs1, rs2);
+        return reg(MULHU, rd, rs1, rs2);
     }
 
     public AsmWriter mulhsu(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.MULHSU, rd, rs1, rs2);
+        return reg(MULHSU, rd, rs1, rs2);
     }
 
     public AsmWriter div(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIV, rd, rs1, rs2);
+        return reg(DIV, rd, rs1, rs2);
     }
 
     public AsmWriter divu(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.DIVU, rd, rs1, rs2);
+        return reg(DIVU, rd, rs1, rs2);
     }
 
     public AsmWriter divw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.DIVW, rd, rs1, rs2);
+        return regw(DIVW, rd, rs1, rs2);
     }
 
     public AsmWriter divuw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.DIVUW, rd, rs1, rs2);
+        return regw(DIVUW, rd, rs1, rs2);
     }
 
     public AsmWriter rem(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REM, rd, rs1, rs2);
+        return reg(REM, rd, rs1, rs2);
     }
 
     public AsmWriter remu(Value rd, Register.Int rs1, Register.Int rs2) {
-        return reg(Reg.Op.REMU, rd, rs1, rs2);
+        return reg(REMU, rd, rs1, rs2);
     }
 
     public AsmWriter remw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.REMW, rd, rs1, rs2);
+        return regw(REMW, rd, rs1, rs2);
     }
 
     public AsmWriter remuw(Value rd, Register.Int rs1, Register.Int rs2) {
-        return regw(Reg.Op.REMUW, rd, rs1, rs2);
+        return regw(REMUW, rd, rs1, rs2);
     }
 
     private AsmWriter regz(RegZ.Op op, Value dst, Register.Int rs1) {
-        var position = result.allocated().get(dst);
+        var position = dst.position;
         switch(position) {
             case Register.Int rd -> { 
                 instrs.add(new RegZ(op, rd, rs1));
@@ -706,7 +671,7 @@ public class AsmWriter {
     }
 
     private AsmWriter funary(FUnary.Op op, Value rd, Register.Float rs1) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new FUnary(op, dst, rs1));
@@ -737,7 +702,7 @@ public class AsmWriter {
     }
 
     public AsmWriter fclass(Value rd, Register.Float rs1) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new Fclass(dst, rs1));
@@ -753,7 +718,7 @@ public class AsmWriter {
 
     private AsmWriter fbinary(
             FBinary.Op op, Value rd, Register.Float rs1, Register.Float rs2) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new FBinary(op, dst, rs1, rs2));
@@ -805,7 +770,7 @@ public class AsmWriter {
 
     private AsmWriter fcomp(
             FComp.Op op, Value rd, Register.Float rs1, Register.Float rs2) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new FComp(op, dst, rs1, rs2));
@@ -837,7 +802,7 @@ public class AsmWriter {
             Register.Float rs1,
             Register.Float rs2,
             Register.Float rs3) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new FMulAdd(op, dst, rs1, rs2, rs3));
@@ -872,7 +837,7 @@ public class AsmWriter {
     }
 
     private AsmWriter fcvt(FloatCvt.Op op, Value rd, Register.Float rs) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new FloatCvt(op, dst, rs));
@@ -903,7 +868,7 @@ public class AsmWriter {
     }
 
     public AsmWriter fmv_x_w(Value rd, Register.Float rs) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new FloatIntMv(dst, rs));
@@ -918,7 +883,7 @@ public class AsmWriter {
     }
 
     private AsmWriter icvt(IntCvt.Op op, Value rd, Register.Int rs) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new IntCvt(op, dst, rs));
@@ -949,7 +914,7 @@ public class AsmWriter {
     }
 
     public AsmWriter fmv_w_x(Value rd, Register.Int rs) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new IntFloatMv(dst, rs));
@@ -964,7 +929,7 @@ public class AsmWriter {
     }
 
     private AsmWriter imm(Imm.Op op, Value rd, Register.Int rs, int imm) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new Imm(op, dst, rs, imm));
@@ -1031,7 +996,7 @@ public class AsmWriter {
     }
 
     private AsmWriter load(Load.Op op, Value rd, Register.Int rs, int imm) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 instrs.add(new Load(op, dst, rs, imm));
@@ -1103,7 +1068,7 @@ public class AsmWriter {
     }
 */
     public AsmWriter flw(Value rd, Register.Int rs, int imm) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Float dst -> { 
                 instrs.add(new Flw(dst, rs, imm));
@@ -1126,7 +1091,7 @@ public class AsmWriter {
             Store.Op op, Register.Int src, Register.Int rs, int imm, Register.Int tmp) {
         if (imm < -2048 || imm >= 2048) {
             instrs.add(new Li(tmp, imm));
-            instrs.add(new Reg(Reg.Op.ADD, tmp, rs, tmp));
+            instrs.add(new Reg(ADD, tmp, rs, tmp));
             instrs.add(new Store(op, src, tmp, 0));
         } else {
             instrs.add(new Store(op, src, rs, imm));
@@ -1179,7 +1144,7 @@ public class AsmWriter {
     public AsmWriter fsw(Register.Float rd, Register.Int rs, int imm, Register.Int tmp) {
         if (imm < -2048 || imm >= 2048) {
             instrs.add(new Li(tmp, imm));
-            instrs.add(new Reg(Reg.Op.ADD, tmp, rs, tmp));
+            instrs.add(new Reg(ADD, tmp, rs, tmp));
             instrs.add(new Fsw(rd, tmp, 0));
         } else {
             instrs.add(new Fsw(rd, rs, imm));
@@ -1330,7 +1295,7 @@ public class AsmWriter {
     }
 
     public AsmWriter li(Value rd, int imm) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 li(dst, imm);
@@ -1345,7 +1310,7 @@ public class AsmWriter {
     }
 
     public AsmWriter li(Value rd, float imm) {
-        var position = result.allocated().get(rd);
+        var position = rd.position;
         switch(position) {
             case Register.Int dst -> { 
                 li(dst, Float.floatToRawIntBits(imm));
