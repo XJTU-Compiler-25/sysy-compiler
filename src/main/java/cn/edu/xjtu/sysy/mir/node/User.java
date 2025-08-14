@@ -42,8 +42,11 @@ public sealed abstract class User extends Value permits Instruction {
 
     // 清理 use 关系
     public void dispose() {
-        for (var use : used) use.value.removeUse(use);
+        for (var use : usedList) {
+            use.value.removeUse(use);
+        }
         used.clear();
+        usedList.clear();
     }
 
 }

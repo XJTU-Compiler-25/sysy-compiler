@@ -14,6 +14,7 @@ import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSaved;
 
 @SuppressWarnings("unchecked")
 public class EnterLIR extends ModulePass<Void> {
+
     private final LIRInstrHelper helper = new LIRInstrHelper();
     private StackState stackState;
 
@@ -42,13 +43,13 @@ public class EnterLIR extends ModulePass<Void> {
         var epilogue = function.epilogue;
         function.addBlock(epilogue);
         helper.changeBlock(epilogue);
-        if (!function.funcType.returnType.equals(Types.Void)) {
+        if (function.funcType.returnType != Types.Void) {
             var arg = epilogue.addBlockArgument(function.funcType.returnType);
             epilogue.terminator = helper.ret(arg);
         } else epilogue.terminator = helper.ret();
 
         var dummyUse = helper.dummyUse(dummies);
-        epilogue.addInstruction(dummyUse);
+        epilogue.insertAtLast(dummyUse);
         function.blocks.forEach(this::visit);
     }
     

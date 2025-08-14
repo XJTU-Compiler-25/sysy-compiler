@@ -1,7 +1,6 @@
 package cn.edu.xjtu.sysy.mir.util;
 
 import cn.edu.xjtu.sysy.mir.node.BlockArgument;
-import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 
@@ -32,7 +31,7 @@ public final class ModulePrinter {
                     .append(function.entry.shortName()).append(")\n");
 
             for (var block : cfg.getRPOBlocks(function)) {
-                sb.append('^').append(block.shortName()).append('(')
+                sb.append("\n^").append(block.shortName()).append('(')
                         .append(block.args.stream().map(BlockArgument::shortName)
                                 .collect(Collectors.joining(", ")))
                         .append("):\n");

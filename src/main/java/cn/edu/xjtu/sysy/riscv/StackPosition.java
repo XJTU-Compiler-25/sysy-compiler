@@ -1,3 +1,8 @@
 package cn.edu.xjtu.sysy.riscv;
 
-public record StackPosition(int offset) implements ValuePosition { }
+public record StackPosition(int offset) implements ValuePosition {
+    @Override
+    public String toString() {
+        return "(fp + " + offset + ")";
+    }
+}

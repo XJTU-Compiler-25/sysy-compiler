@@ -3,13 +3,7 @@ package cn.edu.xjtu.sysy.mir.pass;
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
-import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
-import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
-import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
-import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
-import cn.edu.xjtu.sysy.mir.pass.transform.LIRInstCombine;
-import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
-import cn.edu.xjtu.sysy.mir.pass.transform.RegisterAllocator;
+import cn.edu.xjtu.sysy.mir.pass.transform.*;
 
 public final class MirPipelines {
 
@@ -21,7 +15,6 @@ public final class MirPipelines {
                     CFGAnalysis::new,
                     CallGraphAnalysis::new,
                     DominanceAnalysis::new,
-                    FrequencyAnalysis::new,
                     FuncInfoAnalysis::new,
                     LoopAnalysis::new,
                     LiveRangeAnalysis::new,
@@ -32,12 +25,16 @@ public final class MirPipelines {
                     EnterSSA::new,
                     SCCP::new,
                     ConstFold::new,
+                    InstCombine::new,
                     DCE::new,
+                    //GVN::new,
                     //GCM::new,
                     DCE::new,
+                    CFGSimplify::new,
                     EnterLIR::new,
-                    LIRInstCombine::new,
+                    //LIRInstCombine::new,
                     RegisterAllocator::new,
+                    ExitSSA::new,
                     RiscVCGen::new
             )
             .build();
@@ -48,14 +45,12 @@ public final class MirPipelines {
                     CFGAnalysis::new,
                     CallGraphAnalysis::new,
                     DominanceAnalysis::new,
-                    FrequencyAnalysis::new,
                     FuncInfoAnalysis::new,
                     LoopAnalysis::new,
                     LiveRangeAnalysis::new,
                     SCEV::new
             )
             .addTransformers(
-                    EnterSSA::new
             )
             .build();
 
