@@ -3,7 +3,6 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
-import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.HashMap;
@@ -16,8 +15,8 @@ import java.util.stream.Collectors;
 // 所以反向数据流分析直接从 epilogue 开始反向扫描
 public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
 
-    private HashMap<Instruction, Set<Value>> valuesLiveBeforeInst;
-    private HashMap<Instruction, Set<Value>> valuesLiveAfterInst;
+    private HashMap<Instruction, Set<Value>> liveIn;
+    private HashMap<Instruction, Set<Value>> liveOut;
     private HashMap<Value, Set<Instruction>> instsValueLiveBefore;
 
     private CFG cfg;
@@ -26,8 +25,8 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
 
     @Override
     public LiveRangeInfo process(Module module) {
-        valuesLiveAfterInst = new HashMap<>();
-        valuesLiveBeforeInst = new HashMap<>();
+        liveOut = new HashMap<>();
+        liveIn = new HashMap<>();
         instsValueLiveBefore = new HashMap<>();
 
         cfg = getResult(CFGAnalysis.class);
@@ -40,7 +39,7 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
         }
         collectAliveAfter();
 
-        return new LiveRangeInfo(valuesLiveBeforeInst, valuesLiveAfterInst, instsValueLiveBefore);
+        return new LiveRangeInfo(liveIn, liveOut, instsValueLiveBefore);
     }
 
     private void collectPredSucc(Function function) {
@@ -68,20 +67,28 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
     }
 
     private void markFunction(Function function) {
+        for (var inst : function.getAllInstructions()) {
+            liveIn.put(inst, new HashSet<>());
+            liveOut.put(inst, new HashSet<>());
+        }
+
+        var epilogue = function.epilogue;
+        liveOut.put(epilogue.terminator, Set.of());
+
+        var visited = new HashSet<BasicBlock>();
         var worklist = new Worklist<BasicBlock>();
-        worklist.add(function.epilogue);
+        worklist.add(epilogue);
         while (!worklist.isEmpty()) {
             var block = worklist.poll();
             for (var arg : block.args) markAliveBefore(arg, null);
-            for (var inst : block.instructions) markAliveBefore(inst, inst);
-            for (var succ : cfg.getSuccBlocksOf(block)) worklist.add(succ);
+            for (var inst : block.getInstructionsAndTerminator()) markAliveBefore(inst, inst);
+            for (var succ : cfg.getPredBlocksOf(block)) {
+                if (visited.add(succ)) worklist.add(succ);
+            }
         }
     }
 
     private void markAliveBefore(Value value, Instruction stop) {
-        // 如果一个指令不产生值，则不用 mark，比如 term, store, dummy 等
-        if (value.type == Types.Void) return;
-
         for (var use : value.usedBy) {
             if (use.user instanceof Instruction inst) markAliveBefore(inst, value, stop);
         }
@@ -90,7 +97,7 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
     private void markAliveBefore(Instruction inst, Value value, Instruction stop) {
         if (inst == stop) return;
 
-        if (!valuesLiveBeforeInst.computeIfAbsent(inst, _ -> new HashSet<>()).add(value)) return;
+        if (!liveIn.get(inst).add(value)) return;
 
         instsValueLiveBefore.computeIfAbsent(value, _ -> new HashSet<>()).add(inst);
         for (var pred : preds.getOrDefault(inst, Set.of()))
@@ -99,9 +106,9 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
 
     private void collectAliveAfter() {
         succs.forEach((inst, succs) -> {
-            var after = new LinkedHashSet<Value>();
-            valuesLiveAfterInst.put(inst, after);
-            for (var succ : succs) after.addAll(valuesLiveBeforeInst.computeIfAbsent(succ, _ -> new HashSet<>()));
+            var after = new HashSet<Value>();
+            liveOut.put(inst, after);
+            for (var succ : succs) after.addAll(liveIn.get(succ));
         });
     }
 

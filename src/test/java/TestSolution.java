@@ -33,12 +33,12 @@ public final class TestSolution {
                     try {
                         var testCodeStream = new FileInputStream(f);
                         var testInStream = testInFile.exists() ? new FileInputStream(testInFile) : null;
-                        var testOutStream = new FileInputStream(testOutFile);
+                        var testOutStream = testOutFile.exists() ? new FileInputStream(testOutFile) : null;
                         var testCode = new String(testCodeStream.readAllBytes());
                         var testIn = testInStream != null ? testInStream.readAllBytes() : null;
                         testCodeStream.close();
                         if (testInStream != null) testInStream.close();
-                        testOutStream.close();
+                        if (testOutStream != null) testOutStream.close();
                         return dynamicTest(testName, () -> {
                             var em = ErrManager.GLOBAL;
                             var ast = Compiler.compileToAst(em, testCode);
@@ -53,9 +53,9 @@ public final class TestSolution {
                             var module = mirBuilder.build(ast);
                             //System.out.println(module);
                             MirPipelines.DEFAULT.process(module);
-                            System.out.println(module);
+                            //System.out.println(module);
 
-                            if (true) {
+                            if (false) {
                                 System.out.println("Interpreting test...");
                                 var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
                                 var os = new ByteArrayOutputStream();

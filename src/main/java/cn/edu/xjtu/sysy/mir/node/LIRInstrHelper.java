@@ -80,13 +80,13 @@ public final class LIRInstrHelper {
     }
 
     public Instruction.IMv imv(Value dst, Value src) {
-        Assertions.requires(src.type.equals(Types.Int) && src.type.equals(dst.type));
+        //Assertions.requires(src.type.equals(Types.Int) && src.type.equals(dst.type));
         var instr = new Instruction.IMv(block, dst, src);
         return instr;
     }
     
     public Instruction.FMv fmv(Value dst, Value src) {
-        Assertions.requires(src.type.equals(Types.Float) && src.type.equals(dst.type));
+        //Assertions.requires(src.type.equals(Types.Float) && src.type.equals(dst.type));
         var instr = new Instruction.FMv(block, dst, src);
         return instr;
     }

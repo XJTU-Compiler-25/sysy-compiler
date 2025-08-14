@@ -22,15 +22,7 @@ public record LiveRangeInfo(
         return liveOut.get(instruction);
     }
 
-    public Set<Instruction> getInstsLiveBefore(Instruction instruction) {
-        return instsValueLiveBefore.get(instruction);
-    }
-
-    public Set<Value> getLiveIn(BasicBlock block) {
-        return liveIn.get(block.getFirstInstruction());
-    }
-
-    public Set<Value> getLiveOut(BasicBlock block) {
-        return liveOut.get(block.terminator);
+    public Set<Instruction> getInstsLiveBefore(Value value) {
+        return instsValueLiveBefore.get(value);
     }
 }

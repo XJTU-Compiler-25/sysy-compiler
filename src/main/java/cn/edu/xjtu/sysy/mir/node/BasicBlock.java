@@ -31,11 +31,15 @@ public final class BasicBlock extends Value {
         return function;
     }
 
-    public void addInstruction(Instruction instruction) {
-        instructions.add(instruction);
+    public void insertAtFirst(Instruction instruction) {
+        instructions.addFirst(instruction);
     }
 
-    public void addInstruction(int idx, Instruction instruction) {
+    public void insertAtLast(Instruction instruction) {
+        instructions.addLast(instruction);
+    }
+
+    public void insertAt(int idx, Instruction instruction) {
         instructions.add(idx, instruction);
     }
 
@@ -46,6 +50,12 @@ public final class BasicBlock extends Value {
     public Instruction getFirstInstruction() {
         var instrs = this.instructions;
         return instrs.isEmpty() ? terminator : instrs.getFirst();
+    }
+
+    public ArrayList<Instruction> getInstructionsAndTerminator() {
+        var result = new ArrayList<>(instructions);
+        result.add(terminator);
+        return result;
     }
 
     public BlockArgument addBlockArgument(Type type) {

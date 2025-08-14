@@ -29,8 +29,8 @@ public final class Pipeline<T> {
         cache.clear();
         for (var pass : transformers) {
             pass.setCurrentPipeline(this);
-            var result = pass.process(input);
-            cache.put((Class<? extends Pass<T, ?>>) pass.getClass(), result);
+            pass.process(input);
+            invalidateAll();
         }
     }
 

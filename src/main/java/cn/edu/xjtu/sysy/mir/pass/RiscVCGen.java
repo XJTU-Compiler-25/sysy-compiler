@@ -2,20 +2,18 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
-import cn.edu.xjtu.sysy.mir.node.BasicBlock;
-import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.GlobalVar;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Value;
+import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.riscv.Label;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.Register.Float;
+import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
+
+import java.util.ArrayList;
 
 public class RiscVCGen extends ModulePass<Void> {
 
@@ -71,43 +69,6 @@ public class RiscVCGen extends ModulePass<Void> {
     @Override
     public void visit(Function func) {
         asm.label(new Label(func.shortName()));
-        var entry = func.entry;
-        var entryParams = entry.args;
-        var intParams = entryParams.stream().filter(param -> !param.type.equals(Types.Float)).toList();
-        var floatParams = entryParams.stream().filter(param -> param.type.equals(Types.Float)).toList();
-        int offset = 0;
-        for (int i = 0; i < floatParams.size(); i++) {
-            var param = floatParams.get(i);
-            var reg = Register.FA(i);
-            if (reg == null) {
-                asm.flw(param, Register.Int.FP, offset);
-                offset += 4;
-            } else {
-                asm.fmv(param, reg);
-            }
-        }
-        for (int i = 0; i < intParams.size(); i++) {
-            var param = intParams.get(i);
-            var reg = Register.A(i);
-            if (!param.type.equals(Types.Int)) continue;
-            if (reg == null) {
-                asm.lw(param, Register.Int.FP, offset);
-                offset += 4;
-            } else {
-                asm.mv(param, reg);
-            }
-        }
-        offset = offset * 8 / 8 + 8;
-        for (int i = 0; i < intParams.size(); i++) {
-            var param = intParams.get(i);
-            var reg = Register.A(i);
-            if (reg == null) {
-                asm.lw(param, Register.Int.FP, offset);
-                offset += 8;
-            } else {
-                asm.mv(param, reg);
-            }
-        }
         func.blocks.forEach(this::visit);
     }
 

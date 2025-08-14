@@ -6,11 +6,12 @@ import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.LIRInstrHelper;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 
-public class LIRInstCombine extends ModulePass {
+public class LIRInstCombine extends ModulePass<Void> {
     LIRInstrHelper helper = new LIRInstrHelper();
     
     @Override
     public void visit(BasicBlock bb) {
+        helper.changeBlock(bb);
         bb.instructions.forEach(this::visit);
         visit(bb.terminator);
     }
@@ -102,6 +103,7 @@ public class LIRInstCombine extends ModulePass {
     public void visit(Instruction.Br br) {
         var cond = br.getCondition();
         var block = br.getBlock();
+        helper.changeBlock(block);
         switch (cond) {
             case Instruction.ILt it -> {
                 var branch = helper.blt(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());

@@ -1126,6 +1126,7 @@ public abstract sealed class Instruction extends User {
 
         IMv(BasicBlock block, Value dst, Value src) {
             super(block, Types.Void);
+            this.dst = dst;
             this.src = use(src);
         }
 
@@ -1141,6 +1142,7 @@ public abstract sealed class Instruction extends User {
 
         FMv(BasicBlock block, Value dst, Value src) {
             super(block, Types.Void);
+            this.dst = dst;
             this.src = use(src);
         }
 
@@ -1393,9 +1395,10 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "dummy use " + Arrays.stream(uses)
+            if (uses.length > 0) return shortName() + " = dummy use " + Arrays.stream(uses)
                                         .map(v -> v.value.shortName())
                                         .collect(Collectors.joining(", "));
+            else return shortName() + " = dummy";
         }
     }
 

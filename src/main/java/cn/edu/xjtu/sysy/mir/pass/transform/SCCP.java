@@ -595,14 +595,14 @@ public final class SCCP extends ModulePass<Void> {
                     if (!cond.value.equals(iZero)) {
                         helper.changeBlock(block);
                         var target = br.getTrueTarget();
-                        var jmp = helper.jmp(target);
+                        var jmp = helper.insertJmp(target);
                         br.trueParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
                     } else {
                         helper.changeBlock(block);
                         var target = br.getFalseTarget();
-                        var jmp = helper.jmp(target);
+                        var jmp = helper.insertJmp(target);
                         br.falseParams.forEach((arg, use) -> jmp.putParam(target, arg, use.value));
                         helper.changeBlockToNull();
                         br.dispose();
