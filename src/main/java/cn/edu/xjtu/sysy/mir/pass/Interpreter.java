@@ -175,7 +175,7 @@ public final class Interpreter extends ModulePass<Void> {
                     var params = callee.params;
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
-                        var arg = it.args[i].value;
+                        var arg = it.getArg(i);
                         newSF.put(param.second(), toImm(arg));
                     }
                     retAddrs.push(it);
@@ -200,30 +200,30 @@ public final class Interpreter extends ModulePass<Void> {
                         case GETARRAY -> {
                             var count = sc.nextInt();
                             stackframe.put(it, intConst(count));
-                            var ptr = getArray(it.args[0].value);
+                            var ptr = getArray(it.getArg(0));
                             for (int i = 0; i < count; i++) ptr[i] = intConst(sc.nextInt());
                         }
                         case GETFARRAY -> {
                             var count = sc.nextInt();
                             stackframe.put(it, intConst(count));
-                            var ptr = getArray(it.args[0].value);
+                            var ptr = getArray(it.getArg(0));
                             for (int i = 0; i < count; i++) ptr[i] = floatConst(sc.nextFloat());
                         }
                         case PUTINT -> {
-                            var value = getInt(it.args[0].value);
+                            var value = getInt(it.getArg(0));
                             out.print(value);
                         }
                         case PUTCH -> {
-                            var value = (char) getInt(it.args[0].value);
+                            var value = (char) getInt(it.getArg(0));
                             out.print(value);
                         }
                         case PUTFLOAT -> {
-                            var value = getFloat(it.args[0].value);
+                            var value = getFloat(it.getArg(0));
                             out.print(value);
                         }
                         case PUTARRAY -> {
-                            var count = getInt(it.args[0].value);
-                            var ptr = getArray(it.args[1].value);
+                            var count = getInt(it.getArg(0));
+                            var ptr = getArray(it.getArg(1));
                             for (int i = 0; i < count; i++) {
                                 var value = getInt(ptr[i]);
                                 out.print(value);
@@ -231,8 +231,8 @@ public final class Interpreter extends ModulePass<Void> {
                             }
                         }
                         case PUTFARRAY -> {
-                            var count = getInt(it.args[0].value);
-                            var ptr = getArray(it.args[1].value);
+                            var count = getInt(it.getArg(0));
+                            var ptr = getArray(it.getArg(1));
                             for (int i = 0; i < count; i++) {
                                 var value = getFloat(ptr[i]);
                                 out.print(value);
@@ -353,7 +353,7 @@ public final class Interpreter extends ModulePass<Void> {
                     stackframe.put(it, array);
                 }
                 case Load it -> {
-                    var addr = it.address.value;
+                    var addr = it.getAddress();
                     switch (addr) {
                         case GlobalVar var -> stackframe.put(it, globals.get(var));
                         case GetElemPtr gep -> {
@@ -370,8 +370,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Store it -> {
-                    var addr = it.address.value;
-                    var value = toImm(it.storeVal.value);
+                    var addr = it.getAddress();
+                    var value = toImm(it.getStoreVal());
                     switch (addr) {
                         case GlobalVar var -> globals.put(var, value);
                         case GetElemPtr gep -> {

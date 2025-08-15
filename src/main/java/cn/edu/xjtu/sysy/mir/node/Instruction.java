@@ -1,11 +1,11 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
@@ -321,13 +321,24 @@ public abstract sealed class Instruction extends User {
     // 函数调用
 
     public static sealed abstract class AbstractCall extends Instruction {
-        public Use[] args;
+        public final ArrayList<Use> args = new ArrayList<>();
 
         AbstractCall(BasicBlock block, Type type, Value... args) {
             super(block, type);
             var argLen = args.length;
-            this.args = new Use[argLen];
-            for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
+            for (var arg : args) this.args.add(use(arg));
+        }
+
+        public Value getArg(int index) {
+            return args.get(index).value;
+        }
+
+        public void setArg(int index, Value value) {
+            args.get(index).replaceValue(value);
+        }
+
+        public void removeArg(int index) {
+            args.remove(index);
         }
     }
 
@@ -350,7 +361,7 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return this.shortName() + " = call " + function + "(" +
-                    Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
+                    args.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }
     }
@@ -370,7 +381,7 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return this.shortName() + " = call external " + function.linkName + "(" +
-                    Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
+                    args.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }
     }
@@ -395,7 +406,7 @@ public abstract sealed class Instruction extends User {
     }
 
     public static final class Load extends Instruction {
-        public Use address;
+        private Use address;
 
         Load(BasicBlock block, Value address) {
             super(block, ((Type.Pointer) address.type).baseType);
@@ -406,11 +417,19 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return String.format("%s = load ptr %s", this.shortName(), address.value.shortName());
         }
+
+        public Value getAddress() {
+            return address.value;
+        }
+
+        public void setAddress(Value address) {
+            this.address.replaceValue(address);
+        }
     }
 
     public static final class Store extends Instruction {
-        public Use address;
-        public Use storeVal;
+        private final Use address;
+        private final Use storeVal;
 
         Store(BasicBlock block, Value address, Value value) {
             super(block, Types.Void);
@@ -421,6 +440,22 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("store ptr %s, value %s", address.value.shortName(), storeVal.value.shortName());
+        }
+
+        public Value getAddress() {
+            return address.value;
+        }
+
+        public void setAddress(Value address) {
+            this.address.replaceValue(address);
+        }
+
+        public Value getStoreVal() {
+            return storeVal.value;
+        }
+
+        public void setStoreVal(Value storeVal) {
+            this.storeVal.replaceValue(storeVal);
         }
     }
 

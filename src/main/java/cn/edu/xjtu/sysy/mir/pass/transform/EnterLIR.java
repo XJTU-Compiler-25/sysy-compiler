@@ -89,12 +89,12 @@ public class EnterLIR extends ModulePass<Void> {
         }).toArray(Dummy[]::new);
         for (var dummy : dummies) call.insertBefore(dummy);
 
-        var floatArgs = Arrays.stream(call.args).filter(
-            arg -> arg.value.type.equals(Types.Float)
+        var floatArgs = call.args.stream().filter(
+            arg -> arg.value.type == Types.Float
         ).toList();
 
-        var intArgs = Arrays.stream(call.args).filter(
-            arg -> !arg.value.type.equals(Types.Float)
+        var intArgs = call.args.stream().filter(
+            arg -> arg.value.type != Types.Float
         ).toList();
 
         for (int i = 0; i < floatArgs.size(); i++) {

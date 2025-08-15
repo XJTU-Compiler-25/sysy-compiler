@@ -10,9 +10,9 @@ public record CallGraph(
         // 函数被哪些函数调用
         Map<Function, Set<Function>> funcsCallTo,
         Map<Function, Set<Function>> funcsCallBy,
-        // 函数调用别的函数的调用点
-        Map<Function, Set<Instruction.Call>> callSitesTo,
         // 函数被别的函数调用的调用点
+        Map<Function, Set<Instruction.Call>> callSitesTo,
+        // 函数调用别的函数的调用点
         Map<Function, Set<Instruction.Call>> callSitesBy
 ) {
     public Set<Function> getFunctionsCalled(Function function) {

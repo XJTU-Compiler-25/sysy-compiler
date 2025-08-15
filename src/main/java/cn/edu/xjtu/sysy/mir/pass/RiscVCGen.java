@@ -9,11 +9,8 @@ import cn.edu.xjtu.sysy.riscv.Register.Int;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.Register.Float;
-import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
-
-import java.util.ArrayList;
 
 public class RiscVCGen extends ModulePass<Void> {
 
@@ -154,10 +151,10 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm.addi(it, Register.Int.FP, -size);
             }
             case Instruction.Load it -> {
-                asm.lw(it, useInt(it.address.value), 0);
+                asm.lw(it, useInt(it.getAddress()), 0);
             }
             case Instruction.Store it -> {
-                asm.sw(useInt(it.storeVal.value), useInt(it.address.value), 0);
+                asm.sw(useInt(it.getStoreVal()), useInt(it.getAddress()), 0);
             }
             case Instruction.GetElemPtr it -> {
                 // TODO

@@ -4,6 +4,7 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 import cn.edu.xjtu.sysy.mir.pass.transform.*;
+import cn.edu.xjtu.sysy.mir.pass.transform.loop.LCSSA;
 
 public final class MirPipelines {
 
@@ -21,12 +22,15 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
-                    //GlobalOpt::new,
+                    GlobalOpt::new,
                     EnterSSA::new,
+                    Inline::new,
+                    LCSSA::new,
                     SCCP::new,
                     ConstFold::new,
                     InstCombine::new,
                     DCE::new,
+                    ParamOpt::new,
                     //GVN::new,
                     //GCM::new,
                     DCE::new,
@@ -34,8 +38,7 @@ public final class MirPipelines {
                     EnterLIR::new,
                     //LIRInstCombine::new,
                     RegisterAllocator::new,
-                    ExitSSA::new,
-                    RiscVCGen::new
+                    ExitSSA::new
             )
             .build();
 

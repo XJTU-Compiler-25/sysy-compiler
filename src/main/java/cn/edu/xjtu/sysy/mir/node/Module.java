@@ -23,8 +23,9 @@ public final class Module {
 
     // 全局变量的初值必须是常量表达式，所以直接取 compTimeValue 即可
     public GlobalVar newGlobalVar(Symbol.VarSymbol symbol, ImmediateValue init) {
-        var globalVar = new GlobalVar(symbol.name, symbol.type);
-        globalVars.put(symbol.name, globalVar);
+        var name = symbol.name;
+        var globalVar = new GlobalVar(name, symbol.type);
+        globalVars.put(name, globalVar);
         globalVarInitValues.put(globalVar, init);
         return globalVar;
     }
