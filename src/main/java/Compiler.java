@@ -15,6 +15,7 @@ import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
 import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.AsmCGen;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
@@ -69,6 +70,10 @@ public class Compiler {
         interpreter.process(mir);
         var out = os.toString();
         System.out.println("Test output: \n" + out);
+
+        var cgen = new AsmCGen();
+        cgen.process(mir);
+        System.out.println(cgen.toString());
         /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);

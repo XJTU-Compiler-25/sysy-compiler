@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
@@ -36,7 +35,10 @@ public abstract sealed class Instruction extends User {
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
-        return "%" + id;
+        if (position == null)
+            return "%" + id;
+        else
+            return "%" + id + "[ " + position.toString() + " ]";
     }
 
     @Override
@@ -329,6 +331,8 @@ public abstract sealed class Instruction extends User {
             this.args = new Use[argLen];
             for (int i = 0; i < argLen; i++) this.args[i] = use(args[i]);
         }
+
+        public abstract String getLabel();
     }
 
     public static final class Call extends AbstractCall {
@@ -353,6 +357,11 @@ public abstract sealed class Instruction extends User {
                     Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }
+
+        @Override
+        public String getLabel() {
+            return function.value.shortName();
+        }
     }
 
     public static final class CallExternal extends AbstractCall {
@@ -372,6 +381,11 @@ public abstract sealed class Instruction extends User {
             return this.shortName() + " = call external " + function.linkName + "(" +
                     Arrays.stream(args).map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
+        }
+
+        @Override
+        public String getLabel() {
+            return function.linkName;
         }
     }
 
@@ -1177,43 +1191,6 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("%s = fcpy %s", shortName(), src.value.shortName());
-        }
-    }
-
-    public static final class FMulAdd extends Instruction {
-        public enum Op {
-            FMADD("fmadd.s"),
-            FMSUB("fmsub.s"),
-            FNMSUB("fnmsub.s"),
-            FNMADD("fnmadd.s");
-
-            private final String op;
-
-            Op(String op) {
-                this.op = op;
-            }
-
-            @Override
-            public String toString() {
-                return op;
-            }
-        }
-
-        Op op;
-        Use rs1;
-        Use rs2;
-        Use rs3;
-
-        FMulAdd(BasicBlock block, Op op, Value rs1, Value rs2, Value rs3) {
-            super(block, Types.Float);
-            this.rs1 = use(rs1);
-            this.rs2 = use(rs2);
-            this.rs3 = use(rs3);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s = %s %s, %s, %s", shortName(), op, rs1, rs2, rs3);
         }
     }
 
