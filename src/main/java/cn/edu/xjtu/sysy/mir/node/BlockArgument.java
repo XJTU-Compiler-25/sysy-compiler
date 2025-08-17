@@ -13,7 +13,10 @@ public final class BlockArgument extends Value {
 
     @Override
     public String shortName() {
-        return "%" + id;
+        if (position == null)
+            return "%" + id;
+        else
+            return "%" + id + "[ " + position.toString() + " ]";
     }
 
     public boolean isParam() {

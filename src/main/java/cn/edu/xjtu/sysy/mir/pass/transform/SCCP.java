@@ -135,7 +135,7 @@ public final class SCCP extends ModulePass<Void> {
         switch (inst) {
             // 不能被折叠的指令
             case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _, 
-                Dummy _, Imm _, FMulAdd _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
+                Dummy _, Imm _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
                 return BOT;
             }
             case Terminator _ -> {

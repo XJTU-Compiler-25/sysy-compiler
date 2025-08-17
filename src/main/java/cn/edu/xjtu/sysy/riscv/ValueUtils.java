@@ -18,7 +18,7 @@ public final class ValueUtils {
 
     public static final Register.Int stackPointer = SP;
     public static final Register.Int framePointer = FP;
-    public static final Register.Int intRetAddr = RA;
+    public static final Register.Int intRetAddr = A0;
     public static final Register.Float floatRetAddr = FA0;
 
     public static final Register.Int[] intParams = new Register.Int[]{

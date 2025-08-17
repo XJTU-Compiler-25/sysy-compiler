@@ -48,7 +48,6 @@ import cn.edu.xjtu.sysy.mir.node.Instruction.FMax;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FMin;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FMod;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FMul;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMulAdd;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FMv;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FNe;
 import cn.edu.xjtu.sysy.mir.node.Instruction.FNeg;
@@ -644,9 +643,6 @@ public final class Interpreter extends ModulePass<Void> {
                 case Instruction.Slti it -> {
                     var lhs = getInt(it.lhs.value);
                     stackframe.put(it, lhs < it.imm ? iOne : iZero);
-                }
-                case FMulAdd _ -> {
-                    // TODO
                 }
                 case Dummy _ -> {
                     // Ignore

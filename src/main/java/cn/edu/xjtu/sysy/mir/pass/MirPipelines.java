@@ -34,8 +34,7 @@ public final class MirPipelines {
                     EnterLIR::new,
                     //LIRInstCombine::new,
                     RegisterAllocator::new,
-                    ExitSSA::new,
-                    RiscVCGen::new
+                    ExitSSA::new
             )
             .build();
 

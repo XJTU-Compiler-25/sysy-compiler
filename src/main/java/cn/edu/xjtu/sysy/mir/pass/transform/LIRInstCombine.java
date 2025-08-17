@@ -1,5 +1,7 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import java.util.ArrayList;
+
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
@@ -12,7 +14,7 @@ public class LIRInstCombine extends ModulePass<Void> {
     @Override
     public void visit(BasicBlock bb) {
         helper.changeBlock(bb);
-        bb.instructions.forEach(this::visit);
+        new ArrayList<>(bb.instructions).forEach(this::visit);
         visit(bb.terminator);
     }
 

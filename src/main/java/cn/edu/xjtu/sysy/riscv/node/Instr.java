@@ -394,21 +394,21 @@ public sealed interface Instr {
         }
     }
 
-    record Sw_global(Register.Int rd, Label label, Register.Int tmp) implements Instr {
+    record Sw_global(Register.Int rd, String label, Register.Int tmp) implements Instr {
         @Override
         public String toString() {
             return String.format("sw %s, %s, %s", rd, label, tmp);
         }
     }
 
-    record Fsw_global(Register.Float rd, Label label, Register.Int tmp) implements Instr {
+    record Fsw_global(Register.Float rd, String label, Register.Int tmp) implements Instr {
         @Override
         public String toString() {
             return String.format("fsw %s, %s, %s", rd, label, tmp);
         }
     }
 
-    record Branch(Op op, Register.Int rs1, Register.Int rs2, Label label)
+    record Branch(Op op, Register.Int rs1, Register.Int rs2, String label)
             implements Instr {
         public enum Op {
             BEQ("beq"),
@@ -440,7 +440,7 @@ public sealed interface Instr {
         }
     }
 
-    record BranchZ(Op op, Register.Int rs1, Label label)
+    record BranchZ(Op op, Register.Int rs1, String label)
             implements Instr {
         public enum Op {
             BEQZ("beqz"),
@@ -468,7 +468,7 @@ public sealed interface Instr {
         }
     }
 
-    record Jal(Register.Int rd, Label label) implements Instr {
+    record Jal(Register.Int rd, String label) implements Instr {
 
         @Override
         public String toString() {
@@ -476,7 +476,7 @@ public sealed interface Instr {
         }
     }
 
-    record Call(Label label) implements Instr {
+    record Call(String label) implements Instr {
 
         @Override
         public String toString() {
@@ -493,13 +493,6 @@ public sealed interface Instr {
         @Override
         public String toString() {
             return String.format("jalr %s %d(%s)", rd, imm, rs1);
-        }
-    }
-
-    record LocalLabel(Label label) implements Instr {
-        @Override
-        public String toString() {
-            return String.format("%s", label);
         }
     }
 
@@ -526,21 +519,14 @@ public sealed interface Instr {
         }
     }
 
-    record Li_globl(Register.Int rd, Label imm) implements Instr {
-        @Override
-        public String toString() {
-            return String.format("li %s, $%s", rd, imm);
-        }
-    }
-
-    record La(Register.Int rd, Label label) implements Instr {
+    record La(Register.Int rd, String label) implements Instr {
         @Override
         public String toString() {
             return String.format("la %s, %s", rd, label);
         }
     }
 
-    record J(Label label) implements Instr {
+    record J(String label) implements Instr {
         @Override
         public String toString() {
             return String.format("j %s", label);

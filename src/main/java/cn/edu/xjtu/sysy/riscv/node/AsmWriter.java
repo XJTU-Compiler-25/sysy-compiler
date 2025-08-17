@@ -1,22 +1,28 @@
 package cn.edu.xjtu.sysy.riscv.node;
 
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.riscv.Instr;
-import cn.edu.xjtu.sysy.riscv.Instr.*;
-import cn.edu.xjtu.sysy.riscv.Label;
+import cn.edu.xjtu.sysy.riscv.node.Instr.*;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static cn.edu.xjtu.sysy.riscv.Instr.Reg.Op.*;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.*;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 @SuppressWarnings({"unused"})
 public final class AsmWriter {
 
-    private final List<Instr> instrs = new ArrayList<>();
+    private MachineBasicBlock instrs;
+
+    public void changeBlock(MachineBasicBlock block) {
+        instrs = block;
+    }
+
+    public MachineBasicBlock getBlock() {
+        return instrs;
+    }
 
     private AsmWriter reg(Reg.Op op, Register.Int rd, Register.Int rs1, Register.Int rs2) {
         instrs.add(new Reg(op, rd, rs1, rs2));
@@ -643,6 +649,7 @@ public final class AsmWriter {
     }
 
     public AsmWriter mv(Value rd, Register.Int rs1) {
+        if (rd.position instanceof Register.Int dst && dst == rs1) return this;
         return regz(RegZ.Op.MV, rd, rs1);
     }
 
@@ -686,6 +693,7 @@ public final class AsmWriter {
     }
 
     public AsmWriter fmv(Value rd, Register.Float rs1) {
+        if (rd.position instanceof Register.Float dst && dst == rs1) return this;
         return funary(FUnary.Op.FMV, rd, rs1);
     }
 
@@ -1123,7 +1131,7 @@ public final class AsmWriter {
         return store(Store.Op.SW, rd, rs, imm, tmp);
     }
 
-    public AsmWriter sw(Register.Int rd, Label label, Register.Int tmp) {
+    public AsmWriter sw(Register.Int rd, String label, Register.Int tmp) {
         instrs.add(new Instr.Sw_global(rd, label, tmp));
         return this;
     }
@@ -1152,97 +1160,92 @@ public final class AsmWriter {
         return this;
     }
 
-    public AsmWriter fsw(Register.Float rd, Label label, Register.Int tmp) {
+    public AsmWriter fsw(Register.Float rd, String label, Register.Int tmp) {
         instrs.add(new Instr.Fsw_global(rd, label, tmp));
         return this;
     }
 
-    private AsmWriter branch(Branch.Op op, Register.Int rs1, Register.Int rs2, Label label) {
+    private AsmWriter branch(Branch.Op op, Register.Int rs1, Register.Int rs2, String label) {
         instrs.add(new Branch(op, rs1, rs2, label));
         return this;
     }
 
-    public AsmWriter beq(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter beq(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BEQ, rs1, rs2, label);
     }
 
-    public AsmWriter bge(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bge(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BGE, rs1, rs2, label);
     }
 
-    public AsmWriter bgeu(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bgeu(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BGEU, rs1, rs2, label);
     }
 
-    public AsmWriter blt(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter blt(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BLT, rs1, rs2, label);
     }
 
-    public AsmWriter bltu(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bltu(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BLTU, rs1, rs2, label);
     }
 
-    public AsmWriter bne(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bne(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BNE, rs1, rs2, label);
     }
 
-    public AsmWriter bgtu(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bgtu(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BGTU, rs1, rs2, label);
     }
 
-    public AsmWriter ble(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter ble(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BLE, rs1, rs2, label);
     }
 
-    public AsmWriter bleu(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bleu(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BLEU, rs1, rs2, label);
     }
 
-    public AsmWriter bgt(Register.Int rs1, Register.Int rs2, Label label) {
+    public AsmWriter bgt(Register.Int rs1, Register.Int rs2, String label) {
         return branch(Branch.Op.BGT, rs1, rs2, label);
     }
 
-    private AsmWriter branchz(BranchZ.Op op, Register.Int rs1, Label label) {
+    private AsmWriter branchz(BranchZ.Op op, Register.Int rs1, String label) {
         instrs.add(new BranchZ(op, rs1, label));
         return this;
     }
 
-    public AsmWriter beqz(Register.Int rs1, Label label) {
+    public AsmWriter beqz(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BEQZ, rs1, label);
     }
 
-    public AsmWriter bgez(Register.Int rs1, Label label) {
+    public AsmWriter bgez(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BGEZ, rs1, label);
     }
 
-    public AsmWriter bgtz(Register.Int rs1, Label label) {
+    public AsmWriter bgtz(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BGTZ, rs1, label);
     }
 
-    public AsmWriter bltz(Register.Int rs1, Label label) {
+    public AsmWriter bltz(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BLTZ, rs1, label);
     }
 
-    public AsmWriter blez(Register.Int rs1, Label label) {
+    public AsmWriter blez(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BLEZ, rs1, label);
     }
 
-    public AsmWriter bnez(Register.Int rs1, Label label) {
+    public AsmWriter bnez(Register.Int rs1, String label) {
         return branchz(BranchZ.Op.BNEZ, rs1, label);
     }
 
-    public AsmWriter jal(Register.Int rd, Label label) {
+    public AsmWriter jal(Register.Int rd, String label) {
         instrs.add(new Jal(rd, label));
         return this;
     }
 
-    public AsmWriter call(Label label) {
+    public AsmWriter call(String label) {
         instrs.add(new Call(label));
-        return this;
-    }
-
-    public AsmWriter label(Label label) {
-        instrs.add(new LocalLabel(label));
         return this;
     }
 
@@ -1261,7 +1264,7 @@ public final class AsmWriter {
         return this;
     }
 
-    public AsmWriter j(Label label) {
+    public AsmWriter j(String label) {
         instrs.add(new J(label));
         return this;
     }
@@ -1281,7 +1284,7 @@ public final class AsmWriter {
         return this;
     }
 
-    public AsmWriter la(Register.Int rd, Label label) {
+    public AsmWriter la(Register.Int rd, String label) {
         instrs.add(new La(rd, label));
         return this;
     }
@@ -1339,11 +1342,6 @@ public final class AsmWriter {
 
     public AsmWriter li(Register.Int rd, float imm) {
         instrs.add(new Li(rd, Float.floatToRawIntBits(imm)));
-        return this;
-    }
-
-    public AsmWriter li(Register.Int rd, Label imm) {
-        instrs.add(new Li_globl(rd, imm));
         return this;
     }
 
