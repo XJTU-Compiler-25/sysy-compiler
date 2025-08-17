@@ -88,4 +88,7 @@ public record DomInfo(
         postOrder.add(block);
     }
 
+    public Set<BasicBlock> getDomChildren(BasicBlock block) {
+        return domChildrenMap.get(block);
+    }
 }

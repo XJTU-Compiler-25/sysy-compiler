@@ -3,6 +3,8 @@ package cn.edu.xjtu.sysy.mir.pass.analysis;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,8 +19,12 @@ public record LoopInfo(
         return allLoopsMap.get(function);
     }
 
+    public int getLoopDepthOf(BasicBlock basicBlock) {
+        return loopDepthMap.get(basicBlock);
+    }
+
     public Set<Loop> getRootLoopsOf(Function function) {
-        return allLoopsMap.get(function).stream().filter(it -> it.parent == null).collect(Collectors.toSet());
+        return allLoopsMap.get(function).stream().filter(it -> it.depth == 0).collect(Collectors.toSet());
     }
 
     public Set<Loop> getLoopsContains(BasicBlock basicBlock) {
@@ -27,7 +33,17 @@ public record LoopInfo(
                 .collect(Collectors.toSet());
     }
 
-    public int getLoopDepthOf(BasicBlock basicBlock) {
-        return loopDepthMap.get(basicBlock);
+    // 从内层循环向外层循环排序（内层在前面）
+    public List<Loop> getLoopsInToOut(Function function) {
+        return allLoopsMap.get(function).stream()
+                .sorted(Comparator.comparingInt(l -> -l.depth))
+                .collect(Collectors.toList());
+    }
+
+    // 从外层循环向内层循环排序（外层在前面）
+    public List<Loop> getLoopsOutToIn(Function function) {
+        return allLoopsMap.get(function).stream()
+                .sorted(Comparator.comparingInt(l -> l.depth))
+                .collect(Collectors.toList());
     }
 }

@@ -171,7 +171,7 @@ public final class Interpreter extends ModulePass<Void> {
                 case Call it -> {
                     var oldSF = stackframe;
                     var newSF = new HashMap<Value, ImmediateValue>();
-                    var callee = it.getFunction();
+                    var callee = it.getCallee();
                     var params = callee.params;
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
@@ -249,7 +249,7 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Ret it -> {
-                    var retVal = toImm(it.retVal.value);
+                    var retVal = toImm(it.getRetVal());
                     stackframe = stackframes.pop();
                     var retAddr = retAddrs.pop();
                     stackframe.put(retAddr, retVal);
@@ -394,203 +394,203 @@ public final class Interpreter extends ModulePass<Void> {
                 }
                 // 数学运算
                 case IAdd it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs + rhs));
                 }
                 case ISub it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs - rhs));
                 }
                 case IMul it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs * rhs));
                 }
                 case IDiv it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs / rhs));
                 }
                 case IMod it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs % rhs));
                 }
                 case INeg it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.operand.value);
                     stackframe.put(it, intConst(-lhs));
                 }
                 case FAdd it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(lhs + rhs));
                 }
                 case FSub it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(lhs - rhs));
                 }
                 case FMul it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(lhs * rhs));
                 }
                 case FDiv it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(lhs / rhs));
                 }
                 case FMod it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(lhs % rhs));
                 }
                 case FNeg it -> {
-                    var lhs = getFloat(it.lhs.value);
+                    var lhs = getFloat(it.operand.value);
                     stackframe.put(it, floatConst(-lhs));
                 }
 
                 // 相等运算
                 case IEq it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs == rhs ? iOne : iZero);
                 }
                 case INe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs != rhs ? iOne : iZero);
                 }
                 case FEq it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs == rhs ? iOne : iZero);
                 }
                 case FNe it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs != rhs ? iOne : iZero);
                 }
 
                 // 比较运算
                 case IGe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs >= rhs ? iOne : iZero);
                 }
                 case ILe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs <= rhs ? iOne : iZero);
                 }
                 case IGt it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs > rhs ? iOne : iZero);
                 }
                 case ILt it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, lhs < rhs ? iOne : iZero);
                 }
                 case FGe it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs >= rhs ? iOne : iZero);
                 }
                 case FLe it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs <= rhs ? iOne : iZero);
                 }
                 case FGt it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs > rhs ? iOne : iZero);
                 }
                 case FLt it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, lhs < rhs ? iOne : iZero);
                 }
 
                 // 转型运算
                 case I2F it -> {
-                    var value = getInt(it.value.value);
+                    var value = getInt(it.getOperand());
                     stackframe.put(it, floatConst(value));
                 }
                 case F2I it -> {
-                    var value = getFloat(it.value.value);
+                    var value = getFloat(it.getOperand());
                     stackframe.put(it, intConst((int) value));
                 }
                 case BitCastI2F it -> {
-                    var value = getInt(it.value.value);
+                    var value = getInt(it.getOperand());
                     stackframe.put(it, floatConst(Float.intBitsToFloat(value)));
                 }
                 case BitCastF2I it -> {
-                    var value = getFloat(it.value.value);
+                    var value = getFloat(it.getOperand());
                     stackframe.put(it, intConst(Float.floatToIntBits(value)));
                 }
 
                 // 位运算
                 case Shl it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs << rhs));
                 }
                 // 逻辑右移
                 case Shr it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs >>> rhs));
                 }
                 // 算数右移
                 case AShr it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs >> rhs));
                 }
 
                 // 逻辑运算
                 case And it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs & rhs));
                 }
                 case Or it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs | rhs));
                 }
                 case Xor it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     stackframe.put(it, intConst(lhs ^ rhs));
                 }
                 case Not it -> {
-                    var value = getInt(it.rhs.value);
+                    var value = getInt(it.operand.value);
                     stackframe.put(it, value == 0 ? iOne : iZero);
                 }
 
                 // intrinsic
                 case FAbs it -> {
-                    var lhs = getFloat(it.lhs.value);
+                    var lhs = getFloat(it.getOperand());
                     stackframe.put(it, floatConst(Math.abs(lhs)));
                 }
                 case FMax it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(Math.max(lhs, rhs)));
                 }
                 case FMin it -> {
-                    var lhs = getFloat(it.lhs.value);
-                    var rhs = getFloat(it.rhs.value);
+                    var lhs = getFloat(it.getLhs());
+                    var rhs = getFloat(it.getRhs());
                     stackframe.put(it, floatConst(Math.min(lhs, rhs)));
                 }
                 case FSqrt it -> {
-                    var lhs = getFloat(it.lhs.value);
+                    var lhs = getFloat(it.getOperand());
                     stackframe.put(it, floatConst((float) Math.sqrt(lhs)));
                 }
                 case ILi it -> {

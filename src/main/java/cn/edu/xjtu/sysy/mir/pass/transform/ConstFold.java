@@ -10,28 +10,23 @@ import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 
 // 由于 sccp, gvn, inst combine 都得做常量折叠，把常量折叠计算的逻辑单独提取出来了
-public final class ConstFold extends ModulePass {
+public final class ConstFold extends ModulePass<Void> {
 
     @Override
     public void visit(Module module) {
         run(module);
     }
 
-    public static boolean run(Module module) {
-        var modified = false;
+    public static void run(Module module) {
         for (var function : module.getFunctions()) {
             for (var block : function.blocks) {
                 for (var inst : block.instructions) {
                     // 尝试对指令进行常量折叠
                     var folded = foldConstant(inst);
-                    if (folded != null) {
-                        inst.replaceAllUsesWith(folded);
-                        modified = true;
-                    }
+                    if (folded != null) inst.replaceAllUsesWith(folded);
                 }
             }
         }
-        return modified;
     }
 
     // 如果常量折叠成功了，就返回一个常量值，否则返回 null
@@ -112,7 +107,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case INeg it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     result = intConst(-lV);
@@ -178,7 +173,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FNeg it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(-lVal);
@@ -299,28 +294,28 @@ public final class ConstFold extends ModulePass {
 
             // 转型运算
             case I2F it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof IntConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst((float) lVal);
                 }
             }
             case F2I it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = intConst((int) lVal);
                 }
             }
             case BitCastI2F it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof IntConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(Float.intBitsToFloat(lVal));
                 }
             }
             case BitCastF2I it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = intConst(Float.floatToIntBits(lVal));
@@ -388,7 +383,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case Not it -> {
-                var r = it.rhs.value;
+                var r = it.getOperand();
                 if (r instanceof IntConst rConst) {
                     var rVal = rConst.value != 0;
                     result = rVal ? iZero : iOne;
@@ -397,7 +392,7 @@ public final class ConstFold extends ModulePass {
 
             // intrinsic
             case FAbs it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(Math.abs(lVal));
@@ -422,7 +417,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FSqrt it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst((float) Math.sqrt(lVal));

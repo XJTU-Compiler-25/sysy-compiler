@@ -1,7 +1,6 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
@@ -148,7 +147,7 @@ public class EnterLIR extends ModulePass<Void> {
         var block = ret.getBlock();
         var func = block.getFunction();
         var jmp = helper.jmp(func.epilogue);
-        jmp.putParam(func.epilogue, func.epilogue.args.getFirst(), ret.retVal.value);
+        jmp.putParam(func.epilogue, func.epilogue.args.getFirst(), ret.getRetVal());
         block.terminator = jmp;
         ret.dispose();
     }

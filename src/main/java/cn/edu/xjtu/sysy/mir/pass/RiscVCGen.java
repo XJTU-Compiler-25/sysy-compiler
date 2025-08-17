@@ -83,27 +83,27 @@ public class RiscVCGen extends ModulePass<Void> {
     public void visit(Instruction instr) {
         switch(instr) {
             case Instruction.BEq it -> {
-                asm.beq(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.beq(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.BNe it -> {
-                asm.bne(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.bne(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.BGe it -> {
-                asm.bge(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.bge(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.BGt it -> {
-                asm.bgt(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.bgt(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.BLe it -> {
-                asm.ble(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.ble(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.BLt it -> {
-                asm.blt(useInt(it.lhs.value), useInt(it.rhs.value), 
+                asm.blt(useInt(it.lhs.value), useInt(it.rhs.value),
                             genLabel(it.getTrueTarget().shortName()));
             }
             case Instruction.Br it -> {
@@ -114,10 +114,10 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm.j(genLabel(it.getTarget().shortName()));
             }
             case Instruction.Ret it -> {
-                if (it.retVal.value.type.equals(Types.Float)) {
-                    asm.fmv(Register.Float.FA0, useFloat(it.retVal.value));
+                if (it.getRetVal().type.equals(Types.Float)) {
+                    asm.fmv(Register.Float.FA0, useFloat(it.getRetVal()));
                 } else {
-                    asm.mv(Register.Int.A0, useInt(it.retVal.value));
+                    asm.mv(Register.Int.A0, useInt(it.getRetVal()));
                 }
                 asm.ret();
             }
@@ -125,7 +125,7 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm.ret();
             }
             case Instruction.Call it -> {
-                var func = it.getFunction();
+                var func = it.getCallee();
                 asm.call(genLabel(func.shortName()));
                 var type = func.funcType.returnType;
                 if (type.equals(Types.Void)) return;
@@ -160,16 +160,16 @@ public class RiscVCGen extends ModulePass<Void> {
                 // TODO
             }
             case Instruction.I2F it -> {
-                asm.fcvt_s_w(it, useInt(it.value.value));
+                asm.fcvt_s_w(it, useInt(it.getOperand()));
             }
             case Instruction.F2I it -> {
-                asm.fcvt_w_s(it, useFloat(it.value.value));
+                asm.fcvt_w_s(it, useFloat(it.getOperand()));
             }
             case Instruction.BitCastI2F it -> {
-                asm.fmv_w_x(it, useInt(it.value.value));
+                asm.fmv_w_x(it, useInt(it.getOperand()));
             }
             case Instruction.BitCastF2I it -> {
-                asm.fmv_x_w(it, useFloat(it.value.value));
+                asm.fmv_x_w(it, useFloat(it.getOperand()));
             }
             case Instruction.IAdd it -> {
                 asm.addw(it, useInt(it.lhs.value), useInt(it.rhs.value));
@@ -187,7 +187,7 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm.remw(it, useInt(it.lhs.value), useInt(it.rhs.value));
             }
             case Instruction.INeg it -> {
-                asm.negw(it, useInt(it.lhs.value));
+                asm.negw(it, useInt(it.getOperand()));
             }
             case Instruction.FAdd it -> {
                 asm.fadd(it, useFloat(it.lhs.value), useFloat(it.rhs.value));
@@ -205,7 +205,7 @@ public class RiscVCGen extends ModulePass<Void> {
                 //TODO
             }
             case Instruction.FNeg it -> {
-                asm.fneg(it, useFloat(it.lhs.value));
+                asm.fneg(it, useFloat(it.getOperand()));
             }
             case Instruction.Shl it -> {
                 asm.sllw(it, useInt(it.lhs.value), useInt(it.rhs.value));
@@ -226,7 +226,7 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm.xor(it, useInt(it.lhs.value), useInt(it.rhs.value));
             }
             case Instruction.Not it -> {
-                asm.seqz(it, useInt(it.rhs.value));
+                asm.seqz(it, useInt(it.getOperand()));
             }
             case Instruction.IEq it -> {
                 asm .xor(it, useInt(it.lhs.value), useInt(it.rhs.value))
@@ -270,10 +270,10 @@ public class RiscVCGen extends ModulePass<Void> {
                 asm .fle(it, useFloat(it.lhs.value), useFloat(it.rhs.value));
             }
             case Instruction.FSqrt it -> {
-                asm.fsqrt(it, useFloat(it.lhs.value));
+                asm.fsqrt(it, useFloat(it.getOperand()));
             }
             case Instruction.FAbs it -> {
-                asm.fabs(it, useFloat(it.lhs.value));
+                asm.fabs(it, useFloat(it.getOperand()));
             }
             case Instruction.FMin it -> {
                 asm.fmin(it, useFloat(it.lhs.value), useFloat(it.rhs.value));

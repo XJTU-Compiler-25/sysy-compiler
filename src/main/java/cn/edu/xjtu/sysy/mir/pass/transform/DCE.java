@@ -52,7 +52,7 @@ public class DCE extends ModulePass<Void> {
             for (var it : instrs) {
                 // 局部数组以外的 Store 指令、非纯函数调用和外部调用都是有副作用的
                 if ((it instanceof Store store && !(store.getAddress() instanceof Alloca))
-                        || (it instanceof Call call && !funcInfo.isPure(call.getFunction()))
+                        || (it instanceof Call call && !funcInfo.isPure(call.getCallee()))
                         || it instanceof CallExternal)
                     reachable.add(it);
             }

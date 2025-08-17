@@ -28,7 +28,6 @@ public final class EnterSSA extends ModulePass<Void> {
 
     @Override
     public void visit(Function function) {
-        hoistAllocas(function);
         findCandidate(function);
         for (var param : function.params) {
             var arg = param.second();
@@ -37,26 +36,6 @@ public final class EnterSSA extends ModulePass<Void> {
         }
         insertBlockArgument();
         renaming(function);
-    }
-
-    // 将所有 alloca 提升到函数入口块
-    private void hoistAllocas(Function function) {
-        var allocas = new ArrayList<Instruction.Alloca>();
-        for (var block : function.blocks) {
-            for (var iter = block.instructions.iterator(); iter.hasNext(); ) {
-                var instr = iter.next();
-                if (instr instanceof Instruction.Alloca alloca) {
-                    allocas.add(alloca);
-                    iter.remove();
-                }
-            }
-        }
-
-        var entryInstrs = function.entry.instructions;
-        for (var alloca : allocas) {
-            entryInstrs.addFirst(alloca);
-            alloca.setBlock(function.entry);
-        }
     }
 
     private final ArrayList<Value> promotableVar = new ArrayList<>();

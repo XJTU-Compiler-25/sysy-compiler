@@ -18,7 +18,7 @@ public abstract class ModulePass<R> extends Pass<Module, R> {
     }
 
     public void visit(Function function) {
-        for (var basicBlock : getResult(CFGAnalysis.class).getRPOBlocks(function)) visit(basicBlock);
+        for (var basicBlock : function.blocks) visit(basicBlock);
     }
 
     public void visit(BasicBlock block) {

@@ -68,7 +68,10 @@ public final class CFGAnalysis extends ModulePass<CFG> {
 
                 switch(block.terminator) {
                     case Instruction.Jmp jmp -> succs.add(jmp.getTarget());
-                    case Instruction.AbstractBr br -> succs.addAll(br.getTargets());
+                    case Instruction.AbstractBr br -> {
+                        succs.add(br.getTrueTarget());
+                        succs.add(br.getFalseTarget());
+                    }
                     default -> { }
                 }
             }

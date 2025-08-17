@@ -111,7 +111,7 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
                 var callSite = callSites.iterator().next();
 
                 // 不标记递归函数
-                if (callSite.getFunction() == function) { }
+                if (callSite.getCallee() == function) { }
                 // 调用点在循环中，则函数可能被多次调用
                 // else if (callSite.getBlock().loopDepth != 0) { }
                 // 否则，函数最多被调用一次

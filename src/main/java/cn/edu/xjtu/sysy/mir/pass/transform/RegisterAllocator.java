@@ -77,23 +77,25 @@ public final class RegisterAllocator extends ModulePass<Void> {
 
         var stackState = currentFunction.stackState;
         for (var value : needToSpill) {
-            helper.changeBlock(entry);
-            helper.moveToHead();
             var type = value.type;
-            var alloca = helper.insertAlloca(type);
-            value.position = alloca.position = new StackPosition(stackState.allocate(type));
+            var pos = new StackPosition(stackState.allocate(type));
+            value.position = pos;
 
             switch (value) {
                 case Instruction instr -> {
                     var defBlock = instr.getBlock();
                     helper.changeBlock(defBlock);
                     helper.moveToAfter(instr);
+                    var alloca = helper.insertAlloca(type);
+                    alloca.position = pos;
                     helper.insertStore(alloca, value);
                 }
                 case BlockArgument arg -> {
                     var defBlock = arg.block;
                     helper.changeBlock(defBlock);
                     helper.moveToHead();
+                    var alloca = helper.insertAlloca(type);
+                    alloca.position = pos;
                     helper.insertStore(alloca, value);
                 }
                 default -> unreachable();
@@ -166,7 +168,7 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 }
 
                 // void 类型的指令不产生值，不需要寄存器
-                if (inst.type == Types.Void) continue;
+                if (inst.notProducingValue()) continue;
 
                 // 需要分配寄存器
                 var reg = allocateRegister(inst);

@@ -25,24 +25,32 @@ public abstract sealed class Instruction extends User {
         this.block = block;
     }
 
-    public void setBlock(BasicBlock block) {
+    public final void setBlock(BasicBlock block) {
         this.block = block;
     }
 
-    public BasicBlock getBlock() {
+    public final BasicBlock getBlock() {
         return block;
+    }
+
+    public final boolean notProducingValue() {
+        return type == Types.Void;
+    }
+
+    public final List<Value> getOperands() {
+        return used.stream().map(it -> it.value).collect(Collectors.toList());
     }
 
     // 计算中间值应该都为 local value
     @Override
-    public String shortName() {
+    public final String shortName() {
         return "%" + id;
     }
 
     @Override
     public abstract String toString();
 
-    public void insertBefore(Instruction instr) {
+    public final void insertBefore(Instruction instr) {
         if (this instanceof Terminator) {
             block.instructions.add(instr);
             return;
@@ -51,18 +59,71 @@ public abstract sealed class Instruction extends User {
         block.instructions.add(idx, instr);
     }
 
-    public void insertAfter(Instruction instr) {
+    public final void insertAfter(Instruction instr) {
         Assertions.requires(!(this instanceof Terminator));
         int idx = block.instructions.indexOf(this);
         block.instructions.add(idx + 1, instr);
     }
 
-    public void replaceWith(Instruction instr) {
+    public final void replaceWith(Instruction instr) {
         int idx = block.instructions.indexOf(this);
         block.instructions.set(idx, instr);
         replaceAllUsesWith(instr);
         dispose();
     }
+
+    public abstract sealed static class AbstractUnary extends Instruction {
+        public final Use operand;
+
+        AbstractUnary(BasicBlock block, Type type, Value operand) {
+            super(block, type);
+            this.operand = use(operand);
+        }
+
+        public Value getOperand() {
+            return operand.value;
+        }
+
+        public void setOperand(Value value) {
+            this.operand.replaceValue(value);
+        }
+
+        protected final String toString(String name) {
+            return String.format("%s = %s %s", this.shortName(), name, getOperand().shortName());
+        }
+    }
+
+    public abstract sealed static class AbstractBinary extends Instruction {
+        public final Use lhs;
+        public final Use rhs;
+
+        AbstractBinary(BasicBlock block, Type type, Value lhs, Value rhs) {
+            super(block, type);
+            this.lhs = use(lhs);
+            this.rhs = use(rhs);
+        }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
+        }
+
+        public void setLhs(Value value) {
+            this.lhs.replaceValue(value);
+        }
+
+        public void setRhs(Value value) {
+            this.rhs.replaceValue(value);
+        }
+
+        protected final String toString(String name) {
+            return String.format("%s = %s %s, %s", this.shortName(), name, getLhs().shortName(), getRhs().shortName());
+        }
+    }
+
 
     // 基本块结束指令
     public abstract sealed static class Terminator extends Instruction {
@@ -83,15 +144,21 @@ public abstract sealed class Instruction extends User {
         public void removeParam(BasicBlock block, BlockArgument arg) { unsupported(this); }
 
         public BlockArgument findParamByArg(BasicBlock block, Value value) { return unsupported(this); }
+
+        public void replaceParam(BasicBlock block, BlockArgument oldArg, BlockArgument newArg) { unsupported(this); }
     }
 
     // 带值返回 return
     public static final class Ret extends Terminator {
-        public Use retVal;
+        private final Use retVal;
 
         Ret(BasicBlock block, Value retVal) {
             super(block);
             this.retVal = use(retVal);
+        }
+        
+        public Value getRetVal() {
+            return retVal.value;
         }
 
         @Override
@@ -175,6 +242,13 @@ public abstract sealed class Instruction extends User {
                 if (entry.getValue().value == value) return entry.getKey();
             }
             return null;
+        }
+
+        @Override
+        public void replaceParam(BasicBlock block, BlockArgument oldArg, BlockArgument newArg) {
+            Assertions.requires(block == getTarget());
+            var use = params.remove(oldArg);
+            if (use != null) params.put(newArg, use);
         }
 
         @Override
@@ -283,6 +357,32 @@ public abstract sealed class Instruction extends User {
             }
             return null; // 不在这两个分支中
         }
+
+        @Override
+        public void replaceParam(BasicBlock block, BlockArgument oldArg, BlockArgument newArg) {
+            if (block == trueTarget.value) {
+                var use = trueParams.remove(oldArg);
+                if (use != null) trueParams.put(newArg, use);
+            }
+            if (block == falseTarget.value) {
+                var use = falseParams.remove(oldArg);
+                if (use != null) falseParams.put(newArg, use);
+            }
+        }
+
+        protected final String toString(String prefix) {
+            return prefix + " " + trueTarget.value.shortName() + "(" +
+                    trueParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + "), " + falseTarget.value.shortName() + "(" +
+                    falseParams.entrySet().stream()
+                            .map(pair -> pair.getKey().shortName()
+                                    + "= " + pair.getValue().value.shortName())
+                            .collect(Collectors.joining(", "))
+                    + ")";
+        }
     }
 
     // 分支 branch
@@ -304,17 +404,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "br " + condition.value.shortName() + ", " + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("br " + condition.value.shortName() + ",");
         }
     }
 
@@ -343,24 +433,24 @@ public abstract sealed class Instruction extends User {
     }
 
     public static final class Call extends AbstractCall {
-        private final Use<Function> function;
+        private final Use<Function> callee;
 
-        Call(BasicBlock block, Function function, Value... args) {
-            super(block, function.funcType.returnType, args);
-            this.function = use(function);
+        Call(BasicBlock block, Function callee, Value... args) {
+            super(block, callee.funcType.returnType, args);
+            this.callee = use(callee);
         }
 
-        public void setFunction(Function newFunc) {
-            function.replaceValue(newFunc);
+        public void setCallee(Function newFunc) {
+            callee.replaceValue(newFunc);
         }
 
-        public Function getFunction() {
-            return function.value;
+        public Function getCallee() {
+            return callee.value;
         }
 
         @Override
         public String toString() {
-            return this.shortName() + " = call " + function + "(" +
+            return this.shortName() + " = call " + callee + "(" +
                     args.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }
@@ -406,7 +496,7 @@ public abstract sealed class Instruction extends User {
     }
 
     public static final class Load extends Instruction {
-        private Use address;
+        private final Use address;
 
         Load(BasicBlock block, Value address) {
             super(block, ((Type.Pointer) address.type).baseType);
@@ -494,258 +584,190 @@ public abstract sealed class Instruction extends User {
     /**
      * 整数转浮点数
      */
-    public static final class I2F extends Instruction {
-        public Use value;
-
+    public static final class I2F extends AbstractUnary {
         I2F(BasicBlock block, Value value) {
-            super(block, Types.Float);
-            this.value = use(value);
+            super(block, Types.Float, value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = i2f %s", this.shortName(), value.value.shortName());
+            return toString("i2f");
         }
     }
 
     /**
      * 浮点数转整数
      */
-    public static final class F2I extends Instruction {
-        public Use value;
-
+    public static final class F2I extends AbstractUnary {
         F2I(BasicBlock block, Value value) {
-            super(block, Types.Int);
-            this.value = use(value);
+            super(block, Types.Int, value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = f2i %s", this.shortName(), value.value.shortName());
+            return toString("f2i");
         }
     }
 
     /**
      * 不实际转换地将某整数值当作浮点数
      */
-    public static final class BitCastI2F extends Instruction {
-        public Use value;
-
+    public static final class BitCastI2F extends AbstractUnary {
         BitCastI2F(BasicBlock block, Value value) {
-            super(block, Types.Float);
-            this.value = use(value);
+            super(block, Types.Float, value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = i2f bitcast %s", this.shortName(), value.value.shortName());
+            return toString("i2f bitcast");
         }
     }
 
     /**
      * 不实际转换地将某整数值当作浮点数
      */
-    public static final class BitCastF2I extends Instruction {
-        public Use value;
-
+    public static final class BitCastF2I extends AbstractUnary {
         BitCastF2I(BasicBlock block, Value value) {
-            super(block, Types.Int);
-            this.value = use(value);
+            super(block, Types.Int, value);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = f2i bitcast %s", this.shortName(), value.value.shortName());
+            return toString("f2i bitcast");
         }
     }
 
     // 算数指令
 
-    public static final class IAdd extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IAdd extends AbstractBinary {
         IAdd(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = iadd %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("iadd");
         }
     }
 
-    public static final class ISub extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class ISub extends AbstractBinary {
         ISub(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = isub %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("isub");
         }
     }
 
-    public static final class IMul extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IMul extends AbstractBinary {
         IMul(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = imul %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("imul");
         }
     }
 
-    public static final class IDiv extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IDiv extends AbstractBinary {
         IDiv(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = idiv %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("idiv");
         }
     }
 
-    public static final class IMod extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IMod extends AbstractBinary {
         IMod(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = imod %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("imod");
         }
     }
 
-    public static final class INeg extends Instruction {
-        public Use lhs;
-
+    public static final class INeg extends AbstractUnary {
         INeg(BasicBlock block, Value lhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
+            super(block, Types.Int, lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = ineg %s", this.shortName(), lhs.value.shortName());
+            return toString("ineg");
         }
     }
 
-    public static final class FAdd extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FAdd extends AbstractBinary {
         FAdd(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fadd %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fadd");
         }
     }
 
-    public static final class FSub extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FSub extends AbstractBinary {
         FSub(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fsub %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fsub");
         }
     }
 
-    public static final class FMul extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FMul extends AbstractBinary {
         FMul(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmul %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fmul");
         }
     }
 
-    public static final class FDiv extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FDiv extends AbstractBinary {
         FDiv(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fdiv %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fdiv");
         }
     }
 
-    public static final class FMod extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FMod extends AbstractBinary {
         FMod(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmod %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fmod");
         }
     }
 
-    public static final class FNeg extends Instruction {
-        public Use lhs;
-
+    public static final class FNeg extends AbstractUnary {
         FNeg(BasicBlock block, Value lhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
+            super(block, Types.Float, lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fneg %s", this.shortName(), lhs.value.shortName());
+            return toString("fneg");
         }
     }
 
@@ -754,19 +776,14 @@ public abstract sealed class Instruction extends User {
     /**
      * 左移位 shift left
      */
-    public static final class Shl extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class Shl extends AbstractBinary {
         Shl(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = shl %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("shl");
         }
     }
 
@@ -774,356 +791,252 @@ public abstract sealed class Instruction extends User {
      * 不处理符号！
      * 右移位 right shift
      */
-    public static final class Shr extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class Shr extends AbstractBinary {
         Shr(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = shr %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("shr");
         }
     }
 
     /**
      * 算数右移位 arithmetic shift right
      */
-    public static final class AShr extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class AShr extends AbstractBinary {
         AShr(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = ashr %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("ashr");
         }
     }
 
-    public static final class And extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class And extends AbstractBinary {
         And(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = and %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("and");
         }
     }
 
-    public static final class Or extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class Or extends AbstractBinary {
         Or(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = or %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("or");
         }
     }
 
-    public static final class Xor extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class Xor extends AbstractBinary {
         Xor(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = xor %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("xor");
         }
     }
 
-    public static final class Not extends Instruction {
-        public Use rhs;
-
+    public static final class Not extends AbstractUnary {
         Not(BasicBlock block, Value rhs) {
-            super(block, Types.Int);
-            this.rhs = use(rhs);
+            super(block, Types.Int, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = not %s", this.shortName(), rhs.value.shortName());
+            return toString("not");
         }
     }
 
     // 比较指令
 
-    public static final class IEq extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IEq extends AbstractBinary {
         IEq(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp eq %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp eq");
         }
     }
 
-    public static final class INe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class INe extends AbstractBinary {
         INe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp ne %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp ne");
         }
     }
 
-    public static final class IGt extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IGt extends AbstractBinary {
         IGt(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp gt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp gt");
         }
     }
 
-    public static final class ILt extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class ILt extends AbstractBinary {
         ILt(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp lt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp lt");
         }
     }
 
-    public static final class IGe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class IGe extends AbstractBinary {
         IGe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp ge %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp ge");
         }
     }
 
-    public static final class ILe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class ILe extends AbstractBinary {
         ILe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = icmp le %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("icmp le");
         }
     }
 
-    public static final class FEq extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FEq extends AbstractBinary {
         FEq(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp eq %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp eq");
         }
     }
 
-    public static final class FNe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FNe extends AbstractBinary {
         FNe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp ne %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp ne");
         }
     }
 
-    public static final class FGt extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FGt extends AbstractBinary {
         FGt(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp gt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp gt");
         }
     }
 
-    public static final class FLt extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FLt extends AbstractBinary {
         FLt(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp lt %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp lt");
         }
     }
 
-    public static final class FGe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FGe extends AbstractBinary {
         FGe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp ge %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp ge");
         }
     }
 
-    public static final class FLe extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FLe extends AbstractBinary {
         FLe(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Int);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Int, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fcmp le %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fcmp le");
         }
     }
 
     // intrinsic 指令
 
-    public static final class FSqrt extends Instruction {
-        public Use lhs;
-
+    public static final class FSqrt extends AbstractUnary {
         FSqrt(BasicBlock block, Value lhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
+            super(block, Types.Float, lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fsqrt %s", this.shortName(), lhs.value.shortName());
+            return toString("fsqrt");
         }
     }
 
-    public static final class FAbs extends Instruction {
-        public Use lhs;
-
+    public static final class FAbs extends AbstractUnary {
         FAbs(BasicBlock block, Value lhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
+            super(block, Types.Float, lhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fabs %s", this.shortName(), lhs.value.shortName());
+            return toString("fabs");
         }
     }
 
-    public static final class FMin extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FMin extends AbstractBinary {
         FMin(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmin %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fmin");
         }
     }
 
-    public static final class FMax extends Instruction {
-        public Use lhs;
-        public Use rhs;
-
+    public static final class FMax extends AbstractBinary {
         FMax(BasicBlock block, Value lhs, Value rhs) {
-            super(block, Types.Float);
-            this.lhs = use(lhs);
-            this.rhs = use(rhs);
+            super(block, Types.Float, lhs, rhs);
         }
 
         @Override
         public String toString() {
-            return String.format("%s = fmax %s, %s", this.shortName(), lhs.value.shortName(), rhs.value.shortName());
+            return toString("fmax");
         }
     }
 
@@ -1264,19 +1177,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-
-            return "beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", "
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 
@@ -1292,18 +1193,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "bne " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("bne " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 
@@ -1319,18 +1209,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "blt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("blt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 
@@ -1346,18 +1225,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "bge " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("bge " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 
@@ -1373,18 +1241,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "ble " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("ble " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 
@@ -1400,18 +1257,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String toString() {
-            return "bgt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ", " 
-                    + trueTarget.value.shortName() + "(" +
-                    trueParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + "), " + falseTarget.value.shortName() + "(" +
-                    falseParams.entrySet().stream()
-                            .map(pair -> pair.getKey().shortName()
-                                    + "= " + pair.getValue().value.shortName())
-                            .collect(Collectors.joining(", "))
-                    + ")";
+            return toString("bgt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
     }
 

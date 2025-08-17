@@ -26,7 +26,7 @@ public final class SCCP extends ModulePass<Void> {
     @Override
     public void visit(Module module) {
         invalidateAll();
-        for (var function : module.getFunctions()) run(function);
+        for (var function : module.getFunctions()) visit(function);
     }
 
     private static final InstructionHelper helper = new InstructionHelper();
@@ -75,7 +75,8 @@ public final class SCCP extends ModulePass<Void> {
         return BOT;
     }
 
-    public boolean run(Function function) {
+    @Override
+    public void visit(Function function) {
         var modified = false;
         latCells.clear();
         executable.clear();
@@ -114,7 +115,6 @@ public final class SCCP extends ModulePass<Void> {
         }
 
         if (modified) transform(function);
-        return modified;
     }
 
     private boolean visitBlockArgument(BasicBlock fromBlock, BlockArgument arg) {
@@ -197,7 +197,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(intConst(lV % rV));
             }
             case INeg it -> {
-                var l = getLattice(it.lhs.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((IntConst) l.value).value;
@@ -255,7 +255,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(floatConst(lV % rV));
             }
             case FNeg it -> {
-                var l = getLattice(it.lhs.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((FloatConst) l.value).value;
@@ -389,7 +389,7 @@ public final class SCCP extends ModulePass<Void> {
 
             // 转型运算
             case I2F it -> {
-                var l = getLattice(it.value.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((IntConst) l.value).value;
@@ -397,7 +397,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(floatConst((float) lV));
             }
             case F2I it -> {
-                var l = getLattice(it.value.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((FloatConst) l.value).value;
@@ -405,7 +405,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(intConst((int) lV));
             }
             case BitCastI2F it -> {
-                var l = getLattice(it.value.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((IntConst) l.value).value;
@@ -413,7 +413,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(floatConst(Float.intBitsToFloat(lV)));
             }
             case BitCastF2I it -> {
-                var l = getLattice(it.value.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((FloatConst) l.value).value;
@@ -493,7 +493,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(lV ^ rV ? iOne : iZero);
             }
             case Not it -> {
-                var r = getLattice(it.rhs.value);
+                var r = getLattice(it.getOperand());
                 if (r == BOT) return BOT;
                 if (r == TOP) return TOP;
                 var rV = ((IntConst) r.value).value != 0;
@@ -503,7 +503,7 @@ public final class SCCP extends ModulePass<Void> {
 
             // intrinsic
             case FAbs it -> {
-                var l = getLattice(it.lhs.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((FloatConst) l.value).value;
@@ -531,7 +531,7 @@ public final class SCCP extends ModulePass<Void> {
                 return new LatticeValue(floatConst(Math.min(lV, rV)));
             }
             case FSqrt it -> {
-                var l = getLattice(it.lhs.value);
+                var l = getLattice(it.getOperand());
                 if (l == BOT) return BOT;
                 if (l == TOP) return TOP;
                 var lV = ((FloatConst) l.value).value;

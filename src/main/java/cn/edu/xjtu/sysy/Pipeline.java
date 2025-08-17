@@ -46,6 +46,11 @@ public final class Pipeline<T> {
         return result;
     }
 
+    public <E, P extends Pass<T, E>> E getRefreshedResult(Class<P> clazz) {
+        invalidate(clazz);
+        return getResult(clazz);
+    }
+
     public void invalidate(Class<? extends Pass<T, ?>> pass) {
         cache.remove(pass);
     }
