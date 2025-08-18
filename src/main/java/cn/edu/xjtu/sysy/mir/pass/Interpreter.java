@@ -12,74 +12,11 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.DenseArray;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.FloatConst;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.IntConst;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.SparseArray;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.ZeroInit;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseToDense;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.zeroedDenseArray;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue.*;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Instruction.AShr;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Alloca;
-import cn.edu.xjtu.sysy.mir.node.Instruction.And;
-import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastF2I;
-import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastI2F;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Br;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Call;
-import cn.edu.xjtu.sysy.mir.node.Instruction.CallExternal;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
-import cn.edu.xjtu.sysy.mir.node.Instruction.F2I;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FAbs;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FAdd;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FDiv;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FEq;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FGe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FGt;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FLe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FLi;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FLt;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMax;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMin;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMod;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMul;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMulAdd;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FMv;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FNe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FNeg;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FSqrt;
-import cn.edu.xjtu.sysy.mir.node.Instruction.FSub;
-import cn.edu.xjtu.sysy.mir.node.Instruction.GetElemPtr;
-import cn.edu.xjtu.sysy.mir.node.Instruction.I2F;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IAdd;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IDiv;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IEq;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IGe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IGt;
-import cn.edu.xjtu.sysy.mir.node.Instruction.ILe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.ILi;
-import cn.edu.xjtu.sysy.mir.node.Instruction.ILt;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IMod;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IMul;
-import cn.edu.xjtu.sysy.mir.node.Instruction.IMv;
-import cn.edu.xjtu.sysy.mir.node.Instruction.INe;
-import cn.edu.xjtu.sysy.mir.node.Instruction.INeg;
-import cn.edu.xjtu.sysy.mir.node.Instruction.ISub;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Jmp;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Load;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Not;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Or;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Ret;
-import cn.edu.xjtu.sysy.mir.node.Instruction.RetV;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Shl;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Shr;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
-import cn.edu.xjtu.sysy.mir.node.Instruction.Xor;
+import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
@@ -176,7 +113,10 @@ public final class Interpreter extends ModulePass<Void> {
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
                         var arg = it.getArg(i);
-                        newSF.put(param.second(), toImm(arg));
+                        var dummy = callee.paramToDummy.get(param.second());
+                        var value = toImm(arg);
+                        if (dummy != null) newSF.put(dummy, value);
+                        newSF.put(param.second(), value);
                     }
                     retAddrs.push(it);
                     stackframes.push(oldSF);
@@ -276,8 +216,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BEq it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs == rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -288,8 +228,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BNe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs != rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -300,8 +240,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BLt it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs < rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -312,8 +252,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BLe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs <= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -324,8 +264,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BGt it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs > rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -336,8 +276,8 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Instruction.BGe it -> {
-                    var lhs = getInt(it.lhs.value);
-                    var rhs = getInt(it.rhs.value);
+                    var lhs = getInt(it.getLhs());
+                    var rhs = getInt(it.getRhs());
                     var cond = lhs >= rhs ? iOne : iZero;
                     if (!cond.equals(iZero)) {
                         it.trueParams.forEach((arg, use) -> stackframe.put(arg, toImm(use.value)));
@@ -348,9 +288,15 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Alloca it -> {
-                    var ty = (Type.Array) it.allocatedType;
-                    var array = zeroedDenseArray(ty);
-                    stackframe.put(it, array);
+                    switch (it.allocatedType) {
+                        case Type.Array ty -> {
+                            var array = zeroedDenseArray(ty);
+                            stackframe.put(it, array);
+                        }
+                        default -> {
+                            stackframe.put(it, ImmediateValues.undefined());
+                        }
+                    }
                 }
                 case Load it -> {
                     var addr = it.getAddress();
@@ -600,12 +546,12 @@ public final class Interpreter extends ModulePass<Void> {
                     stackframe.put(it, intConst(Float.floatToRawIntBits(it.imm)));
                 }
                 case IMv it -> {
-                    var src = getInt(it.src.value);
-                    stackframe.put(it.dst, intConst(src));
+                    var src = toImm(it.src.value);
+                    stackframe.put(it.dst, src);
                 }
                 case FMv it -> {
-                    var src = getFloat(it.src.value);
-                    stackframe.put(it.dst, floatConst(src));
+                    var src = toImm(it.src.value);
+                    stackframe.put(it.dst, src);
                 }
                 case Instruction.ICpy it -> {
                     stackframe.put(it, toImm(it.src.value));
@@ -614,39 +560,36 @@ public final class Interpreter extends ModulePass<Void> {
                     stackframe.put(it, toImm(it.src.value));
                 }
                 case Instruction.Addi it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs + it.imm));
                 }
                 case Instruction.Andi it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs & it.imm));
                 }
                 case Instruction.Ori it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs | it.imm));
                 }
                 case Instruction.Xori it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs ^ it.imm));
                 }
                 case Instruction.Slli it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs << it.imm));
                 }
                 case Instruction.Srli it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs >> it.imm));
                 }
                 case Instruction.Srai it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, intConst(lhs >>> it.imm));
                 }
                 case Instruction.Slti it -> {
-                    var lhs = getInt(it.lhs.value);
+                    var lhs = getInt(it.getLhs());
                     stackframe.put(it, lhs < it.imm ? iOne : iZero);
-                }
-                case FMulAdd _ -> {
-                    // TODO
                 }
                 case Dummy _ -> {
                     // Ignore

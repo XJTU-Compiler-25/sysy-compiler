@@ -430,6 +430,8 @@ public abstract sealed class Instruction extends User {
         public void removeArg(int index) {
             args.remove(index);
         }
+
+        public abstract String getLabel();
     }
 
     public static final class Call extends AbstractCall {
@@ -454,6 +456,11 @@ public abstract sealed class Instruction extends User {
                     args.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
         }
+
+        @Override
+        public String getLabel() {
+            return getCallee().shortName();
+        }
     }
 
     public static final class CallExternal extends AbstractCall {
@@ -473,6 +480,11 @@ public abstract sealed class Instruction extends User {
             return this.shortName() + " = call external " + function.linkName + "(" +
                     args.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", ")) +
                     ")";
+        }
+
+        @Override
+        public String getLabel() {
+            return function.linkName;
         }
     }
 
@@ -1128,43 +1140,6 @@ public abstract sealed class Instruction extends User {
         }
     }
 
-    public static final class FMulAdd extends Instruction {
-        public enum Op {
-            FMADD("fmadd.s"),
-            FMSUB("fmsub.s"),
-            FNMSUB("fnmsub.s"),
-            FNMADD("fnmadd.s");
-
-            private final String op;
-
-            Op(String op) {
-                this.op = op;
-            }
-
-            @Override
-            public String toString() {
-                return op;
-            }
-        }
-
-        Op op;
-        Use rs1;
-        Use rs2;
-        Use rs3;
-
-        FMulAdd(BasicBlock block, Op op, Value rs1, Value rs2, Value rs3) {
-            super(block, Types.Float);
-            this.rs1 = use(rs1);
-            this.rs2 = use(rs2);
-            this.rs3 = use(rs3);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s = %s %s, %s, %s", shortName(), op, rs1, rs2, rs3);
-        }
-    }
-
     public static final class BEq extends AbstractBr {
         public Use lhs;
         public Use rhs;
@@ -1178,6 +1153,14 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return toString("beq " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
+        }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
         }
     }
 
@@ -1195,6 +1178,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return toString("bne " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
+        }
     }
 
     public static final class BLt extends AbstractBr {
@@ -1210,6 +1201,14 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return toString("blt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
+        }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
         }
     }
 
@@ -1227,6 +1226,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return toString("bge " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
+        }
     }
 
     public static final class BLe extends AbstractBr {
@@ -1243,6 +1250,14 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return toString("ble " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
         }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
+        }
     }
 
     public static final class BGt extends AbstractBr {
@@ -1258,6 +1273,14 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return toString("bgt " + lhs.value.shortName() + ", " + rhs.value.shortName() + ",");
+        }
+
+        public Value getLhs() {
+            return lhs.value;
+        }
+
+        public Value getRhs() {
+            return rhs.value;
         }
     }
 
@@ -1287,10 +1310,16 @@ public abstract sealed class Instruction extends User {
     public abstract sealed static class Imm extends Instruction {
         public Use lhs;
         public int imm;
+
         public Imm(BasicBlock block, Value lhs, int imm) {
             super(block, lhs.type);
             this.lhs = use(lhs);
             this.imm = imm;
+        }
+
+
+        public Value getLhs() {
+            return lhs.value;
         }
     }
 

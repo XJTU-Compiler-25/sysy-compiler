@@ -81,7 +81,7 @@ public final class GVN extends ModulePass<Void> {
             // 不产生值的指令不参与消除
             if (inst.notProducingValue()) continue;
             switch (inst) {
-                case Alloca _, Load _, Store _, Dummy _, Imm _, FMulAdd _,
+                case Alloca _, Load _, Store _, Dummy _, Imm _,
                      ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _, CallExternal _ -> { continue; }
                 case Terminator _ -> unreachable();
                 case Call it -> {

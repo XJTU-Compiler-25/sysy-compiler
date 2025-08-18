@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 public class MachineBasicBlock {
     public String label;
-    public ArrayList<Instr> instructions;
+    public ArrayList<Instr> instructions = new ArrayList<>();
 
     public MachineBasicBlock() {
         this(null);
@@ -33,14 +33,14 @@ public class MachineBasicBlock {
     }
 
     public String shortName() {
-        return ".L" + label;
+        return label;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(shortName())
-                .append(instructions.stream().map(it -> it.toString() + "\n")
+        sb.append(shortName()).append(":\n")
+                .append(instructions.stream().map(it -> "  " + it.toString() + "\n")
                         .collect(Collectors.joining()));
         return sb.toString();
     }

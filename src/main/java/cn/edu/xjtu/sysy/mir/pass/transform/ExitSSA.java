@@ -1,14 +1,19 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
+import java.lang.reflect.Array;
+
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
+import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import static cn.edu.xjtu.sysy.riscv.ValueUtils.phiElimFloatReg;
@@ -44,15 +49,24 @@ public final class ExitSSA extends ModulePass<Void> {
     }
 
     private void splitEdge(BasicBlock from, BasicBlock to) {
-        // 关键边条件：from 有多个 successor 或 to 有多个 predecessor
-        if (CFGAnalysis.getSuccBlocksOf(from).size() > 1 || CFGAnalysis.getPredBlocksOf(to).size() > 1) {
+        // 关键边条件：from 有多个 successor 且 to 有多个 predecessor
+        if (CFGAnalysis.getSuccBlocksOf(from).size() > 1 && CFGAnalysis.getPredBlocksOf(to).size() > 1) {
             // 插入中间空块
             var mid = new BasicBlock(currentFunction);
             currentFunction.addBlock(mid);
-
             // 调整 CFG
             hp1.changeBlock(mid);
             hp1.insertJmp(to);
+            HashMap<BlockArgument, Value> args = new HashMap<>();
+            to.args.forEach(arg -> {
+                var fromVal = from.terminator.getParam(to, arg);
+                args.put(arg, fromVal);
+                from.terminator.removeParam(to, arg);
+            });
+            from.terminator.replaceTarget(to, mid);
+            args.forEach((arg, val) -> {
+                mid.terminator.putParam(to, arg, val);
+            });
         }
     }
 
@@ -65,11 +79,11 @@ public final class ExitSSA extends ModulePass<Void> {
             block.args.clear();
             switch (block.terminator) {
                 case Instruction.AbstractBr br -> {
-                    processBranchPhi(br.getTrueTarget(), br.trueParams);
-                    processBranchPhi(br.getFalseTarget(), br.falseParams);
+                    processBranchPhiFromFirst(br.getTrueTarget(), br.trueParams);
+                    processBranchPhiFromFirst(br.getFalseTarget(), br.falseParams);
                 }
                 case Instruction.Jmp jmp -> {
-                    processBranchPhi(block, jmp.params);
+                    processBranchPhiFromLast(jmp.getBlock(), jmp.params);
                 }
                 default -> { }
             }
@@ -98,11 +112,13 @@ public final class ExitSSA extends ModulePass<Void> {
                 dummy.position = reg;
                 var mv = hp2.imv(param, dummy);
                 entry.insertAtFirst(mv);
+                currentFunction.paramToDummy.put(param, dummy);
             } else {
                 var dummy = hp2.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
                 var load = hp2.imv(param, dummy);
                 entry.insertAtFirst(load);
+                currentFunction.paramToDummy.put(param, dummy);
             }
         }
         for (int i = 0; i < floatParams.size(); i++) {
@@ -114,24 +130,41 @@ public final class ExitSSA extends ModulePass<Void> {
                 dummy.position = reg;
                 var mv = hp2.fmv(param, dummy);
                 entry.insertAtFirst(mv);
+                currentFunction.paramToDummy.put(param, dummy);
             } else {
                 var dummy = hp2.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
                 var load = hp2.fmv(param, dummy);
                 entry.insertAtFirst(load);
+                currentFunction.paramToDummy.put(param, dummy);
             }
         }
     }
 
-    private void processBranchPhi(BasicBlock target, Map<BlockArgument, Use> params) {
+    private void processBranchPhiFromLast(BasicBlock self, Map<BlockArgument, Use> params) {
         if (params.isEmpty()) return;
-        hp2.changeBlock(target);
+        hp2.changeBlock(self);
+
+        ArrayList<Instruction> moves = new ArrayList<>();
 
         // 使用 phi-elim 临时寄存器避免循环依赖
-        var tempValues = new HashMap<Value, Value>();
-
+        var intValues = new HashMap<Value, Value>();
+        var floatValues = new HashMap<Value, Value>();
         // 如果 value 会导致寄存器循环依赖，分配 phi-elim 临时寄存器
-        params.forEach((arg, use) -> {
+        for (var arg : params.keySet()) {
+            var use = params.get(arg);
+            var value = use.value;
+            var isInt = value.type != Types.Float;
+            if (isInt) {
+                intValues.put(arg, value);
+            } else {
+                floatValues.put(arg, value);
+            }
+        };
+        System.out.println(intValues);
+        if (!intValues.isEmpty()) moves.addAll(move(intValues, true));
+        if (!floatValues.isEmpty()) moves.addAll(move(floatValues, false));
+        /*params.forEach((arg, use) -> {
             var value = use.value;
             var isInt = value.type != Types.Float;
 
@@ -142,8 +175,8 @@ public final class ExitSSA extends ModulePass<Void> {
 
             // 先搬到临时 Value
             var mvToTemp = isInt ? hp2.imv(temp, value) : hp2.fmv(temp, value);
-            target.insertAtFirst(temp);
-            target.insertAtFirst(mvToTemp);
+            tempInstrs.add(temp);
+            tempInstrs.add(mvToTemp);
         });
 
         params.forEach((arg, use) -> {
@@ -152,10 +185,119 @@ public final class ExitSSA extends ModulePass<Void> {
 
             var temp = tempValues.get(value);
             var mvToArg = isInt ? hp2.imv(arg, temp) : hp2.fmv(arg, temp);
-            target.insertAtFirst(mvToArg);
+            tempInstrs.add(mvToArg);
         });
-
+*/
+        moves.forEach(self::insertAtLast);
         params.clear();
     }
 
+    private void processBranchPhiFromFirst(BasicBlock target, Map<BlockArgument, Use> params) {
+        if (params.isEmpty()) return;
+        hp2.changeBlock(target);
+
+        ArrayList<Instruction> moves = new ArrayList<>();
+
+        // 使用 phi-elim 临时寄存器避免循环依赖
+        var intValues = new HashMap<Value, Value>();
+        var floatValues = new HashMap<Value, Value>();
+        // 如果 value 会导致寄存器循环依赖，分配 phi-elim 临时寄存器
+        for (var arg : params.keySet()) {
+            var use = params.get(arg);
+            var value = use.value;
+            var isInt = value.type != Types.Float;
+            if (isInt) {
+                intValues.put(arg, value);
+            } else {
+                floatValues.put(arg, value);
+            }
+        }
+        if (!intValues.isEmpty()) moves.addAll(move(intValues, true));
+        if (!floatValues.isEmpty()) moves.addAll(move(floatValues, false));
+        /*params.forEach((arg, use) -> {
+            var value = use.value;
+            var isInt = value.type != Types.Float;
+
+            // 用 dummy 占用 phi-elim 寄存器
+            var temp = hp2.dummyDef(value.type);
+            temp.position = isInt ? phiElimIntReg : phiElimFloatReg;
+            tempValues.put(value, temp);
+
+            // 先搬到临时 Value
+            var mvToTemp = isInt ? hp2.imv(temp, value) : hp2.fmv(temp, value);
+            tempInstrs.add(temp);
+            tempInstrs.add(mvToTemp);
+        });
+
+        params.forEach((arg, use) -> {
+            var value = use.value;
+            var isInt = value.type != Types.Float;
+
+            var temp = tempValues.get(value);
+            var mvToArg = isInt ? hp2.imv(arg, temp) : hp2.fmv(arg, temp);
+            tempInstrs.add(mvToArg);
+        });
+*/
+        moves.reversed().forEach(target::insertAtFirst);
+        params.clear();
+    }
+
+    private ArrayList<Instruction> move(HashMap<Value, Value> map, boolean isInt) {
+        var instrs = new ArrayList<Instruction>();
+        Instruction tmp = null;
+        var visited = new HashSet<Value>();
+        for (var dst : map.keySet()) {
+            if (visited.contains(dst)) continue;
+            var cur = dst;
+            var path = new ArrayList<Value>();
+            var valuePath = new ArrayList<ValuePosition>();
+            while (true) { 
+                path.add(cur);
+                valuePath.add(cur.position);
+                if (!visited.add(cur) || !map.containsKey(cur)) break;
+                var prev = map.get(cur);
+                var idx = valuePath.indexOf(prev.position);
+                if (idx != -1) {
+                    var cycle = path.subList(idx, path.size());
+                    if (tmp == null) {
+                        tmp = hp2.dummyDef(cur.type);
+                        tmp.position = isInt ? phiElimIntReg : phiElimFloatReg;
+                        instrs.addFirst(tmp);
+                    }
+                    processCycle(cycle, instrs, map, tmp, isInt);
+                    path = new ArrayList<>(path.subList(0, idx));
+                    break;
+                } else {
+                    cur = prev;
+                }
+            }
+            processChain(path, instrs, map, isInt);
+        }
+        return instrs;
+    }
+
+    private void processChain(List<Value> route, ArrayList<Instruction> moves, 
+                                HashMap<Value, Value> map, boolean isInt) {
+        for (int i = 0; i < route.size() - 1; i++) {
+            var dst = route.get(i);
+            moves.add(isInt ? hp2.imv(dst, map.get(dst)) : hp2.fmv(dst, map.get(dst)));
+        }
+    }
+
+    private void processCycle(List<Value> route, ArrayList<Instruction> moves, 
+                                HashMap<Value, Value> map, Value tmp, boolean isInt) {
+        if (route.size() == 1) {
+            // 自环
+            moves.add(isInt ? hp2.imv(route.getFirst(), map.get(route.getFirst()))
+                            : hp2.fmv(route.getFirst(), map.get(route.getFirst())));
+            return;
+        }
+        moves.add(isInt ? hp2.imv(tmp, map.get(route.getFirst()))
+                        : hp2.fmv(tmp, map.get(route.getFirst())));
+        for (int i = 0; i < route.size() - 1; i++) {
+            var dst = route.get(i);
+            moves.add(isInt ? hp2.imv(dst, map.get(dst)) : hp2.fmv(dst, map.get(dst)));
+        }
+        moves.add(isInt ? hp2.imv(route.getLast(), tmp) : hp2.fmv(route.getLast(), tmp));
+    }
 }

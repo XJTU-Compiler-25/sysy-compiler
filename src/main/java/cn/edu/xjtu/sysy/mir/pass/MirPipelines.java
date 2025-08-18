@@ -4,7 +4,7 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 import cn.edu.xjtu.sysy.mir.pass.transform.*;
-import cn.edu.xjtu.sysy.mir.pass.transform.loop.LoopCanonicalize;
+import cn.edu.xjtu.sysy.mir.pass.transform.loop.*;
 
 public final class MirPipelines {
 
@@ -37,10 +37,10 @@ public final class MirPipelines {
                     LoopCanonicalize::new,
                     SCCP::new,
                     CFGSimplify::new,
-                    //EnterLIR::new,
+                    EnterLIR::new,
                     //LIRInstCombine::new,
-                    //RegisterAllocator::new,
-                    //ExitSSA::new,
+                    RegisterAllocator::new,
+                    ExitSSA::new,
                     HoistAlloca::new
             )
             .build();

@@ -1,19 +1,27 @@
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import org.junit.jupiter.api.DynamicTest;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.TestMethodOrder;
+
 import cn.edu.xjtu.sysy.ast.AstPipelines;
+import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
+import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
-import org.junit.jupiter.api.*;
-
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-
-import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
-import cn.edu.xjtu.sysy.error.ErrManager;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public final class TestSolution {
@@ -55,7 +63,7 @@ public final class TestSolution {
                             MirPipelines.DEFAULT.process(module);
                             System.out.println(module);
 
-                            if (false) {
+                            if (true) {
                                 System.out.println("Interpreting test...");
                                 var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
                                 var os = new ByteArrayOutputStream();
