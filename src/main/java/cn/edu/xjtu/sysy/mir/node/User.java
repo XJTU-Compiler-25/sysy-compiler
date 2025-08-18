@@ -18,12 +18,19 @@ public sealed abstract class User extends Value permits Instruction {
         super(type);
     }
 
-    public void addUsed(Use use) {
+    public final boolean used(Value value) {
+        for (var use : used) {
+            if (use.value == value) return true;
+        }
+        return false;
+    }
+
+    public final void addUsed(Use use) {
         used.add(use);
         usedList.add(use);
     }
 
-    public void removeUsed(Use use) {
+    public final void removeUsed(Use use) {
         int idx = usedList.lastIndexOf(use);
         if (idx == -1) {
             used.remove(use);
@@ -33,7 +40,7 @@ public sealed abstract class User extends Value permits Instruction {
         if (!usedList.contains(use)) used.remove(use);
     }
 
-    public <V extends Value> Use<V> use(V value) {
+    public final <V extends Value> Use<V> use(V value) {
         var use = new Use<>(this, value);
         value.addUse(use);
         this.addUsed(use);
@@ -41,7 +48,7 @@ public sealed abstract class User extends Value permits Instruction {
     }
 
     // 清理 use 关系
-    public void dispose() {
+    public final void dispose() {
         for (var use : usedList) {
             use.value.removeUse(use);
         }

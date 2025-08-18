@@ -10,28 +10,23 @@ import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
 
 // 由于 sccp, gvn, inst combine 都得做常量折叠，把常量折叠计算的逻辑单独提取出来了
-public final class ConstFold extends ModulePass {
+public final class ConstFold extends ModulePass<Void> {
 
     @Override
     public void visit(Module module) {
         run(module);
     }
 
-    public static boolean run(Module module) {
-        var modified = false;
+    public static void run(Module module) {
         for (var function : module.getFunctions()) {
             for (var block : function.blocks) {
                 for (var inst : block.instructions) {
                     // 尝试对指令进行常量折叠
                     var folded = foldConstant(inst);
-                    if (folded != null) {
-                        inst.replaceAllUsesWith(folded);
-                        modified = true;
-                    }
+                    if (folded != null) inst.replaceAllUsesWith(folded);
                 }
             }
         }
-        return modified;
     }
 
     // 如果常量折叠成功了，就返回一个常量值，否则返回 null
@@ -43,8 +38,8 @@ public final class ConstFold extends ModulePass {
                 Dummy _, Imm _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> { }
             // 数学运算
             case IAdd it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     if (r instanceof IntConst rC) {
@@ -54,8 +49,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case ISub it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     if (r instanceof IntConst rC) {
@@ -65,8 +60,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case IMul it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     if (r instanceof IntConst rC) {
@@ -80,8 +75,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case IDiv it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     if (r instanceof IntConst rC) {
@@ -94,8 +89,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case IMod it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     if (r instanceof IntConst rC) {
@@ -112,15 +107,15 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case INeg it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof IntConst lC) {
                     var lV = lC.value;
                     result = intConst(-lV);
                 }
             }
             case FAdd it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     if (r instanceof FloatConst rConst) {
@@ -130,8 +125,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FSub it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     if (r instanceof FloatConst rConst) {
@@ -141,8 +136,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FMul it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     if (r instanceof FloatConst rConst) {
@@ -153,8 +148,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FDiv it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     if (r instanceof FloatConst rConst) {
@@ -164,8 +159,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FMod it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     if (r instanceof FloatConst rConst) {
@@ -178,7 +173,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FNeg it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(-lVal);
@@ -187,8 +182,8 @@ public final class ConstFold extends ModulePass {
 
             // 相等运算
             case IEq it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -196,8 +191,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case INe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -205,8 +200,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FEq it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -214,8 +209,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FNe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -225,8 +220,8 @@ public final class ConstFold extends ModulePass {
 
             // 比较运算
             case IGe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -234,8 +229,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case ILe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -243,8 +238,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case IGt it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -252,8 +247,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case ILt it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -261,8 +256,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FGe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -270,8 +265,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FLe it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -279,8 +274,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FGt it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -288,8 +283,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FLt it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -299,28 +294,28 @@ public final class ConstFold extends ModulePass {
 
             // 转型运算
             case I2F it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof IntConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst((float) lVal);
                 }
             }
             case F2I it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = intConst((int) lVal);
                 }
             }
             case BitCastI2F it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof IntConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(Float.intBitsToFloat(lVal));
                 }
             }
             case BitCastF2I it -> {
-                var v = it.value.value;
+                var v = it.getOperand();
                 if (v instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = intConst(Float.floatToIntBits(lVal));
@@ -329,8 +324,8 @@ public final class ConstFold extends ModulePass {
 
             // 位运算
             case Shl it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -340,8 +335,8 @@ public final class ConstFold extends ModulePass {
             }
             // 逻辑右移
             case Shr it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -350,8 +345,8 @@ public final class ConstFold extends ModulePass {
             }
             // 算数右移
             case AShr it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -361,8 +356,8 @@ public final class ConstFold extends ModulePass {
 
             // 逻辑运算
             case And it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value != 0;
                     var rVal = rConst.value != 0;
@@ -370,8 +365,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case Or it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value != 0;
                     var rVal = rConst.value != 0;
@@ -379,8 +374,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case Xor it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof IntConst lConst && r instanceof IntConst rConst) {
                     var lVal = lConst.value != 0;
                     var rVal = rConst.value != 0;
@@ -388,7 +383,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case Not it -> {
-                var r = it.rhs.value;
+                var r = it.getOperand();
                 if (r instanceof IntConst rConst) {
                     var rVal = rConst.value != 0;
                     result = rVal ? iZero : iOne;
@@ -397,15 +392,15 @@ public final class ConstFold extends ModulePass {
 
             // intrinsic
             case FAbs it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst(Math.abs(lVal));
                 }
             }
             case FMax it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -413,8 +408,8 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FMin it -> {
-                var l = it.lhs.value;
-                var r = it.rhs.value;
+                var l = it.getLhs();
+                var r = it.getRhs();
                 if (l instanceof FloatConst lConst && r instanceof FloatConst rConst) {
                     var lVal = lConst.value;
                     var rVal = rConst.value;
@@ -422,7 +417,7 @@ public final class ConstFold extends ModulePass {
                 }
             }
             case FSqrt it -> {
-                var l = it.lhs.value;
+                var l = it.getOperand();
                 if (l instanceof FloatConst lConst) {
                     var lVal = lConst.value;
                     result = floatConst((float) Math.sqrt(lVal));

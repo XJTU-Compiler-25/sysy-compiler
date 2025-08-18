@@ -296,15 +296,15 @@ public class AsmCGen extends ModulePass<Void> {
                 }
             }
             case Ret it -> {
-                switch (it.retVal.value.type) {
+                switch (it.getRetVal().type) {
                     case Type.Float _ -> {
-                        var retVal = getFloat(it.retVal.value, ValueUtils.floatRetAddr, ValueUtils.intScratchReg);
+                        var retVal = getFloat(it.getRetVal(), ValueUtils.floatRetAddr, ValueUtils.intScratchReg);
                         if (ValueUtils.floatRetAddr != retVal) {
                             asm.fmv(ValueUtils.floatRetAddr, retVal);
                         }
                     }
                     case Type.Int _ -> {
-                        var retVal = getInt(it.retVal.value, ValueUtils.intRetAddr);
+                        var retVal = getInt(it.getRetVal(), ValueUtils.intRetAddr);
                         if (ValueUtils.intRetAddr != retVal) {
                             asm.mv(ValueUtils.intRetAddr, retVal);
                         }
@@ -332,33 +332,33 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.bnez(condReg, it.getTrueTarget().shortName());
             }
             case Instruction.BEq it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.beq(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Instruction.BNe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.bne(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Instruction.BLt it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.blt(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Instruction.BLe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.ble(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Instruction.BGt it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.bgt(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Instruction.BGe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.bge(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Alloca it -> {
@@ -366,7 +366,7 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.setzero(position.offset(), Types.sizeOf(it.allocatedType), ValueUtils.intScratchReg);
             }
             case Load it -> {
-                var addr = getAddr(it.address.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                var addr = getAddr(it.getAddress(), ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
                 switch (it.type) {
                     case Type.Float _ -> {
                         asm.flw(it, addr, 0);        
@@ -381,14 +381,14 @@ public class AsmCGen extends ModulePass<Void> {
                 }
             }
             case Store it -> {
-                var addr = getAddr(it.address.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
-                switch (it.storeVal.value.type) {
+                var addr = getAddr(it.getAddress(), ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                switch (it.getStoreVal().type) {
                     case Type.Float _ -> {
-                        var val = getFloat(it.storeVal.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                        var val = getFloat(it.getStoreVal(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                         asm.fsw(val, addr, 0);        
                     }
                     case Type.Int _ -> {
-                        var val = getInt(it.storeVal.value, ValueUtils.spillIntReg2);
+                        var val = getInt(it.getStoreVal(), ValueUtils.spillIntReg2);
                         asm.sw(val, addr, 0);  
                     }
                     default -> unreachable();
@@ -399,204 +399,204 @@ public class AsmCGen extends ModulePass<Void> {
             }
             // 数学运算
             case IAdd it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.addw(it, lhs, rhs);
             }
             case ISub it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.subw(it, lhs, rhs);
             }
             case IMul it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.mulw(it, lhs, rhs);
             }
             case IDiv it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.divw(it, lhs, rhs);
             }
             case IMod it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.remw(it, lhs, rhs);
             }
             case INeg it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getOperand(), ValueUtils.spillIntReg);
                 asm.negw(it, lhs);
             }
             case FAdd it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.fadd(it, lhs, rhs);
             }
             case FSub it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.fsub(it, lhs, rhs);
             }
             case FMul it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.fmul(it, lhs, rhs);
             }
             case FDiv it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.fdiv(it, lhs, rhs);
             }
             case FMod it -> {
                 // TODO
             }
             case FNeg it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getOperand(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.fneg(it, lhs);
             }
             // 相等运算
             case IEq it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .xor(ValueUtils.intScratchReg, lhs, rhs)
                     .seqz(it, ValueUtils.intScratchReg);
             }
             case INe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .xor(ValueUtils.intScratchReg, lhs, rhs)
                     .snez(it, ValueUtils.intScratchReg);
             }
             case FEq it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm.feq(it, lhs, rhs);
             }
             case FNe it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .feq(ValueUtils.intScratchReg, lhs, rhs)
                     .snez(it, ValueUtils.intScratchReg);
             }
 
             // 比较运算
             case IGe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(ValueUtils.intScratchReg, lhs, rhs)
                     .snez(it, ValueUtils.intScratchReg);
             }
             case ILe it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(ValueUtils.intScratchReg, rhs, lhs)
                     .snez(it, ValueUtils.intScratchReg);
             }
             case IGt it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(it, rhs, lhs);
             }
             case ILt it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(it, lhs, rhs);
             }
             case FGe it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .fle(it, rhs, lhs);
             }
             case FLe it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .fle(it, lhs, rhs);
             }
             case FGt it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .flt(it, rhs, lhs);
             }
             case FLt it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .flt(it, lhs, rhs);
             }
             // 转型运算
             case I2F it -> {
-                var lhs = getInt(it.value.value, ValueUtils.intScratchReg);
+                var lhs = getInt(it.getOperand(), ValueUtils.intScratchReg);
                 asm .fcvt_s_l(it, lhs);
             }
             case F2I it -> {
-                var lhs = getFloat(it.value.value, ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getOperand(), ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
                 asm .fcvt_l_s(it, lhs);
             }
             case BitCastI2F it -> {
-                var lhs = getInt(it.value.value, ValueUtils.intScratchReg);
+                var lhs = getInt(it.getOperand(), ValueUtils.intScratchReg);
                 asm .fmv_w_x(it, lhs);
             }
             case BitCastF2I it -> {
-                var lhs = getFloat(it.value.value, ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getOperand(), ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
                 asm .fmv_x_w(it, lhs);
             }
 
             // 位运算
             case Shl it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.sllw(it, lhs, rhs);
             }
             // 逻辑右移
             case Shr it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.srlw(it, lhs, rhs);
             }
             // 算数右移
             case AShr it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.sraw(it, lhs, rhs);
             }
 
             // 逻辑运算
             case And it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.and(it, lhs, rhs);
             }
             case Or it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.or(it, lhs, rhs);
             }
             case Xor it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
-                var rhs = getInt(it.rhs.value, ValueUtils.spillIntReg2);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
+                var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm.xor(it, lhs, rhs);
             }
             case Not it -> {
-                var lhs = getInt(it.rhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getOperand(), ValueUtils.spillIntReg);
                 asm.snez(it, lhs);
             }
 
             // intrinsic
             case FAbs it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getOperand(), ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
                 asm .fabs(it, lhs);
             }
             case FMax it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .fmax(it, lhs, rhs);
             }
             case FMin it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                var rhs = getFloat(it.rhs.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getLhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                var rhs = getFloat(it.getRhs(), ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
                 asm .fmin(it, lhs, rhs);
             }
             case FSqrt it -> {
-                var lhs = getFloat(it.lhs.value, ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
+                var lhs = getFloat(it.getOperand(), ValueUtils.floatScratchReg, ValueUtils.intScratchReg);
                 asm .fsqrt(it, lhs);
             }
             case ILi it -> {
@@ -623,35 +623,35 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.fmv(it, src);
             }
             case Instruction.Addi it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.addiw(it, lhs, it.imm);
             }
             case Instruction.Andi it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.andi(it, lhs, it.imm);
             }
             case Instruction.Ori it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.ori(it, lhs, it.imm);
             }
             case Instruction.Xori it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.xori(it, lhs, it.imm);
             }
             case Instruction.Slli it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.slliw(it, lhs, it.imm);
             }
             case Instruction.Srli it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.srliw(it, lhs, it.imm);
             }
             case Instruction.Srai it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.sraiw(it, lhs, it.imm);
             }
             case Instruction.Slti it -> {
-                var lhs = getInt(it.lhs.value, ValueUtils.spillIntReg);
+                var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 asm.slti(it, lhs, it.imm);
             }
             case Dummy _ -> {

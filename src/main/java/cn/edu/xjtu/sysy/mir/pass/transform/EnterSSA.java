@@ -28,7 +28,6 @@ public final class EnterSSA extends ModulePass<Void> {
 
     @Override
     public void visit(Function function) {
-        hoistAllocas(function);
         findCandidate(function);
         for (var param : function.params) {
             var arg = param.second();
@@ -37,26 +36,6 @@ public final class EnterSSA extends ModulePass<Void> {
         }
         insertBlockArgument();
         renaming(function);
-    }
-
-    // 将所有 alloca 提升到函数入口块
-    private void hoistAllocas(Function function) {
-        var allocas = new ArrayList<Instruction.Alloca>();
-        for (var block : function.blocks) {
-            for (var iter = block.instructions.iterator(); iter.hasNext(); ) {
-                var instr = iter.next();
-                if (instr instanceof Instruction.Alloca alloca) {
-                    allocas.add(alloca);
-                    iter.remove();
-                }
-            }
-        }
-
-        var entryInstrs = function.entry.instructions;
-        for (var alloca : allocas) {
-            entryInstrs.addFirst(alloca);
-            alloca.setBlock(function.entry);
-        }
     }
 
     private final ArrayList<Value> promotableVar = new ArrayList<>();
@@ -128,65 +107,82 @@ public final class EnterSSA extends ModulePass<Void> {
         }
 
         // 从 entry 向后继方向 DFS
-        renamingRecursive(entry, new HashSet<>(), entryIncomingVals);
-    }
+        var visited = new HashSet<BasicBlock>();
+        var worklist = new Worklist<BasicBlock>();
+        var blockToIncomingVals = new HashMap<BasicBlock, HashMap<Value, Value>>();
+        worklist.add(entry);
+        blockToIncomingVals.put(entry, entryIncomingVals);
+        while (!worklist.isEmpty()) {
+            var block = worklist.poll();
+            visited.add(block);
 
-    private void renamingRecursive(BasicBlock block, HashSet<BasicBlock> visited, HashMap<Value, Value> incomingVals) {
-        if (visited.contains(block)) return;
-        visited.add(block);
+            var incomingVals = blockToIncomingVals.get(block);
 
-        // 块开头时值改为 block argument
-        for (var arg : block.args) incomingVals.put(blockArgToVar.get(arg), arg);
+            // 块开头时值改为 block argument
+            for (var arg : block.args) incomingVals.put(blockArgToVar.get(arg), arg);
 
-        for (var iterator = block.instructions.iterator(); iterator.hasNext(); ) {
-            var instr = iterator.next();
-            switch (instr) {
-                case Instruction.Store store -> {
-                    switch (store.address.value) {
-                        case Instruction.Alloca var -> {
-                            incomingVals.put(var, store.storeVal.value);
-                            store.dispose();
-                            iterator.remove();
+            for (var iterator = block.instructions.iterator(); iterator.hasNext(); ) {
+                var instr = iterator.next();
+                switch (instr) {
+                    case Instruction.Store store -> {
+                        switch (store.getAddress()) {
+                            case Instruction.Alloca var -> {
+                                incomingVals.put(var, store.getStoreVal());
+                                store.dispose();
+                                iterator.remove();
+                            }
+                            case BlockArgument var -> {
+                                incomingVals.put(var, store.getStoreVal());
+                                store.dispose();
+                                iterator.remove();
+                            }
+                            default -> { }
                         }
-                        case BlockArgument var -> {
-                            incomingVals.put(var, store.storeVal.value);
-                            store.dispose();
-                            iterator.remove();
+                    }
+                    case Instruction.Load load -> {
+                        switch (load.getAddress()) {
+                            case Instruction.Alloca var -> {
+                                load.replaceAllUsesWith(incomingVals.get(var));
+                                load.dispose();
+                                iterator.remove();
+                            }
+                            case BlockArgument var -> {
+                                load.replaceAllUsesWith(incomingVals.get(var));
+                                load.dispose();
+                                iterator.remove();
+                            }
+                            default -> { }
                         }
-                        default -> { }
+                    }
+                    default -> { }
+                }
+            }
+
+            switch (block.terminator) {
+                case Instruction.Jmp jmp -> {
+                    jmp.params.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
+                    var target = jmp.getTarget();
+                    if (!visited.contains(target)) {
+                        worklist.add(target);
+                        blockToIncomingVals.put(target, new HashMap<>(incomingVals));
                     }
                 }
-                case Instruction.Load load -> {
-                    switch (load.address.value) {
-                        case Instruction.Alloca var -> {
-                            load.replaceAllUsesWith(incomingVals.get(var));
-                            load.dispose();
-                            iterator.remove();
-                        }
-                        case BlockArgument var -> {
-                            load.replaceAllUsesWith(incomingVals.get(var));
-                            load.dispose();
-                            iterator.remove();
-                        }
-                        default -> { }
+                case Instruction.Br br -> {
+                    br.trueParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
+                    br.falseParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
+                    var tp = br.getTrueTarget();
+                    if (!visited.contains(tp)) {
+                        worklist.add(tp);
+                        blockToIncomingVals.put(tp, new HashMap<>(incomingVals));
+                    }
+                    var fp = br.getFalseTarget();
+                    if (!visited.contains(fp)) {
+                        worklist.add(fp);
+                        blockToIncomingVals.put(fp, new HashMap<>(incomingVals));
                     }
                 }
-                default -> { }
+                default -> {}
             }
-        }
-
-        switch (block.terminator) {
-            case Instruction.Jmp jmp -> {
-                jmp.params.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
-                renamingRecursive(jmp.getTarget(), visited, new HashMap<>(incomingVals));
-            }
-            case Instruction.Br br -> {
-                br.trueParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
-                br.falseParams.forEach((arg, use) -> use.replaceValue(incomingVals.get(blockArgToVar.get(arg))));
-                renamingRecursive(br.getTrueTarget(), visited, new HashMap<>(incomingVals));
-                renamingRecursive(br.getFalseTarget(), visited, new HashMap<>(incomingVals));
-            }
-            default -> {}
         }
     }
 

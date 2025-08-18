@@ -11,18 +11,6 @@ public final class Use<V extends Value> {
     }
 
     @Override
-    public int hashCode() {
-        return user.hashCode() ^ (value.hashCode() << 7);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        return obj instanceof Use<?> use &&
-                user.equals(use.user) &&
-                value.equals(use.value);
-    }
-
-    @Override
     public String toString() {
         return value.toString();
     }

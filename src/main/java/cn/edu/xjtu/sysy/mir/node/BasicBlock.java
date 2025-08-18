@@ -22,6 +22,11 @@ public final class BasicBlock extends Value {
         this.function = function;
     }
 
+    @Override
+    public String shortName() {
+        return "bb" + id;
+    }
+
     public void dispose() {
         instructions.forEach(Instruction::dispose);
         terminator.dispose();
@@ -31,16 +36,27 @@ public final class BasicBlock extends Value {
         return function;
     }
 
+    public int indexOf(Instruction instr) {
+        return instructions.indexOf(instr);
+    }
+
+    public void remove(Instruction instr) {
+        if (instructions.remove(instr)) instr.setBlock(null);
+    }
+
     public void insertAtFirst(Instruction instruction) {
         instructions.addFirst(instruction);
+        instruction.setBlock(this);
     }
 
     public void insertAtLast(Instruction instruction) {
         instructions.addLast(instruction);
+        instruction.setBlock(this);
     }
 
     public void insertAt(int idx, Instruction instruction) {
         instructions.add(idx, instruction);
+        instruction.setBlock(this);
     }
 
     public void setTerminator(Instruction.Terminator terminator) {
@@ -62,10 +78,5 @@ public final class BasicBlock extends Value {
         var arg = new BlockArgument(this, type);
         args.add(arg);
         return arg;
-    }
-
-    @Override
-    public String shortName() {
-        return "bb" + id;
     }
 }

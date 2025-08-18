@@ -8,7 +8,8 @@ import java.util.Set;
 public record FuncInfo(
         Set<Function> pureFunctions,
         Set<Function> onceFunctions,
-        Set<Function> leafFunctions
+        Set<Function> leafFunctions,
+        Set<Function> recursiveFunctions
 ) {
     public boolean isPure(Function function) {
         return pureFunctions.contains(function);
@@ -20,5 +21,9 @@ public record FuncInfo(
 
     public boolean isLeaf(Function function) {
         return leafFunctions.contains(function);
+    }
+
+    public boolean isRecursive(Function function) {
+        return recursiveFunctions.contains(function);
     }
 }

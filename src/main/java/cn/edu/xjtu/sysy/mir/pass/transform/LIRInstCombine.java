@@ -108,7 +108,7 @@ public class LIRInstCombine extends ModulePass<Void> {
         helper.changeBlock(block);
         switch (cond) {
             case Instruction.ILt it -> {
-                var branch = helper.blt(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.blt(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
@@ -119,7 +119,7 @@ public class LIRInstCombine extends ModulePass<Void> {
                 }
             }
             case Instruction.ILe it -> {
-                var branch = helper.ble(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.ble(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
@@ -130,7 +130,7 @@ public class LIRInstCombine extends ModulePass<Void> {
                 }
             }
             case Instruction.IGe it -> {
-                var branch = helper.bge(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.bge(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
@@ -141,7 +141,7 @@ public class LIRInstCombine extends ModulePass<Void> {
                 }
             }
             case Instruction.IGt it -> {
-                var branch = helper.bgt(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.bgt(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
@@ -152,7 +152,7 @@ public class LIRInstCombine extends ModulePass<Void> {
                 }
             }
             case Instruction.IEq it -> {
-                var branch = helper.beq(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.beq(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;
@@ -163,7 +163,7 @@ public class LIRInstCombine extends ModulePass<Void> {
                 }
             }
             case Instruction.INe it -> {
-                var branch = helper.bne(it.lhs.value, it.rhs.value, br.getTrueTarget(), br.getFalseTarget());
+                var branch = helper.bne(it.getLhs(), it.getRhs(), br.getTrueTarget(), br.getFalseTarget());
                 br.trueParams.forEach((arg, use) -> branch.putTrueParam(arg, use.value));
                 br.falseParams.forEach((arg, use) -> branch.putFalseParam(arg, use.value));
                 block.terminator = branch;

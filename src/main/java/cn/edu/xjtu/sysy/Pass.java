@@ -31,6 +31,10 @@ public abstract class Pass<T, R> implements ErrManaged {
         return currentPipeline.getResult(pass);
     }
 
+    public final <E, P extends Pass<T, E>> E getRefreshedResult(Class<P> pass) {
+        return currentPipeline.getRefreshedResult(pass);
+    }
+
     public final void invalidate(Class<? extends Pass<T, ?>> pass) {
         currentPipeline.invalidate(pass);
     }

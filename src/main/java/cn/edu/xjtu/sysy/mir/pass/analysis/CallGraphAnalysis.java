@@ -21,7 +21,7 @@ public final class CallGraphAnalysis extends ModulePass<CallGraph> {
 
         for (var function : functions) {
             var funcCallTo = funcCallToMap.computeIfAbsent(function, _ -> new HashSet<>());
-            var callSiteTo = callSiteByMap.computeIfAbsent(function, _ -> new HashSet<>());
+            var callSiteTo = callSiteToMap.computeIfAbsent(function, _ -> new HashSet<>());
             
             for (var use : function.usedBy) {
                 if (use.user instanceof Instruction.Call it) {
@@ -30,7 +30,7 @@ public final class CallGraphAnalysis extends ModulePass<CallGraph> {
                     funcCallTo.add(callerFunction);
 
                     var funcCallBy = funcCallByMap.computeIfAbsent(callerFunction, _ -> new HashSet<>());
-                    var callSiteBy = callSiteToMap.computeIfAbsent(callerFunction, _ -> new HashSet<>());
+                    var callSiteBy = callSiteByMap.computeIfAbsent(callerFunction, _ -> new HashSet<>());
                     callSiteBy.add(it);
                     funcCallBy.add(function);
                 }
