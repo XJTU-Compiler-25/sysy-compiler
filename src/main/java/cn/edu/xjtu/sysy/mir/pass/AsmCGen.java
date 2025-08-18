@@ -9,6 +9,7 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.AShr;
 import cn.edu.xjtu.sysy.mir.node.Instruction.AbstractBr;
@@ -606,8 +607,12 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.li(it, it.imm);
             }
             case IMv it -> {
-                if (it.src.value.type != Types.Int) return;
-                var src = getInt(it.src.value, ValueUtils.spillIntReg);
+                if (it.src.value instanceof ImmediateValue.Undefined) return;
+                Register.Int src = switch (it.src.value.type) {
+                    case Type.Int _ -> getInt(it.src.value, ValueUtils.spillIntReg);
+                    case Type.Pointer _ -> getAddr(it.src.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                    default -> unreachable();
+                };
                 asm.mv(it.dst, src);
             }
             case FMv it -> {
@@ -615,7 +620,11 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.fmv(it.dst, src);
             }
             case Instruction.ICpy it -> {
-                var src = getInt(it.src.value, ValueUtils.spillIntReg);
+                Register.Int src = switch (it.src.value.type) {
+                    case Type.Int _ -> getInt(it.src.value, ValueUtils.spillIntReg);
+                    case Type.Pointer _ -> getAddr(it.src.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                    default -> unreachable();
+                };
                 asm.mv(it, src);
             }
             case Instruction.FCpy it -> {
