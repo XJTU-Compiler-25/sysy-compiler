@@ -566,8 +566,8 @@ public abstract sealed class Instruction extends User {
      * 举例：getelemptr [Any x 20 x i32], n = [20 x i32]
      */
     public static final class GetElemPtr extends Instruction {
-        public Use basePtr;
-        public Use[] indices;
+        private final Use basePtr;
+        private final ArrayList<Use> indices;
 
         GetElemPtr(BasicBlock block, Value basePtr, Value[] indices) {
             super(block, switch (basePtr.type) {
@@ -580,14 +580,51 @@ public abstract sealed class Instruction extends User {
             });
             this.basePtr = use(basePtr);
             var indexCount = indices.length;
-            this.indices = new Use[indexCount];
-            for (int i = 0; i < indexCount; i++) this.indices[i] = use(indices[i]);
+            this.indices = new ArrayList<>();
+            for (var index : indices) addIndex(index);
         }
 
         @Override
         public String toString() {
             return shortName() + " = getelemptr base " + basePtr.value.shortName() + ", indices " +
-                    Arrays.stream(indices).map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+                    indices.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+        }
+
+        public Value getBasePtr() {
+            return basePtr.value;
+        }
+
+        public void setBasePtr(Value basePtr) {
+            this.basePtr.replaceValue(basePtr);
+        }
+
+        public List<Value> getIndices() {
+            return indices.stream().map(v -> v.value).collect(Collectors.toList());
+        }
+
+        public Value getIndex(int idx) {
+            return indices.get(idx).value;
+        }
+
+        public void addIndex(Value index) {
+            indices.add(use(index));
+        }
+
+        public void addIndex(int idx, Value index) {
+            indices.add(idx, use(index));
+        }
+
+        public void setIndex(int idx, Value index) {
+            indices.get(idx).replaceValue(index);
+        }
+
+        public void removeIndex(int idx) {
+            var use = indices.remove(idx);
+            if (use != null) use.dispose();
+        }
+
+        public int getIndexCount() {
+            return indices.size();
         }
     }
 

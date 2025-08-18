@@ -50,4 +50,8 @@ public final class MathUtils {
         return val + (d - mod);
     }
 
+    public static boolean isPowerOf2(int n) {
+        return (n > 0) && ((n & (n - 1)) == 0);
+    }
+
 }

@@ -303,13 +303,12 @@ public final class Interpreter extends ModulePass<Void> {
                     switch (addr) {
                         case GlobalVar var -> stackframe.put(it, globals.get(var));
                         case GetElemPtr gep -> {
-                            var bv = gep.basePtr.value;
+                            var bv = gep.getBasePtr();
                             var base = (DenseArray) toImm(bv);
                             var strides = Types.strides(bv.type);
-                            var indices = gep.indices;
                             var offset = 0;
-                            for (int i = 0, len = indices.length; i < len; i++)
-                                offset += getInt(indices[i].value) * strides[i];
+                            for (int i = 0, len = gep.getIndexCount(); i < len; i++)
+                                offset += getInt(gep.getIndex(i)) * strides[i];
                             stackframe.put(it, toImm(base.values[offset]));
                         }
                         default -> stackframe.put(it, toImm(addr));
@@ -321,21 +320,20 @@ public final class Interpreter extends ModulePass<Void> {
                     switch (addr) {
                         case GlobalVar var -> globals.put(var, value);
                         case GetElemPtr gep -> {
-                            var bv = gep.basePtr.value;
+                            var bv = gep.getBasePtr();
                             var base = (DenseArray) toImm(bv);
                             var strides = Types.strides(bv.type);
-                            var indices = gep.indices;
                             var offset = 0;
-                            for (int i = 0, len = indices.length; i < len; i++)
-                                offset += getInt(indices[i].value) * strides[i];
+                            for (int i = 0, len = gep.getIndexCount(); i < len; i++)
+                                offset += getInt(gep.getIndex(i)) * strides[i];
                             base.values[offset] = value;
                         }
                         default -> stackframe.put(it, toImm(addr));
                     }
                 }
                 case GetElemPtr it -> {
-                    if (Arrays.stream(it.indices).allMatch(use -> use.value.equals(iZero)))
-                        stackframe.put(it, toImm(it.basePtr.value));
+                    if (it.getIndices().stream().allMatch(v -> v.equals(iZero)))
+                        stackframe.put(it, toImm(it.getBasePtr()));
                     // 延迟计算
                 }
                 // 数学运算

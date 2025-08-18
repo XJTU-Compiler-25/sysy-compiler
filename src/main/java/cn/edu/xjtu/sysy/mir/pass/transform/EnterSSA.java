@@ -12,6 +12,7 @@ import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.*;
 
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 @SuppressWarnings("unchecked")
@@ -33,6 +34,13 @@ public final class EnterSSA extends ModulePass<Void> {
             var arg = param.second();
             arg.type = ((Type.Pointer) arg.type).baseType;
             promotableVar.add(arg);
+
+            for (var use : arg.usedBy) {
+                if (use.user instanceof Instruction.GetElemPtr gep) {
+                    if (!gep.getIndex(0).equals(ImmediateValues.iZero)) unreachable();
+                    gep.removeIndex(0);
+                }
+            }
         }
         insertBlockArgument();
         renaming(function);

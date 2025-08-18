@@ -576,10 +576,7 @@ public final class SCCP extends ModulePass<Void> {
 
             for (var arg : block.args) {
                 var lat = getLattice(arg);
-                if (lat.isConst()) {
-                    for (var term : CFGAnalysis.getPredTermsOf(block)) term.removeParam(block, arg);
-                    arg.replaceAllUsesWith(lat.value);
-                }
+                if (lat.isConst()) arg.replaceAllUsesWith(lat.value);
             }
 
             // 如果是常量，则直接替换
