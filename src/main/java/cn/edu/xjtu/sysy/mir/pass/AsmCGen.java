@@ -1,25 +1,71 @@
 package cn.edu.xjtu.sysy.mir.pass;
 
-import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.NoSuchElementException;
 import java.util.Stack;
 import java.util.stream.Collectors;
-import java.util.Arrays;
-import java.util.HashMap;
 
-import cn.edu.xjtu.sysy.mir.node.Function;
-import cn.edu.xjtu.sysy.mir.node.Instruction;
-import cn.edu.xjtu.sysy.mir.node.Instruction.*;
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.DenseArray;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValue.FloatConst;
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Instruction.AShr;
+import cn.edu.xjtu.sysy.mir.node.Instruction.AbstractBr;
+import cn.edu.xjtu.sysy.mir.node.Instruction.AbstractCall;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Alloca;
+import cn.edu.xjtu.sysy.mir.node.Instruction.And;
+import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastF2I;
+import cn.edu.xjtu.sysy.mir.node.Instruction.BitCastI2F;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Br;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
+import cn.edu.xjtu.sysy.mir.node.Instruction.F2I;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FAbs;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FAdd;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FDiv;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FEq;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FGe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FGt;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FLe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FLi;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FLt;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FMax;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FMin;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FMod;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FMul;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FMv;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FNe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FNeg;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FSqrt;
+import cn.edu.xjtu.sysy.mir.node.Instruction.FSub;
+import cn.edu.xjtu.sysy.mir.node.Instruction.GetElemPtr;
+import cn.edu.xjtu.sysy.mir.node.Instruction.I2F;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IAdd;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IDiv;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IEq;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IGe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IGt;
+import cn.edu.xjtu.sysy.mir.node.Instruction.ILe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.ILi;
+import cn.edu.xjtu.sysy.mir.node.Instruction.ILt;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IMod;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IMul;
+import cn.edu.xjtu.sysy.mir.node.Instruction.IMv;
+import cn.edu.xjtu.sysy.mir.node.Instruction.INe;
+import cn.edu.xjtu.sysy.mir.node.Instruction.INeg;
+import cn.edu.xjtu.sysy.mir.node.Instruction.ISub;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Jmp;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Load;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Not;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Or;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Ret;
+import cn.edu.xjtu.sysy.mir.node.Instruction.RetV;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Shl;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Shr;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Store;
+import cn.edu.xjtu.sysy.mir.node.Instruction.Xor;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.Register.Int;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
@@ -28,18 +74,17 @@ import cn.edu.xjtu.sysy.riscv.node.AsmWriter;
 import cn.edu.xjtu.sysy.riscv.node.Global;
 import cn.edu.xjtu.sysy.riscv.node.MachineBasicBlock;
 import cn.edu.xjtu.sysy.riscv.node.MachineFunc;
-import cn.edu.xjtu.sysy.riscv.node.Instr.Call;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
-import cn.edu.xjtu.sysy.util.Worklist;
 
 public class AsmCGen extends ModulePass<Void> {
     private final HashMap<GlobalVar, Global> globals = new HashMap<>();
     private final HashMap<Function, MachineFunc> functions = new HashMap<>();
     private final AsmWriter asm = new AsmWriter();
     private MachineFunc curFunc;
+    private BasicBlock nextBlock;
 
     @Override
     public String toString() {
@@ -69,25 +114,34 @@ public class AsmCGen extends ModulePass<Void> {
     public void visit(Function function) {
         var worklist = new Stack<BasicBlock>();
         var visited = new HashSet<BasicBlock>();
-        worklist.add(function.entry);
+        worklist.push(function.entry);
         while (!worklist.isEmpty()) {
             var block = worklist.pop();
             if (!visited.add(block)) continue;
-            var machineBlock = new MachineBasicBlock(block.shortName());
-            curFunc.addBlock(machineBlock);
-            asm.changeBlock(machineBlock);
-            visit(block);
             switch (block.terminator) {
                 case AbstractBr br -> {
-                    worklist.push(br.getTrueTarget());
-                    worklist.push(br.getFalseTarget());
+                    var trueTarget = br.getTrueTarget();
+                    if (trueTarget != function.epilogue) worklist.push(trueTarget);
+                    var falseTarget = br.getFalseTarget();
+                    if (falseTarget != function.epilogue) worklist.push(falseTarget);
                 }
                 case Jmp jmp -> {
-                    worklist.push(jmp.getTarget());
+                    var target = jmp.getTarget();
+                    if (target != function.epilogue) worklist.push(jmp.getTarget());
                 }
                 default -> {}
             }
+            var machineBlock = new MachineBasicBlock(block.shortName());
+            curFunc.addBlock(machineBlock);
+            asm.changeBlock(machineBlock);
+            nextBlock = worklist.isEmpty() ? function.epilogue : worklist.peek();
+            visit(block);
         }
+        var machineBlock = new MachineBasicBlock(function.epilogue.shortName());
+        curFunc.addBlock(machineBlock);
+        asm.changeBlock(machineBlock);
+        nextBlock = null;
+        visit(function.epilogue);
     }
 
     @Override
@@ -117,18 +171,18 @@ public class AsmCGen extends ModulePass<Void> {
                     }
                     if (init) {
                         init = false;
-                        asm.addi(ret, ret, offset * 4, tmp1);
+                        asm.addi(base, base, offset * 4, tmp1);
                         continue;
                     }
                     var now = getInt(indices[i].value, tmp1);
                     asm.li(tmp2, strides[i] * 4);
-                    asm.mul(tmp1, tmp1, tmp2);
-                    asm.add(ret, ret, tmp1);
+                    asm.mul(now, now, tmp2);
+                    asm.add(base, base, now);
                 }
                 if (init) {
-                    asm.addi(ret, ret, offset * 4, tmp1);
+                    asm.addi(base, base, offset * 4, tmp1);
                 }
-                yield ret;
+                yield base;
             }
             default -> {
                 yield switch(value.position) {
@@ -263,7 +317,7 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.ret();
             }
             case Jmp it -> {
-                asm.j(it.getTarget().shortName());
+                if (nextBlock != it.getTarget()) asm.j(it.getTarget().shortName());
             }
             case Br it -> {
                 var condition = it.getCondition();
@@ -552,6 +606,7 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.li(it, it.imm);
             }
             case IMv it -> {
+                if (it.src.value.type != Types.Int) return;
                 var src = getInt(it.src.value, ValueUtils.spillIntReg);
                 asm.mv(it.dst, src);
             }

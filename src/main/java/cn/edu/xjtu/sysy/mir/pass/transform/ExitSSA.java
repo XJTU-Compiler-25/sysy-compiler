@@ -112,11 +112,13 @@ public final class ExitSSA extends ModulePass<Void> {
                 dummy.position = reg;
                 var mv = hp2.imv(param, dummy);
                 entry.insertAtFirst(mv);
+                currentFunction.paramToDummy.put(param, dummy);
             } else {
                 var dummy = hp2.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
                 var load = hp2.imv(param, dummy);
                 entry.insertAtFirst(load);
+                currentFunction.paramToDummy.put(param, dummy);
             }
         }
         for (int i = 0; i < floatParams.size(); i++) {
@@ -128,11 +130,13 @@ public final class ExitSSA extends ModulePass<Void> {
                 dummy.position = reg;
                 var mv = hp2.fmv(param, dummy);
                 entry.insertAtFirst(mv);
+                currentFunction.paramToDummy.put(param, dummy);
             } else {
                 var dummy = hp2.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
                 var load = hp2.fmv(param, dummy);
                 entry.insertAtFirst(load);
+                currentFunction.paramToDummy.put(param, dummy);
             }
         }
     }
@@ -207,7 +211,7 @@ public final class ExitSSA extends ModulePass<Void> {
             } else {
                 floatValues.put(arg, value);
             }
-        };
+        }
         if (!intValues.isEmpty()) moves.addAll(move(intValues, true));
         if (!floatValues.isEmpty()) moves.addAll(move(floatValues, false));
         /*params.forEach((arg, use) -> {
@@ -247,32 +251,27 @@ public final class ExitSSA extends ModulePass<Void> {
             var cur = dst;
             var path = new ArrayList<Value>();
             var valuePath = new ArrayList<ValuePosition>();
-            while (!visited.contains(cur)) { 
-                visited.add(cur);
+            while (true) { 
                 path.add(cur);
                 valuePath.add(cur.position);
-
-                if (map.containsKey(cur)) {
-                    var prev = map.get(cur);
-                    var idx = valuePath.indexOf(prev.position);
-                    if (idx != -1) {
-                        var cycle = path.subList(idx, path.size());
-                        if (idx > 0) processChain(path.subList(0, idx), instrs, map, isInt);
-                        if (tmp == null) {
-                            tmp = hp2.dummyDef(cur.type);
-                            tmp.position = isInt ? phiElimIntReg : phiElimFloatReg;
-                            instrs.addFirst(tmp);
-                        }
-                        processCycle(cycle, instrs, map, tmp, isInt);
-                        break;
-                    } else {
-                        cur = prev;
+                if (!visited.add(cur) || !map.containsKey(cur)) break;
+                var prev = map.get(cur);
+                var idx = valuePath.indexOf(prev.position);
+                if (idx != -1) {
+                    var cycle = path.subList(idx, path.size());
+                    if (tmp == null) {
+                        tmp = hp2.dummyDef(cur.type);
+                        tmp.position = isInt ? phiElimIntReg : phiElimFloatReg;
+                        instrs.addFirst(tmp);
                     }
-                } else {
-                    processChain(path, instrs, map, isInt);
+                    processCycle(cycle, instrs, map, tmp, isInt);
+                    path = new ArrayList<>(path.subList(0, idx));
                     break;
+                } else {
+                    cur = prev;
                 }
             }
+            processChain(path, instrs, map, isInt);
         }
         return instrs;
     }
@@ -287,6 +286,12 @@ public final class ExitSSA extends ModulePass<Void> {
 
     private void processCycle(List<Value> route, ArrayList<Instruction> moves, 
                                 HashMap<Value, Value> map, Value tmp, boolean isInt) {
+        if (route.size() == 1) {
+            // 自环
+            moves.add(isInt ? hp2.imv(route.getFirst(), map.get(route.getFirst()))
+                            : hp2.fmv(route.getFirst(), map.get(route.getFirst())));
+            return;
+        }
         moves.add(isInt ? hp2.imv(tmp, map.get(route.getFirst()))
                         : hp2.fmv(tmp, map.get(route.getFirst())));
         for (int i = 0; i < route.size() - 1; i++) {

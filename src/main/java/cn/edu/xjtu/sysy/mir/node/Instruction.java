@@ -35,10 +35,7 @@ public abstract sealed class Instruction extends User {
     // 计算中间值应该都为 local value
     @Override
     public String shortName() {
-        if (position == null)
-            return "%" + id;
-        else
-            return "%" + id + "[ " + position.toString() + " ]";
+        return "%" + id;
     }
 
     @Override
