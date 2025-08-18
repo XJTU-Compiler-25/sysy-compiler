@@ -99,8 +99,12 @@ public final class LoopAnalysis extends ModulePass<LoopInfo> {
                         parent = candidate;
                 }
             }
-            loop.parent = parent;
-            if (parent != null) parent.children.add(loop);
+            if (parent == null) loop.depth = 0;
+            else {
+                loop.parent = parent;
+                loop.depth = parent.depth + 1;
+                parent.children.add(loop);
+            }
         }
 
         // 计算每个 block 的 loop depth

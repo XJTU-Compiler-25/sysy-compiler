@@ -2,23 +2,9 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.analysis.AliasAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.LiveRangeAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
-import cn.edu.xjtu.sysy.mir.pass.analysis.SCEV;
-import cn.edu.xjtu.sysy.mir.pass.transform.CFGSimplify;
-import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
-import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
-import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
-import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
-import cn.edu.xjtu.sysy.mir.pass.transform.ExitSSA;
-import cn.edu.xjtu.sysy.mir.pass.transform.InstCombine;
-import cn.edu.xjtu.sysy.mir.pass.transform.RegisterAllocator;
-import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
+import cn.edu.xjtu.sysy.mir.pass.analysis.*;
+import cn.edu.xjtu.sysy.mir.pass.transform.*;
+import cn.edu.xjtu.sysy.mir.pass.transform.loop.*;
 
 public final class MirPipelines {
 
@@ -36,20 +22,26 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
-                    //GlobalOpt::new,
+                    GlobalOpt::new,
+                    HoistAlloca::new,
                     EnterSSA::new,
+                    //Inline::new,
                     SCCP::new,
                     ConstFold::new,
                     InstCombine::new,
                     DCE::new,
-                    //GVN::new,
-                    //GCM::new,
+                    ParamOpt::new,
+                    GVN::new,
+                    GCM::new,
                     DCE::new,
+                    LoopCanonicalize::new,
+                    SCCP::new,
                     CFGSimplify::new,
                     EnterLIR::new,
                     //LIRInstCombine::new,
                     RegisterAllocator::new,
-                    ExitSSA::new
+                    ExitSSA::new,
+                    HoistAlloca::new
             )
             .build();
 

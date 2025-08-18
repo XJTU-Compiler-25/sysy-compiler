@@ -44,10 +44,7 @@ public abstract sealed class ImmediateValue extends Value {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + value;
-            return result;
+            return value;
         }
 
         @Override
@@ -71,10 +68,7 @@ public abstract sealed class ImmediateValue extends Value {
         
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + Float.floatToIntBits(value);
-            return result;
+            return Float.hashCode(value);
         }
 
         @Override

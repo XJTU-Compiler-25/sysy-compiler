@@ -7,7 +7,7 @@ import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
-public abstract class Value {
+public abstract sealed class Value permits BasicBlock, BlockArgument, Function, GlobalVar, ImmediateValue, User {
 
     private static int counter = 0;
     public final int id = counter++;
@@ -29,6 +29,11 @@ public abstract class Value {
     @Override
     public String toString() {
         return shortName();
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
     }
 
     public final void addUse(Use use) {

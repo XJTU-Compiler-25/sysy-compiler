@@ -32,7 +32,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
  * 等等。其实都是 runtime 到 compile-time 的优化。
  */
 @SuppressWarnings("unchecked")
-public final class InstCombine extends ModulePass {
+public final class InstCombine extends ModulePass<Void> {
 
     private final InstructionHelper helper = new InstructionHelper();
 
@@ -42,20 +42,9 @@ public final class InstCombine extends ModulePass {
 
         while (!worklist.isEmpty()) {
             var inst = worklist.poll();
-            var result = ConstFold.foldConstant(inst);
-            // 如果指令被改变了
-            if (result != null) {
-                for (var use : inst.usedBy) {
-                    var user = use.user;
-                    // 使用了该指令的所有指令也应该再次检查，但不用检查终结指令
-                    if (user instanceof Instruction instr && !(instr instanceof Instruction.Terminator))
-                        worklist.add(instr);
-                }
-                inst.replaceAllUsesWith(result);
-            } else combineInst(inst); // 常量折叠没有成功，尝试一下模式识别
+            combineInst(inst);
         }
     }
-
 
     private void combineInst(Instruction inst) {
         switch (inst) {

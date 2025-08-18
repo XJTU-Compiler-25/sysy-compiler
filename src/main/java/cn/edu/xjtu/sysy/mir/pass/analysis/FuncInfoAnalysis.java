@@ -15,21 +15,20 @@ import java.util.Set;
 // 分析函数的纯性、是否最多被调用一次、是否是叶函数等特性
 public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
 
-    private CFG cfg;
     private CallGraph callGraph;
     private Collection<Function> functions;
 
     @Override
     public FuncInfo process(Module module) {
-        cfg = getResult(CFGAnalysis.class);
         callGraph = getResult(CallGraphAnalysis.class);
         functions = module.getFunctions();
 
         var pureFunctions = pureAnalysis();
         var onceFunctions = onceAnalysis();
         var leafFunctions = leafAnalysis();
+        var recursiveFunctions = recursiveAnalysis();
 
-        return new FuncInfo(pureFunctions, onceFunctions, leafFunctions);
+        return new FuncInfo(pureFunctions, onceFunctions, leafFunctions, recursiveFunctions);
     }
 
     private Set<Function> pureAnalysis() {
@@ -40,11 +39,11 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
 
         // 第一趟遍历，仅通过函数本身的指令是否有副作用来判断纯性
         outer: for (var function : functions) {
-            for (var block : cfg.getRPOBlocks(function)) {
+            for (var block : function.blocks) {
                 for (var instruction : block.instructions) {
                     switch (instruction) {
                         // 外部函数都有副作用
-                        case CallExternal it -> {
+                        case CallExternal _ -> {
                             pureFunctions.remove(function);
                             worklist.add(function);
                             continue outer;
@@ -60,7 +59,7 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
                         }
                         case Load it -> {
                             // Load 指令本身没有副作用，但如果加载的是全局变量或者函数参数，则函数不纯
-                            var addr = it.address.value;
+                            var addr = it.getAddress();
                             if (addr instanceof GlobalVar || (addr instanceof BlockArgument arg && arg.isParam())) {
                                 pureFunctions.remove(function);
                                 worklist.add(function);
@@ -69,7 +68,7 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
                         }
                         case Store it -> {
                             // 修改全局变量或者修改外部传入的指针，都具有副作用
-                            var addr = it.address.value;
+                            var addr = it.getAddress();
                             if (addr instanceof GlobalVar || (addr instanceof BlockArgument arg && arg.isParam())) {
                                 pureFunctions.remove(function);
                                 worklist.add(function);
@@ -112,7 +111,7 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
                 var callSite = callSites.iterator().next();
 
                 // 不标记递归函数
-                if (callSite.getFunction() == function) { }
+                if (callSite.getCallee() == function) { }
                 // 调用点在循环中，则函数可能被多次调用
                 // else if (callSite.getBlock().loopDepth != 0) { }
                 // 否则，函数最多被调用一次
@@ -132,6 +131,18 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
         }
 
         return leafFunctions;
+    }
+
+
+    private Set<Function> recursiveAnalysis() {
+        var recursiveFunctions = new HashSet<Function>();
+
+        for (var function : functions) {
+            if (callGraph.getFunctionsCalled(function).contains(function))
+                recursiveFunctions.add(function);
+        }
+
+        return recursiveFunctions;
     }
 
 }
