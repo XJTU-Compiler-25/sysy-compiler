@@ -1,6 +1,7 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -19,6 +20,7 @@ public final class Function extends Value {
     public HashSet<BasicBlock> blocks = new HashSet<>();
     // 函数参数是入口块的参数，是保插入序的
     public ArrayList<Pair<String, BlockArgument>> params = new ArrayList<>();
+    public HashMap<BlockArgument, Instruction.Dummy> paramToDummy = new HashMap<>();
     public StackState stackState = new StackState();
 
     public Function(Module module, String name, Type.Function funcType) {

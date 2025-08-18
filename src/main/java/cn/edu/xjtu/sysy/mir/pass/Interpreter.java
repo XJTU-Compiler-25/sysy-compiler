@@ -17,6 +17,7 @@ import cn.edu.xjtu.sysy.mir.node.ImmediateValue.FloatConst;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.IntConst;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.SparseArray;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue.ZeroInit;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
@@ -175,7 +176,10 @@ public final class Interpreter extends ModulePass<Void> {
                     for (int i = 0, size = params.size(); i < size; i++) {
                         var param = params.get(i);
                         var arg = it.args[i].value;
-                        newSF.put(param.second(), toImm(arg));
+                        var dummy = callee.paramToDummy.get(param.second());
+                        var value = toImm(arg);
+                        if (dummy != null) newSF.put(dummy, value);
+                        newSF.put(param.second(), value);
                     }
                     retAddrs.push(it);
                     stackframes.push(oldSF);
@@ -347,9 +351,15 @@ public final class Interpreter extends ModulePass<Void> {
                     }
                 }
                 case Alloca it -> {
-                    var ty = (Type.Array) it.allocatedType;
-                    var array = zeroedDenseArray(ty);
-                    stackframe.put(it, array);
+                    switch (it.allocatedType) {
+                        case Type.Array ty -> {
+                            var array = zeroedDenseArray(ty);
+                            stackframe.put(it, array);
+                        }
+                        default -> {
+                            stackframe.put(it, ImmediateValues.undefined());
+                        }
+                    }
                 }
                 case Load it -> {
                     var addr = it.address.value;
@@ -599,12 +609,12 @@ public final class Interpreter extends ModulePass<Void> {
                     stackframe.put(it, intConst(Float.floatToRawIntBits(it.imm)));
                 }
                 case IMv it -> {
-                    var src = getInt(it.src.value);
-                    stackframe.put(it.dst, intConst(src));
+                    var src = toImm(it.src.value);
+                    stackframe.put(it.dst, src);
                 }
                 case FMv it -> {
-                    var src = getFloat(it.src.value);
-                    stackframe.put(it.dst, floatConst(src));
+                    var src = toImm(it.src.value);
+                    stackframe.put(it.dst, src);
                 }
                 case Instruction.ICpy it -> {
                     stackframe.put(it, toImm(it.src.value));

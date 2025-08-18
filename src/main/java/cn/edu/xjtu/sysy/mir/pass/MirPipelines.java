@@ -2,8 +2,23 @@ package cn.edu.xjtu.sysy.mir.pass;
 
 import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.analysis.*;
-import cn.edu.xjtu.sysy.mir.pass.transform.*;
+import cn.edu.xjtu.sysy.mir.pass.analysis.AliasAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.CallGraphAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.DominanceAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LiveRangeAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.LoopAnalysis;
+import cn.edu.xjtu.sysy.mir.pass.analysis.SCEV;
+import cn.edu.xjtu.sysy.mir.pass.transform.CFGSimplify;
+import cn.edu.xjtu.sysy.mir.pass.transform.ConstFold;
+import cn.edu.xjtu.sysy.mir.pass.transform.DCE;
+import cn.edu.xjtu.sysy.mir.pass.transform.EnterLIR;
+import cn.edu.xjtu.sysy.mir.pass.transform.EnterSSA;
+import cn.edu.xjtu.sysy.mir.pass.transform.ExitSSA;
+import cn.edu.xjtu.sysy.mir.pass.transform.InstCombine;
+import cn.edu.xjtu.sysy.mir.pass.transform.RegisterAllocator;
+import cn.edu.xjtu.sysy.mir.pass.transform.SCCP;
 
 public final class MirPipelines {
 
