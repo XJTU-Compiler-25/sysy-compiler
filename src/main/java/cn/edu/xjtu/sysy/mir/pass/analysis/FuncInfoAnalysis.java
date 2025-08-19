@@ -50,7 +50,7 @@ public final class FuncInfoAnalysis extends ModulePass<FuncInfo> {
                         }
                         case GetElemPtr it -> {
                             // GetElemPtr 指令本身没有副作用，但如果取的是全局变量或者函数参数的地址，则函数不纯
-                            var addr = it.basePtr.value;
+                            var addr = it.getBasePtr();
                             if (addr instanceof GlobalVar || (addr instanceof BlockArgument arg && arg.isParam())) {
                                 pureFunctions.remove(function);
                                 worklist.add(function);

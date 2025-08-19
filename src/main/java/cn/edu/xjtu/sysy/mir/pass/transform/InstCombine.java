@@ -34,7 +34,7 @@ import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 @SuppressWarnings("unchecked")
 public final class InstCombine extends ModulePass<Void> {
 
-    private final InstructionHelper helper = new InstructionHelper();
+    private static final InstructionHelper helper = new InstructionHelper();
 
     @Override
     public void visit(BasicBlock block) {
@@ -92,40 +92,6 @@ public final class InstCombine extends ModulePass<Void> {
                             rUse.replaceValue(intConst(innerRVal + rVal));
                             lUse.replaceValue(innerLhs);
                         }
-                    }
-                }
-            }
-            case GetElemPtr it -> {
-                var base = it.basePtr.value;
-                var indices = it.indices;
-                var indexLen = indices.length;
-                // 合并 GEP
-                if (base instanceof GetElemPtr inner) {
-                    var innerBase = inner.basePtr.value;
-                    var innerIndices = inner.indices;
-                    var innerIndexLen = innerIndices.length;
-                    if (indices[0].value.equals(iZero)) {
-                        // 外层的第一维是 0，则直接在外层的 indices 前面连接内层的 indices
-                        it.basePtr.replaceValue(innerBase);
-                        var newIndices = new Use[innerIndexLen + indexLen - 1];
-                        for (int i = 0; i < innerIndexLen; i++) {
-                            newIndices[i] = it.use(innerIndices[i].value);
-                        }
-                        indices[0].dispose();
-                        if (indexLen > 1) System.arraycopy(indices, 1, newIndices, innerIndexLen, indexLen);
-                        it.indices = newIndices;
-                    } else if (indices[0].value instanceof IntConst firstIndex
-                            && innerIndices[0].value instanceof IntConst innerLastIndex) {
-                        // 外层的第一维不是 0，但内层的最后一维也是常数，则累加该维并连接其余 indices
-                        it.basePtr.replaceValue(innerBase);
-                        var newIndices = new Use[innerIndexLen + indexLen - 1];
-                        for (int i = 0; i < innerIndexLen - 1; i++) {
-                            newIndices[i] = it.use(innerIndices[i].value);
-                        }
-                        newIndices[innerIndexLen - 1] = it.use(intConst(firstIndex.value + innerLastIndex.value));
-                        indices[0].dispose();
-                        if (indexLen > 1) System.arraycopy(indices, 1, newIndices, innerIndexLen, indexLen);
-                        it.indices = newIndices;
                     }
                 }
             }

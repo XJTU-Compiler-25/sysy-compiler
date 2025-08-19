@@ -36,12 +36,26 @@ public final class BasicBlock extends Value {
         return function;
     }
 
+    public int getInstructionCount() {
+        return instructions.size();
+    }
+
     public int indexOf(Instruction instr) {
         return instructions.indexOf(instr);
     }
 
-    public void remove(Instruction instr) {
+    public Instruction getInstruction(int idx) {
+        return instructions.get(idx);
+    }
+
+    public void removeInstruction(Instruction instr) {
         if (instructions.remove(instr)) instr.setBlock(null);
+    }
+
+    public Instruction removeInstruction(int idx) {
+        var instr = instructions.remove(idx);
+        instr.setBlock(null);
+        return instr;
     }
 
     public void insertAtFirst(Instruction instruction) {
@@ -61,6 +75,11 @@ public final class BasicBlock extends Value {
 
     public void setTerminator(Instruction.Terminator terminator) {
         this.terminator = terminator;
+        terminator.setBlock(this);
+    }
+
+    public void removeTerminator() {
+        this.terminator = null;
     }
 
     public Instruction getFirstInstruction() {

@@ -34,6 +34,7 @@ public final class ParamOpt extends ModulePass<Void> {
     }
 
     private void removeDeadParameters(Function func) {
+        var entryArgs = func.entry.args;
         var params = func.params;
         var callSites = callGraph.getCallSitesTo(func);
         for (int i = 0, size = params.size(); i < size; i++) {
@@ -43,6 +44,7 @@ public final class ParamOpt extends ModulePass<Void> {
             if (!param.notUsed()) continue;
 
             params.remove(i);
+            entryArgs.remove(param);
             for (var callSite : callSites) callSite.removeArg(i);
             --i;
             --size;
@@ -50,8 +52,11 @@ public final class ParamOpt extends ModulePass<Void> {
     }
 
     private void inlineConstantParameters(Function func) {
+        var entryArgs = func.entry.args;
         var params = func.params;
         var callSites = callGraph.getCallSitesTo(func);
+        if (callSites.isEmpty()) return;
+
         outer: for (int i = 0, size = params.size(); i < size; i++) {
             var pair = func.params.get(i);
             var param = pair.second();
@@ -67,6 +72,7 @@ public final class ParamOpt extends ModulePass<Void> {
 
             param.replaceAllUsesWith(argVal);
             params.remove(i);
+            entryArgs.remove(param);
             for (var callSite : callSites) callSite.removeArg(i);
             --i;
             --size;

@@ -83,7 +83,7 @@ public final class GCM extends ModulePass<Void> {
 
         var originBB = inst.getBlock();
         if (originBB != targetBB) {
-            originBB.remove(inst);
+            originBB.removeInstruction(inst);
             targetBB.insertAtLast(inst);
         }
     }
@@ -134,12 +134,12 @@ public final class GCM extends ModulePass<Void> {
             if (insertPlace != -1) {
                 int currentPlace = originBB.indexOf(inst);
                 if (currentPlace > insertPlace) {
-                    originBB.remove(inst);
+                    originBB.removeInstruction(inst);
                     originBB.insertAt(insertPlace, inst);
                 }
             } // = -1 的时候放在哪都无所谓，也不用专门插到 last 了
         } else {
-            originBB.remove(inst);
+            originBB.removeInstruction(inst);
             if (insertPlace != -1) bestBB.insertAt(insertPlace, inst);
             else bestBB.insertAtLast(inst);
         }

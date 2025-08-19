@@ -44,7 +44,7 @@ public final class Function extends Value {
     }
 
     public BlockArgument addNewParam(String name, Type type) {
-        var param = entry.addBlockArgument(Types.ptrOf(type));
+        var param = entry.addBlockArgument(type);
         params.add(pair(name, param));
         return param;
     }

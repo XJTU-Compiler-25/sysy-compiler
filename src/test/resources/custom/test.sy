@@ -1,13 +1,3 @@
 
-int main() {
-  int a = getint(), b = getint();
-  int t1 = a + b;
-  int t2 = b + a;
-  float t3 = t1 + 1;
-  float t4 = t2 + 1.0 ;
-  putint(t1);
-  putint(t2);
-  putfloat(t3);
-  putfloat(t4);
-  return 0;
+int main(){
 }

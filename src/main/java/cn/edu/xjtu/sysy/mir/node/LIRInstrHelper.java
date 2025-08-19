@@ -166,8 +166,4 @@ public final class LIRInstrHelper {
         Assertions.requires(-2048 <= imm && imm < 2048, "Immediate incompatible in slti");
         return new Instruction.Slti(block, lhs, imm);
     }
-
-    public Instruction.GetElemPtr getElemPtr(Value basePtr, Value indice) {
-        return new Instruction.GetElemPtr(block, basePtr, new Value[]{indice});
-    }
 }

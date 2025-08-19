@@ -18,6 +18,11 @@ public abstract sealed class Type {
         public String toString() {
             return "void";
         }
+
+        @Override
+        public int hashCode() {
+            return 0;
+        }
     }
 
     public static abstract sealed class Scalar extends Type { }
@@ -29,6 +34,11 @@ public abstract sealed class Type {
         public String toString() {
             return "i32";
         }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
     }
 
     public static final class Float extends Scalar {
@@ -37,6 +47,11 @@ public abstract sealed class Type {
         @Override
         public String toString() {
             return "f32";
+        }
+
+        @Override
+        public int hashCode() {
+            return 2;
         }
     }
 
@@ -58,6 +73,11 @@ public abstract sealed class Type {
         @Override
         public boolean equals(Object obj) {
             return obj instanceof Pointer ptrType && baseType.equals(ptrType.baseType);
+        }
+
+        @Override
+        public int hashCode() {
+            return (31 * baseType.hashCode()) ^ 0xDEADBEEF;
         }
 
         /**
