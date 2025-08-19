@@ -464,7 +464,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String getLabel() {
-            return getCallee().shortName();
+            return getCallee().name;
         }
     }
 
@@ -500,10 +500,15 @@ public abstract sealed class Instruction extends User {
      */
     public static final class Alloca extends Instruction {
         public Type allocatedType;
-
+        public boolean zeroInit;
         Alloca(BasicBlock block, Type type) {
+            this(block, type, false);
+        }
+
+        Alloca(BasicBlock block, Type type, boolean zeroInit) {
             super(block, Types.ptrOf(type));
             this.allocatedType = type;
+            this.zeroInit = zeroInit;
         }
 
         @Override

@@ -152,6 +152,16 @@ public final class InstructionHelper {
         return new Instruction.Alloca(block, type);
     }
 
+    public Instruction.Alloca insertAlloca(Type type, boolean zeroInit) {
+        var instr = alloca(type, zeroInit);
+        insert(instr);
+        return instr;
+    }
+
+    public Instruction.Alloca alloca(Type type, boolean zeroInit) {
+        return new Instruction.Alloca(block, type, zeroInit);
+    }
+
     public Instruction.Load insertLoad(Value from) {
         var instr = load(from);
         insert(instr);

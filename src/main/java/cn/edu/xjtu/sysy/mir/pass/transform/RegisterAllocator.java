@@ -32,7 +32,7 @@ public final class RegisterAllocator extends ModulePass<Void> {
         domInfo = getResult(DominanceAnalysis.class);
         loopInfo = getResult(LoopAnalysis.class);
         liveRangeInfo = getResult(LiveRangeAnalysis.class);
-        ModulePrinter.printModule(module);
+        //ModulePrinter.printModule(module);
         for (var f : module.getFunctions()) allocate(f);
     }
 
@@ -70,12 +70,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
                     if (type == Types.Float) liveOutFloats.add(value);
                     else liveOutInts.add(value);
                 }
-                if (inst.id == 3606) {
-                    System.out.println("id1735:");
-                    System.out.println(liveOutInts.stream().map(v -> v.shortName()).collect(Collectors.joining(", ")));
-                    System.out.println(liveOutSet.stream().map(v -> v.shortName()).collect(Collectors.joining(", ")));
-                    System.out.println(inUse.keySet());
-                }
 
                 var intSpillCount = liveOutInts.size() - usableIntRegCount;
                 if (intSpillCount > 0) liveOutInts.stream()
@@ -102,7 +96,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
                     helper.moveToAfter(instr);
                     var alloca = helper.insertAlloca(type);
                     alloca.position = pos;
-                    helper.insertStore(alloca, value);
                 }
                 case BlockArgument arg -> {
                     var defBlock = arg.block;
@@ -110,7 +103,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
                     helper.moveToHead();
                     var alloca = helper.insertAlloca(type);
                     alloca.position = pos;
-                    helper.insertStore(alloca, value);
                 }
                 default -> unreachable();
             }
@@ -146,16 +138,21 @@ public final class RegisterAllocator extends ModulePass<Void> {
         return spillCost;
     }
 
-    private final HashMap<Register, Value> inUse = new HashMap<>();
+    private final Map<Register, Value> inUse = new HashMap<>();
     private void color() {
         inUse.clear();
         saveCostCache.clear();
 
         // 先序遍历支配树，就能得到冲突图的完美消去序列的倒序，即着色顺序
         for (var block : domInfo.getDFN(currentFunction)) {
+            System.out.println(block.shortName());
             var blockLiveIn = liveRangeInfo.getLiveOut(block.getFirstInstruction());
             for (var v : new ArrayList<>(inUse.values())) {
                 if (!blockLiveIn.contains(v)) {
+                    if (v.id == 51) {
+                        System.out.println(11);
+                        System.out.println(blockLiveIn);
+                    }
                     var pos = v.position;
                     if (pos instanceof Register reg) inUse.remove(reg);
                 }
@@ -166,14 +163,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
                     continue;
                 }
                 if (arg.notUsed()) continue;
-                if (arg.id == 15454) {
-                    System.out.println(block.getFirstInstruction());
-                    arg.usedBy.forEach(use -> System.out.println(use.user));
-                    System.out.println("id542:" + arg.type);
-                    System.out.println(blockLiveIn.stream().filter(v -> v.position instanceof Register)
-                                .map(v -> v.shortName()).collect(Collectors.joining(", ")));
-                    System.out.println(inUse.keySet());
-                }
                 var reg = allocateRegister(arg);
 
                 arg.position = reg;
@@ -185,6 +174,7 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 var liveOut = liveRangeInfo.getLiveOut(inst);
                 for (var v : new ArrayList<>(inUse.values())) {
                     if (!liveIn.contains(v)) {
+                        if (v.id == 51) System.out.println("11!" + inst.toString());
                         var pos = v.position;
                         if (pos instanceof Register reg) inUse.remove(reg);
                     }
@@ -199,12 +189,9 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 // void 类型的指令不产生值，不需要寄存器
                 if (inst.notProducingValue()) continue;
                 if (inst.notUsed()) continue;
-                if (inst.id == 73) {
-                    System.out.println("id542:" + inst.type);
-                    System.out.println(liveIn.stream().filter(v -> v.position instanceof Register)
-                                .map(v -> v.shortName()).collect(Collectors.joining(", ")));
-                    System.out.println(liveOut.stream().filter(v -> v.position instanceof Register)
-                                .map(v -> v.shortName()).collect(Collectors.joining(", ")));
+
+                if (inst.id == 42) {
+                    System.out.println(42);
                     System.out.println(inUse.keySet());
                 }
                 // 需要分配寄存器

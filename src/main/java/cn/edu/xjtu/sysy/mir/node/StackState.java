@@ -11,14 +11,14 @@ public final class StackState {
     public int cursor = 16;
 
     public int allocate(Type type) {
+        System.out.println(type);
         return allocate(sizeOf(type), alignmentOf(type));
     }
 
     public int allocate(int size, int alignment) {
         pad(alignment);
-        var res = cursor;
         cursor += size;
-        return res;
+        return cursor;
     }
 
     public void pad(int alignment) {

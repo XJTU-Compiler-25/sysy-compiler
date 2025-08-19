@@ -57,7 +57,7 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
 
         module.functions.values().forEach(func -> visit(func));
 
-        //ModulePrinter.printModule(module);
+        ModulePrinter.printModule(module);
  
         /*module.functions.values().forEach(func -> {
             cfg.getRPOBlocks(func).forEach(block -> {
@@ -137,8 +137,7 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
     }
 
     protected void flowThrough(BasicBlock block, Set<Value> in) {
-        var instrs = new ArrayList<>(block.instructions.reversed());
-        instrs.addFirst(block.terminator);
+        var instrs = block.getInstructionsAndTerminator().reversed();
         var inFlow = in;
         var outFlow = initial();
         // 按顺序遍历每条指令，进行分析
@@ -159,12 +158,10 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
     public void visit(Function function) {
         var worklist =
                 new Worklist<>(Collections.singleton(Pair.pair(function.epilogue, initial())));
-        HashSet<BasicBlock> visited = new HashSet<>();
         while (!worklist.isEmpty()) {
             var e = worklist.poll();
             var cur = e.first();
             var in = e.second();
-            visited.add(cur);
             boolean changed = meet(cur, in);
             if (changed) {
                 flowThrough(cur);
@@ -172,10 +169,6 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
                     worklist.add(Pair.pair(succ, liveOutBlock.get(cur)));
             }
         }
-        for (var block : function.blocks) {
-            if (!visited.contains(block)) System.out.println(block);
-        }
-        Assertions.requires(visited.size() == function.blocks.size());
     }
 
     /* 

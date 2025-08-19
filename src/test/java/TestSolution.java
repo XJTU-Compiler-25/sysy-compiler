@@ -4,13 +4,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import org.junit.jupiter.api.MethodOrderer;
@@ -22,6 +20,7 @@ import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.AsmCGen;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 
@@ -78,8 +77,10 @@ public final class TestSolution {
                                 System.out.println("Test output: \n" + out);
                                 //Assertions.assertEquals(testOut, out);
                             }
-                            
-                            var riscVCode = Compiler.CompileToRiscV(ast);
+                            var cgen = new AsmCGen();
+                            cgen.process(module);
+                            var riscVCode = cgen.toString();
+                            //var riscVCode = Compiler.CompileToRiscV(ast);
                             var out = new File(f.getParent(), f.getName() + ".s");
                             if (out.exists()) out.delete();
                             try (var output = new FileOutputStream(out)) {

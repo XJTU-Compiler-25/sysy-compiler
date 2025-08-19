@@ -9,13 +9,27 @@ import cn.edu.xjtu.sysy.ast.node.Expr;
 import cn.edu.xjtu.sysy.ast.node.Stmt;
 import cn.edu.xjtu.sysy.error.ErrManaged;
 import cn.edu.xjtu.sysy.error.ErrManager;
-import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.BlockArgument;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.fZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.floatConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iOne;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.intConst;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseArrayOf;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.undefined;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.zeroInit;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.InstructionHelper;
 import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.node.Value;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
-
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-import static cn.edu.xjtu.sysy.util.Assertions.*;
+import static cn.edu.xjtu.sysy.util.Assertions.requires;
+import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
+import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
 
 /**
  * Middle IR Builder
@@ -163,13 +177,25 @@ public final class MirBuilder implements ErrManaged {
                     var indices = new Value[arr.dimensions.length + 1];
                     Arrays.fill(indices, iZero);
                     var decayAll = helper.insertGetElementPtr(address, indices);
-
+                    boolean zeroInit = ((float) init.indexes.size() / (float) arr.elementCount) < 0.1;
+                    address.zeroInit = zeroInit;
                     var indexes = init.indexes;
                     var values = init.elements;
+                    int lastIndex = -1;
                     for (int i = 0, size = init.indexes.size(); i < size; i++) {
                         var value = visit(values.get(i));
-                        var ptr = helper.insertGetElementPtr(decayAll, intConst(indexes.get(i)));
+                        int curIndex = indexes.get(i);
+                        for (int idx = lastIndex + 1; !zeroInit && idx < curIndex; idx++) {
+                            var ptr = helper.insertGetElementPtr(decayAll, intConst(idx));
+                            helper.insertStore(ptr, arr.elementType == Types.Float ? fZero : iZero);
+                        }
+                        var ptr = helper.insertGetElementPtr(decayAll, intConst(curIndex));
                         helper.insertStore(ptr, value);
+                        lastIndex = curIndex;
+                    }
+                    for (int idx = lastIndex + 1; !zeroInit && idx < arr.elementCount; idx++) {
+                        var ptr = helper.insertGetElementPtr(decayAll, intConst(idx));
+                        helper.insertStore(ptr, arr.elementType == Types.Float ? fZero : iZero);
                     }
                 }
             }
