@@ -17,6 +17,7 @@ public final class BlockArgument extends Value {
         else return "%" + id + "[" + position.toString() + "]";
     }
 
+
     public boolean isParam() {
         return block == block.getFunction().entry;
     }

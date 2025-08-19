@@ -24,7 +24,7 @@ public final class ModulePrinter {
 
         var cfg = new CFGAnalysis().process(module);
         for (var function : module.getFunctions()) {
-            sb.append("function ").append(function.name)
+            sb.append("=== Function ").append(function.name)
                     .append('(').append(function.params.stream()
                     .map(p -> p.first() + ": " + p.second().type)
                     .collect(Collectors.joining(", "))).append("):\n(entry = ")
@@ -38,6 +38,7 @@ public final class ModulePrinter {
                 for (var instruction : block.instructions) sb.append(instruction).append('\n');
                 sb.append(block.terminator).append('\n');
             }
+            sb.append("=== Function End ===\n");
         }
 
         sb.append("=== Program End ===\n");

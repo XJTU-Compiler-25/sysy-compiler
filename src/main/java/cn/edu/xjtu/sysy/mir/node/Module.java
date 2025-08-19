@@ -7,11 +7,12 @@ import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 public final class Module {
     public final HashMap<String, GlobalVar> globalVars = new HashMap<>();
     public final HashMap<GlobalVar, ImmediateValue> globalVarInitValues = new HashMap<>();
-    public final HashMap<String, Function> functions = new HashMap<>();
+    public final LinkedHashMap<String, Function> functions = new LinkedHashMap<>();
 
     public Function main;
 

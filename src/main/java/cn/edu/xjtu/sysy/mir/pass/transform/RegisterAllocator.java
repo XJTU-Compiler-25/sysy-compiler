@@ -58,10 +58,10 @@ public final class RegisterAllocator extends ModulePass<Void> {
         var needToSpill = new HashSet<Value>();
         for (var block : domInfo.getDFN(currentFunction)) {
             for (var inst : originalInstructions.get(block)) {
-                var liveOut = liveRangeInfo.getLiveOut(inst);
-                Assertions.requires(liveOut != null, "liveOut is null: %s".formatted(inst));
-                var liveOutSet = new ArrayList<>(liveOut);
-                liveOutSet.sort(Comparator.comparing(it -> it.id));
+
+                var liveOutSet = new ArrayList<>(liveRangeInfo.getLiveOut(inst));
+                liveOutSet.sort(Comparator.comparingInt(it -> it.id));
+
                 var liveOutInts = new ArrayList<Value>();
                 var liveOutFloats = new ArrayList<Value>();
                 for (var value : liveOutSet) {

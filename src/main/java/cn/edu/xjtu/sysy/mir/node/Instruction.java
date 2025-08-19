@@ -287,18 +287,18 @@ public abstract sealed class Instruction extends User {
             return List.of(getTrueTarget(), getFalseTarget());
         }
 
-        public void replaceTrueTarget(BasicBlock newTarget) {
+        public void setTrueTarget(BasicBlock newTarget) {
             trueTarget.replaceValue(newTarget);
         }
 
-        public void replaceFalseTarget(BasicBlock newTarget) {
+        public void setFalseTarget(BasicBlock newTarget) {
             falseTarget.replaceValue(newTarget);
         }
 
         @Override
         public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
-            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
-            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
+            if (oldTarget == trueTarget.value) setTrueTarget(newTarget);
+            if (oldTarget == falseTarget.value) setFalseTarget(newTarget);
         }
 
         public void putTrueParam(BlockArgument arg, Value value) {
@@ -308,7 +308,7 @@ public abstract sealed class Instruction extends User {
         }
 
         public void putFalseParam(BlockArgument arg, Value value) {
-            var use = trueParams.get(arg);
+            var use = falseParams.get(arg);
             if (use == null) falseParams.put(arg, use(value));
             else use.replaceValue(value);
         }
@@ -418,6 +418,10 @@ public abstract sealed class Instruction extends User {
             super(block, type);
             var argLen = args.length;
             for (var arg : args) this.args.add(use(arg));
+        }
+
+        public List<Value> getArgs() {
+            return args.stream().map(it -> it.value).toList();
         }
 
         public Value getArg(int index) {
@@ -567,8 +571,8 @@ public abstract sealed class Instruction extends User {
      * 举例：getelemptr [Any x 20 x i32], n = [20 x i32]
      */
     public static final class GetElemPtr extends Instruction {
-        public Use basePtr;
-        public Use[] indices;
+        private final Use basePtr;
+        private final ArrayList<Use> indices;
 
         GetElemPtr(BasicBlock block, Value basePtr, Value[] indices) {
             super(block, switch (basePtr.type) {
@@ -581,14 +585,51 @@ public abstract sealed class Instruction extends User {
             });
             this.basePtr = use(basePtr);
             var indexCount = indices.length;
-            this.indices = new Use[indexCount];
-            for (int i = 0; i < indexCount; i++) this.indices[i] = use(indices[i]);
+            this.indices = new ArrayList<>();
+            for (var index : indices) addIndex(index);
         }
 
         @Override
         public String toString() {
             return shortName() + " = getelemptr base " + basePtr.value.shortName() + ", indices " +
-                    Arrays.stream(indices).map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+                    indices.stream().map(v -> v.value.shortName()).collect(Collectors.joining(", "));
+        }
+
+        public Value getBasePtr() {
+            return basePtr.value;
+        }
+
+        public void setBasePtr(Value basePtr) {
+            this.basePtr.replaceValue(basePtr);
+        }
+
+        public List<Value> getIndices() {
+            return indices.stream().map(v -> v.value).collect(Collectors.toList());
+        }
+
+        public Value getIndex(int idx) {
+            return indices.get(idx).value;
+        }
+
+        public void addIndex(Value index) {
+            indices.add(use(index));
+        }
+
+        public void addIndex(int idx, Value index) {
+            indices.add(idx, use(index));
+        }
+
+        public void setIndex(int idx, Value index) {
+            indices.get(idx).replaceValue(index);
+        }
+
+        public void removeIndex(int idx) {
+            var use = indices.remove(idx);
+            if (use != null) use.dispose();
+        }
+
+        public int getIndexCount() {
+            return indices.size();
         }
     }
 

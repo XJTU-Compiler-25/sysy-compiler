@@ -60,6 +60,7 @@ public final class SCCP extends ModulePass<Void> {
     }
 
     private LatticeValue getLattice(Value value) {
+        if (value instanceof ImmediateValue.Undefined) return TOP;
         if (value instanceof ImmediateValue imm) return new LatticeValue(imm);
         return latCells.computeIfAbsent(value, _ -> TOP);
     }
@@ -103,7 +104,8 @@ public final class SCCP extends ModulePass<Void> {
                 }
 
                 // 如果本来不在 exe bb 里面，就进行处理并加到 exe bb 里面
-                if (executable.add(toBlock)) {
+                if (!executable.contains(toBlock)) {
+                    executable.add(toBlock);
                     for (var instr : toBlock.instructions) modified |= visitInstruction(instr);
                     modified |= visitTerminator(toBlock.terminator);
                 }
@@ -134,7 +136,7 @@ public final class SCCP extends ModulePass<Void> {
     private LatticeValue fold(Instruction inst) {
         switch (inst) {
             // 不能被折叠的指令
-            case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _, 
+            case Alloca _, Load _, Store _, GetElemPtr _, Call _, CallExternal _,
                 Dummy _, Imm _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _ -> {
                 return BOT;
             }
@@ -576,10 +578,7 @@ public final class SCCP extends ModulePass<Void> {
 
             for (var arg : block.args) {
                 var lat = getLattice(arg);
-                if (lat.isConst()) {
-                    for (var term : CFGAnalysis.getPredTermsOf(block)) term.removeParam(block, arg);
-                    arg.replaceAllUsesWith(lat.value);
-                }
+                if (lat.isConst()) arg.replaceAllUsesWith(lat.value);
             }
 
             // 如果是常量，则直接替换

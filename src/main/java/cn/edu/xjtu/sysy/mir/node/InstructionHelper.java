@@ -1,5 +1,6 @@
 package cn.edu.xjtu.sysy.mir.node;
 
+import cn.edu.xjtu.sysy.symbol.BuiltinFunction;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
@@ -121,10 +122,20 @@ public final class InstructionHelper {
         return new Instruction.Call(block, func, args);
     }
 
+    public Instruction.CallExternal insertCallBuiltin(BuiltinFunction function, Value... args) {
+        var instr = callBuiltin(function, args);
+        insert(instr);
+        return instr;
+    }
+
     public Instruction.CallExternal insertCallBuiltin(String name, Value... args) {
         var instr = callBuiltin(name, args);
         insert(instr);
         return instr;
+    }
+
+    public Instruction.CallExternal callBuiltin(BuiltinFunction function, Value... args) {
+        return new Instruction.CallExternal(block, function, args);
     }
 
     public Instruction.CallExternal callBuiltin(String name, Value... args) {
