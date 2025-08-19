@@ -2,6 +2,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -62,7 +63,6 @@ public class Compiler {
             em.printErrs();
             return;
         }
-        System.out.println(mir);
         if (false) {
              System.out.println("Interpreting test...");
             var testInFile = new File(input.substring(0, input.length() - 3) + ".in");
@@ -78,7 +78,16 @@ public class Compiler {
 
         var cgen = new AsmCGen();
         cgen.process(mir);
-        System.out.println(cgen.toString());
+        var riscVCode = cgen.toString();
+        System.out.println(riscVCode);
+        File out = new File(output);
+        if (out.exists()) {
+            out.delete();
+        }
+        try (var outStream = new FileOutputStream(out)) {
+            outStream.write(riscVCode.getBytes());
+            outStream.close();
+        }
         /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);

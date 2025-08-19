@@ -1,14 +1,65 @@
 package cn.edu.xjtu.sysy.riscv.node;
 
 import cn.edu.xjtu.sysy.mir.node.Value;
-import cn.edu.xjtu.sysy.riscv.node.Instr.*;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.*;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Auipc;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Branch;
+import cn.edu.xjtu.sysy.riscv.node.Instr.BranchZ;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Call;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Ecall;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FBinary;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FComp;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FMulAdd;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FUnary;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Fclass;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FloatCvt;
+import cn.edu.xjtu.sysy.riscv.node.Instr.FloatIntMv;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Flw;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Fsw;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Imm;
+import cn.edu.xjtu.sysy.riscv.node.Instr.IntCvt;
+import cn.edu.xjtu.sysy.riscv.node.Instr.IntFloatMv;
+import cn.edu.xjtu.sysy.riscv.node.Instr.J;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Jal;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Jalr;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Jr;
+import cn.edu.xjtu.sysy.riscv.node.Instr.La;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Li;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Load;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Lui;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Reg;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.ADD;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.ADDW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.AND;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.DIV;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.DIVU;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.DIVUW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.DIVW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.MUL;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.MULH;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.MULHSU;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.MULHU;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.MULW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.OR;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.REM;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.REMU;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.REMUW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.REMW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SLL;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SLLW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SLT;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SLTU;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SRA;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SRAW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SRL;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SRLW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SUB;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.SUBW;
+import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.XOR;
+import cn.edu.xjtu.sysy.riscv.node.Instr.RegZ;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Ret;
+import cn.edu.xjtu.sysy.riscv.node.Instr.Store;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 @SuppressWarnings({"unused"})
@@ -22,6 +73,10 @@ public final class AsmWriter {
 
     public MachineBasicBlock getBlock() {
         return instrs;
+    }
+
+    public Register.Int getFP(boolean isArgument) {
+        return isArgument ? Register.Int.SP : Register.Int.FP;
     }
 
     private AsmWriter reg(Reg.Op op, Register.Int rd, Register.Int rs1, Register.Int rs2) {
@@ -497,9 +552,9 @@ public final class AsmWriter {
             case Register.Int rd -> { 
                 instrs.add(new Reg(op, rd, rs1, rs2));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Reg(op, Register.Int.T0, rs1, rs2));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -512,9 +567,9 @@ public final class AsmWriter {
             case Register.Int rd -> { 
                 instrs.add(new Reg(op, rd, rs1, rs2));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Reg(op, Register.Int.T0, rs1, rs2));
-                sd(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sd(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -639,9 +694,9 @@ public final class AsmWriter {
             case Register.Int rd -> { 
                 instrs.add(new RegZ(op, rd, rs1));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new RegZ(op, Register.Int.T0, rs1));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -683,9 +738,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new FUnary(op, dst, rs1));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FUnary(op, Register.Float.FT0, rs1));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -715,9 +770,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new Fclass(dst, rs1));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Fclass(Register.Int.T0, rs1));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -731,9 +786,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new FBinary(op, dst, rs1, rs2));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FBinary(op, Register.Float.FT0, rs1, rs2));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -783,9 +838,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new FComp(op, dst, rs1, rs2));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FComp(op, Register.Int.T0, rs1, rs2));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -815,9 +870,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new FMulAdd(op, dst, rs1, rs2, rs3));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FMulAdd(op, Register.Float.FT0, rs1, rs2, rs3));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -850,9 +905,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new FloatCvt(op, dst, rs));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FloatCvt(op, Register.Int.T0, rs));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -881,9 +936,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new FloatIntMv(dst, rs));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new FloatIntMv(Register.Int.T0, rs));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -896,9 +951,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new IntCvt(op, dst, rs));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new IntCvt(op, Register.Float.FT0, rs));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -927,9 +982,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new IntFloatMv(dst, rs));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new IntFloatMv(Register.Float.FT0, rs));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -942,9 +997,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new Imm(op, dst, rs, imm));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Imm(op, Register.Int.T0, rs, imm));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -1009,9 +1064,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 instrs.add(new Load(op, dst, rs, imm));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Load(op, Register.Int.T0, rs, imm));
-                sw(Register.Int.T0, Register.Int.FP, offset, Register.Int.T1);
+                sw(Register.Int.T0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -1081,9 +1136,9 @@ public final class AsmWriter {
             case Register.Float dst -> { 
                 instrs.add(new Flw(dst, rs, imm));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new Flw(Register.Float.FT0, rs, imm));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -1303,9 +1358,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 li(dst, imm);
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 li(Register.Int.T0, imm);
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }
@@ -1318,9 +1373,9 @@ public final class AsmWriter {
             case Register.Int dst -> { 
                 li(dst, Float.floatToRawIntBits(imm));
             }
-            case StackPosition(int offset) -> {
+            case StackPosition(int offset, boolean isArgument) -> {
                 li(Register.Int.T0, Float.floatToRawIntBits(imm));
-                fsw(Register.Float.FT0, Register.Int.FP, offset, Register.Int.T1);
+                fsw(Register.Float.FT0, getFP(isArgument), offset, Register.Int.T1);
             }
             default -> unreachable();
         }

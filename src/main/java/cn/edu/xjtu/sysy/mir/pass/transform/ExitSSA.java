@@ -9,6 +9,7 @@ import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,11 +59,12 @@ public final class ExitSSA extends ModulePass<Void> {
             hp1.changeBlock(mid);
             hp1.insertJmp(to);
             HashMap<BlockArgument, Value> args = new HashMap<>();
-            to.args.forEach(arg -> {
+            for (var arg : to.args) {
                 var fromVal = from.terminator.getParam(to, arg);
+                if (fromVal == null) continue;
                 args.put(arg, fromVal);
                 from.terminator.removeParam(to, arg);
-            });
+            }
             from.terminator.replaceTarget(to, mid);
             args.forEach((arg, val) -> {
                 mid.terminator.putParam(to, arg, val);

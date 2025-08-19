@@ -1,15 +1,14 @@
 package cn.edu.xjtu.sysy.mir.node;
 
 import cn.edu.xjtu.sysy.symbol.Type;
-import cn.edu.xjtu.sysy.util.MathUtils;
-
 import static cn.edu.xjtu.sysy.symbol.Types.alignmentOf;
 import static cn.edu.xjtu.sysy.symbol.Types.sizeOf;
+import cn.edu.xjtu.sysy.util.MathUtils;
 
 public final class StackState {
     StackState() { }
 
-    public int cursor = 0;
+    public int cursor = 16;
 
     public int allocate(Type type) {
         return allocate(sizeOf(type), alignmentOf(type));

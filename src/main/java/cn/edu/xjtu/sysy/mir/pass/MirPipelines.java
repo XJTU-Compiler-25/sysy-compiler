@@ -36,6 +36,7 @@ public final class MirPipelines {
                     DCE::new,
                     LoopCanonicalize::new,
                     SCCP::new,
+                    DCE::new,
                     CFGSimplify::new,
                     EnterLIR::new,
                     //LIRInstCombine::new,

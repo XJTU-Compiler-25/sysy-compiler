@@ -9,7 +9,6 @@ import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
 import cn.edu.xjtu.sysy.mir.node.GlobalVar;
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
-import cn.edu.xjtu.sysy.mir.node.ImmediateValues;
 import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.AShr;
 import cn.edu.xjtu.sysy.mir.node.Instruction.AbstractBr;
@@ -100,11 +99,11 @@ public class AsmCGen extends ModulePass<Void> {
         globals.clear();
         var initVals = module.globalVarInitValues;
         module.getGlobalVars().forEach(var -> {
-            var globl = new Global(var.shortName(), var.varType, initVals.get(var));
+            var globl = new Global("$" + var.name, var.varType, initVals.get(var));
             globals.put(var, globl);
         });
         module.getFunctions().forEach(func -> {
-            var rvFunc = new MachineFunc(func.shortName(), func.funcType);
+            var rvFunc = new MachineFunc(func.name, func.funcType);
             functions.put(func, rvFunc);
             curFunc = rvFunc;
             visit(func);
@@ -136,11 +135,20 @@ public class AsmCGen extends ModulePass<Void> {
             curFunc.addBlock(machineBlock);
             asm.changeBlock(machineBlock);
             nextBlock = worklist.isEmpty() ? function.epilogue : worklist.peek();
+            if (block == function.entry) {
+                asm.addi(Register.Int.SP, Register.Int.SP, -function.stackState.cursor, ValueUtils.intScratchReg);
+                asm.sd(Register.Int.FP, Register.Int.SP, function.stackState.cursor, ValueUtils.intScratchReg);
+                asm.sd(Register.Int.RA, Register.Int.SP, function.stackState.cursor - 8, ValueUtils.intScratchReg);
+                asm.addi(Register.Int.FP, Register.Int.SP, function.stackState.cursor, ValueUtils.intScratchReg);
+            }
             visit(block);
         }
         var machineBlock = new MachineBasicBlock(function.epilogue.shortName());
         curFunc.addBlock(machineBlock);
         asm.changeBlock(machineBlock);
+        asm.ld(Register.Int.RA, Register.Int.FP, -8);
+        asm.ld(Register.Int.FP, Register.Int.FP, 0);
+        asm.addi(Register.Int.SP, Register.Int.SP, function.stackState.cursor, ValueUtils.intScratchReg);
         nextBlock = null;
         visit(function.epilogue);
     }
@@ -151,11 +159,15 @@ public class AsmCGen extends ModulePass<Void> {
         visit(block.terminator);
     }
 
+    private Register.Int getFP(boolean isArgument) {
+        return isArgument ? Int.SP : Int.FP;
+    }
+
     private Register.Int getAddr(Value value, Register.Int ret, Register.Int tmp1, Register.Int tmp2) {
         Assertions.requires(value.type instanceof Type.Pointer);
         return switch (value) {
             case GlobalVar it -> {
-                asm.la(ret, it.name);
+                asm.la(ret, "$" + it.name);
                 yield ret;
             }
             case Instruction.GetElemPtr it -> {
@@ -188,8 +200,8 @@ public class AsmCGen extends ModulePass<Void> {
             default -> {
                 yield switch(value.position) {
                     case Register.Int r -> r;
-                    case StackPosition(int offset) -> {
-                        asm.ld(ret, Int.FP, offset);
+                    case StackPosition(int offset, boolean isArgument) -> {
+                        asm.ld(ret, getFP(isArgument), offset);
                         yield ret;
                     }
                     default -> unreachable();
@@ -207,15 +219,15 @@ public class AsmCGen extends ModulePass<Void> {
                 yield ret;
             }
             case GlobalVar it -> {
-                asm.la(ret, it.shortName());
+                asm.la(ret, "$" + it.name);
                 asm.lw(ret, Int.FP, 0);
                 yield ret;
             }
             default -> {
                 yield switch(value.position) {
                     case Register.Int r -> r;
-                    case StackPosition(int offset) -> {
-                        asm.lw(ret, Int.FP, offset);
+                    case StackPosition(int offset, boolean isArgument) -> {
+                        asm.lw(ret, getFP(isArgument), offset);
                         yield ret;
                     }
                     default -> unreachable();
@@ -233,7 +245,7 @@ public class AsmCGen extends ModulePass<Void> {
                 yield ret;
             }
             case GlobalVar it -> {
-                asm .la(ret, it.shortName())
+                asm .la(ret, "$" + it.name)
                     .lw(ret, ret, 0);
                 yield ret;
             }
@@ -243,8 +255,8 @@ public class AsmCGen extends ModulePass<Void> {
                         asm.fmv_x_w(ret, r);
                         yield ret;
                     }
-                    case StackPosition(int offset) -> {
-                        asm.lw(ret, Int.FP, offset);
+                    case StackPosition(int offset, boolean isArgument) -> {
+                        asm.lw(ret, getFP(isArgument), offset);
                         yield ret;
                     }
                     default -> unreachable();
@@ -263,15 +275,15 @@ public class AsmCGen extends ModulePass<Void> {
                 yield ret;
             }
             case GlobalVar it -> {
-                asm .la(tmp, it.shortName())
+                asm .la(tmp, "$" + it.name)
                     .flw(ret, tmp, 0);
                 yield ret;
             }
             default -> {
                 yield switch(value.position) {
                     case Register.Float r -> r;
-                    case StackPosition(int offset) -> {
-                        asm.flw(ret, Int.FP, offset);
+                    case StackPosition(int offset, boolean isArgument) -> {
+                        asm.flw(ret, getFP(isArgument), offset);
                         yield ret;
                     }
                     default -> unreachable();
@@ -314,11 +326,13 @@ public class AsmCGen extends ModulePass<Void> {
                 }
                 asm.ret();
             }
-            case RetV it -> {
+            case RetV _ -> {
+                asm.mv(Register.Int.A0, Register.Int.ZERO);
                 asm.ret();
             }
             case Jmp it -> {
-                if (nextBlock != it.getTarget()) asm.j(it.getTarget().shortName());
+                //if (nextBlock != it.getTarget()) 
+                    asm.j(it.getTarget().shortName());
             }
             case Br it -> {
                 var condition = it.getCondition();
@@ -363,8 +377,8 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.bge(lhs, rhs, it.getTrueTarget().shortName());
             }
             case Alloca it -> {
-                var position = (StackPosition) it.position;
-                asm.setzero(position.offset(), Types.sizeOf(it.allocatedType), ValueUtils.intScratchReg);
+                //var position = (StackPosition) it.position;
+                //asm.setzero(position.offset(), Types.sizeOf(it.allocatedType), ValueUtils.intScratchReg);
             }
             case Load it -> {
                 var addr = getAddr(it.getAddress(), ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
@@ -485,13 +499,13 @@ public class AsmCGen extends ModulePass<Void> {
                 var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(ValueUtils.intScratchReg, lhs, rhs)
-                    .snez(it, ValueUtils.intScratchReg);
+                    .seqz(it, ValueUtils.intScratchReg);
             }
             case ILe it -> {
                 var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
                 var rhs = getInt(it.getRhs(), ValueUtils.spillIntReg2);
                 asm .slt(ValueUtils.intScratchReg, rhs, lhs)
-                    .snez(it, ValueUtils.intScratchReg);
+                    .seqz(it, ValueUtils.intScratchReg);
             }
             case IGt it -> {
                 var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg);
@@ -578,7 +592,7 @@ public class AsmCGen extends ModulePass<Void> {
             }
             case Not it -> {
                 var lhs = getInt(it.getOperand(), ValueUtils.spillIntReg);
-                asm.snez(it, lhs);
+                asm.seqz(it, lhs);
             }
 
             // intrinsic
