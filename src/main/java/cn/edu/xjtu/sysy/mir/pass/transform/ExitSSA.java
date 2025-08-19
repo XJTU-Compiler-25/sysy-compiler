@@ -1,10 +1,7 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
-import java.lang.reflect.Array;
-
 import cn.edu.xjtu.sysy.mir.node.*;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
-import cn.edu.xjtu.sysy.mir.pass.analysis.CFGAnalysis;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
@@ -22,53 +19,15 @@ import static cn.edu.xjtu.sysy.riscv.ValueUtils.phiElimIntReg;
 // phi elimination pass
 public final class ExitSSA extends ModulePass<Void> {
 
-    private static final InstructionHelper hp1 = new InstructionHelper();
-    private static final LIRInstrHelper hp2 = new LIRInstrHelper();
+    private static final LIRInstrHelper helper = new LIRInstrHelper();
 
     private Function currentFunction;
     @Override
     public void visit(Function function) {
         currentFunction = function;
-
-        splitCriticalEdges();
         removePhi();
     }
 
-    private void splitCriticalEdges() {
-        for (var block : new ArrayList<>(currentFunction.blocks)) {
-            var terminator = block.terminator;
-            switch (terminator) {
-                case Instruction.AbstractBr br -> {
-                    splitEdge(block, br.getTrueTarget());
-                    splitEdge(block, br.getFalseTarget());
-                }
-                case Instruction.Jmp jmp -> splitEdge(block, jmp.getTarget());
-                default -> { }
-            }
-        }
-    }
-
-    private void splitEdge(BasicBlock from, BasicBlock to) {
-        // 关键边条件：from 有多个 successor 且 to 有多个 predecessor
-        if (CFGAnalysis.getSuccBlocksOf(from).size() > 1 && CFGAnalysis.getPredBlocksOf(to).size() > 1) {
-            // 插入中间空块
-            var mid = new BasicBlock(currentFunction);
-            currentFunction.addBlock(mid);
-            // 调整 CFG
-            hp1.changeBlock(mid);
-            hp1.insertJmp(to);
-            HashMap<BlockArgument, Value> args = new HashMap<>();
-            to.args.forEach(arg -> {
-                var fromVal = from.terminator.getParam(to, arg);
-                args.put(arg, fromVal);
-                from.terminator.removeParam(to, arg);
-            });
-            from.terminator.replaceTarget(to, mid);
-            args.forEach((arg, val) -> {
-                mid.terminator.putParam(to, arg, val);
-            });
-        }
-    }
 
     private void removePhi() {
         // 先实现将 call conv 传递到 entry args
@@ -93,7 +52,7 @@ public final class ExitSSA extends ModulePass<Void> {
     private void processEntryArgs() {
         var stackState = currentFunction.stackState;
         var entry = currentFunction.entry;
-        hp2.changeBlock(entry);
+        helper.changeBlock(entry);
 
         var entryParams = entry.args;
         var intParams = new ArrayList<BlockArgument>();
@@ -108,15 +67,15 @@ public final class ExitSSA extends ModulePass<Void> {
             var type = param.type;
             if (i < 8) {
                 var reg = Register.A(i);
-                var dummy = hp2.dummyDef(type);
+                var dummy = helper.dummyDef(type);
                 dummy.position = reg;
-                var mv = hp2.imv(param, dummy);
+                var mv = helper.imv(param, dummy);
                 entry.insertAtFirst(mv);
                 currentFunction.paramToDummy.put(param, dummy);
             } else {
-                var dummy = hp2.dummyDef(type);
+                var dummy = helper.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
-                var load = hp2.imv(param, dummy);
+                var load = helper.imv(param, dummy);
                 entry.insertAtFirst(load);
                 currentFunction.paramToDummy.put(param, dummy);
             }
@@ -126,15 +85,15 @@ public final class ExitSSA extends ModulePass<Void> {
             var type = param.type;
             if (i < 8) {
                 var reg = Register.FA(i);
-                var dummy = hp2.dummyDef(type);
+                var dummy = helper.dummyDef(type);
                 dummy.position = reg;
-                var mv = hp2.fmv(param, dummy);
+                var mv = helper.fmv(param, dummy);
                 entry.insertAtFirst(mv);
                 currentFunction.paramToDummy.put(param, dummy);
             } else {
-                var dummy = hp2.dummyDef(type);
+                var dummy = helper.dummyDef(type);
                 dummy.position = new StackPosition(stackState.allocate(type));
-                var load = hp2.fmv(param, dummy);
+                var load = helper.fmv(param, dummy);
                 entry.insertAtFirst(load);
                 currentFunction.paramToDummy.put(param, dummy);
             }
@@ -143,7 +102,7 @@ public final class ExitSSA extends ModulePass<Void> {
 
     private void processBranchPhiFromLast(BasicBlock self, Map<BlockArgument, Use> params) {
         if (params.isEmpty()) return;
-        hp2.changeBlock(self);
+        helper.changeBlock(self);
 
         ArrayList<Instruction> moves = new ArrayList<>();
 
@@ -194,7 +153,7 @@ public final class ExitSSA extends ModulePass<Void> {
 
     private void processBranchPhiFromFirst(BasicBlock target, Map<BlockArgument, Use> params) {
         if (params.isEmpty()) return;
-        hp2.changeBlock(target);
+        helper.changeBlock(target);
 
         ArrayList<Instruction> moves = new ArrayList<>();
 
@@ -260,7 +219,7 @@ public final class ExitSSA extends ModulePass<Void> {
                 if (idx != -1) {
                     var cycle = path.subList(idx, path.size());
                     if (tmp == null) {
-                        tmp = hp2.dummyDef(cur.type);
+                        tmp = helper.dummyDef(cur.type);
                         tmp.position = isInt ? phiElimIntReg : phiElimFloatReg;
                         instrs.addFirst(tmp);
                     }
@@ -280,7 +239,7 @@ public final class ExitSSA extends ModulePass<Void> {
                                 HashMap<Value, Value> map, boolean isInt) {
         for (int i = 0; i < route.size() - 1; i++) {
             var dst = route.get(i);
-            moves.add(isInt ? hp2.imv(dst, map.get(dst)) : hp2.fmv(dst, map.get(dst)));
+            moves.add(isInt ? helper.imv(dst, map.get(dst)) : helper.fmv(dst, map.get(dst)));
         }
     }
 
@@ -288,16 +247,16 @@ public final class ExitSSA extends ModulePass<Void> {
                                 HashMap<Value, Value> map, Value tmp, boolean isInt) {
         if (route.size() == 1) {
             // 自环
-            moves.add(isInt ? hp2.imv(route.getFirst(), map.get(route.getFirst()))
-                            : hp2.fmv(route.getFirst(), map.get(route.getFirst())));
+            moves.add(isInt ? helper.imv(route.getFirst(), map.get(route.getFirst()))
+                            : helper.fmv(route.getFirst(), map.get(route.getFirst())));
             return;
         }
-        moves.add(isInt ? hp2.imv(tmp, map.get(route.getFirst()))
-                        : hp2.fmv(tmp, map.get(route.getFirst())));
+        moves.add(isInt ? helper.imv(tmp, map.get(route.getFirst()))
+                        : helper.fmv(tmp, map.get(route.getFirst())));
         for (int i = 0; i < route.size() - 1; i++) {
             var dst = route.get(i);
-            moves.add(isInt ? hp2.imv(dst, map.get(dst)) : hp2.fmv(dst, map.get(dst)));
+            moves.add(isInt ? helper.imv(dst, map.get(dst)) : helper.fmv(dst, map.get(dst)));
         }
-        moves.add(isInt ? hp2.imv(route.getLast(), tmp) : hp2.fmv(route.getLast(), tmp));
+        moves.add(isInt ? helper.imv(route.getLast(), tmp) : helper.fmv(route.getLast(), tmp));
     }
 }

@@ -24,7 +24,10 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, Function, 
     /**
      * 浅的字符串表示，如指令只返回其 label，只有数字字面量完全返回其表示
      */
-    public abstract String shortName();
+    public String shortName() {
+        if (position == null) return "%" + id;
+        else return "%" + id + "(" + position + ")";
+    }
 
     @Override
     public String toString() {
