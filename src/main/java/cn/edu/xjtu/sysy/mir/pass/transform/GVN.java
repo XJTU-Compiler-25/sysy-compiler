@@ -11,7 +11,6 @@ import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -37,7 +36,11 @@ public final class GVN extends ModulePass<Void> {
             int[] operands
     ) {
         private static GVNKey of(Instruction inst) {
-            var operands = inst.used.stream().mapToInt(it -> it.value.id).toArray();
+            var operands = inst.usedList.stream().mapToInt(it -> switch (it.value) {
+                case ImmediateValue.IntConst c -> c.value;
+                case ImmediateValue.FloatConst c -> Float.floatToIntBits(c.value);
+                case Value v -> v.id;
+            }).toArray();
             // 如果可交换，则 sort operand
             switch (inst) {
                 case IAdd _, FAdd _, IMul _, FMul _,

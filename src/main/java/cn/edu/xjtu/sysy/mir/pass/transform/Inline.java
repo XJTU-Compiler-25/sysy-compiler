@@ -13,7 +13,7 @@ public final class Inline extends ModulePass<Void> {
 
     private static final InstructionHelper helper = new InstructionHelper();
     // 被内联的函数的指令条数上限
-    private static final int INLINE_THRESHOLD = 600;
+    private static final int INLINE_THRESHOLD = 1600;
 
     private FuncInfo funcInfo;
     private final HashSet<Function> inlineCandidate = new HashSet<>();
@@ -33,7 +33,7 @@ public final class Inline extends ModulePass<Void> {
         inlineCandidate.clear();
         for (var function : functions) {
             if (funcInfo.isRecursive(function)) continue;
-            if (function.getAllInstructions().size() > INLINE_THRESHOLD) continue;
+            // if (function.getAllInstructions().size() > INLINE_THRESHOLD) continue;
             inlineCandidate.add(function);
         }
     }
@@ -42,11 +42,13 @@ public final class Inline extends ModulePass<Void> {
         var modified = false;
         do {
             modified = false;
-            for (var block : function.blocks) modified |= processBlock(block);
+            for (var block : new HashSet<>(function.blocks)) modified |= processBlock(block);
         } while (modified);
         return modified;
     }
 
+    private BasicBlock callBB;
+    private BasicBlock retBB;
     private boolean processBlock(BasicBlock block) {
         var modified = false;
         for (var inst : new ArrayList<>(block.instructions)) {
@@ -55,7 +57,8 @@ public final class Inline extends ModulePass<Void> {
                 if (!inlineCandidate.contains(callee)) continue; // 没有被选择为内联对象
                 if (callee == block.getFunction()) continue; // 递归调用不内联
 
-                splitBlock(block, call);
+                callBB = block;
+                splitBlock(call);
                 cloneFunction(call);
                 modified = true;
             }
@@ -64,11 +67,13 @@ public final class Inline extends ModulePass<Void> {
     }
 
     // 以 call 指令为界，将剩余指令移动到新块，并转接控制流关系
-    private void splitBlock(BasicBlock block, Instruction.Call call) {
+    private void splitBlock(Instruction.Call call) {
+        var block = callBB;
         var function = block.getFunction();
         var newBlock = new BasicBlock(function);
         function.addBlock(newBlock);
 
+        var idx = block.indexOf(call);
         block.instructions.remove(call);
         newBlock.instructions.add(call);
     }

@@ -158,14 +158,14 @@ public class AsmCGen extends ModulePass<Void> {
                 yield ret;
             }
             case Instruction.GetElemPtr it -> {
-                var bv = it.basePtr.value;
+                var bv = it.getBasePtr();
                 var base = getAddr(bv, ret, tmp1, tmp2);
                 var strides = Types.strides(bv.type);
-                var indices = it.indices;
+                var indices = it.getIndices();
                 int offset = 0;
                 boolean init = true;
-                for (int i = 0, len = indices.length; i < len; i++) {
-                    if (indices[i].value instanceof ImmediateValue.IntConst ic) {
+                for (int i = 0, len = it.getIndexCount(); i < len; i++) {
+                    if (it.getIndex(i) instanceof ImmediateValue.IntConst ic) {
                         offset += ic.value * strides[i];
                         continue;
                     }
@@ -174,7 +174,7 @@ public class AsmCGen extends ModulePass<Void> {
                         asm.addi(base, base, offset * 4, tmp1);
                         continue;
                     }
-                    var now = getInt(indices[i].value, tmp1);
+                    var now = getInt(it.getIndex(i), tmp1);
                     asm.li(tmp2, strides[i] * 4);
                     asm.mul(now, now, tmp2);
                     asm.add(base, base, now);
