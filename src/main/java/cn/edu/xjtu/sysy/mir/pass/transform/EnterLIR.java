@@ -1,15 +1,21 @@
 package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
-import cn.edu.xjtu.sysy.mir.node.*;
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
 import cn.edu.xjtu.sysy.mir.node.Instruction.Dummy;
+import cn.edu.xjtu.sysy.mir.node.LIRInstrHelper;
+import cn.edu.xjtu.sysy.mir.node.StackState;
 import cn.edu.xjtu.sysy.mir.pass.ModulePass;
 import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
+import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSavedUsableRegs;
+import static cn.edu.xjtu.sysy.riscv.ValueUtils.callerSavedUsableRegs;
 import cn.edu.xjtu.sysy.symbol.Types;
-
-import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSaved;
 
 @SuppressWarnings("unchecked")
 public class EnterLIR extends ModulePass<Void> {
@@ -31,7 +37,7 @@ public class EnterLIR extends ModulePass<Void> {
         }
 
         // 插入 callee saved
-        var dummies = calleeSaved.stream().map(reg -> {
+        var dummies = Arrays.stream(calleeSavedUsableRegs).map(reg -> {
             var dummy = helper.dummyDef(reg.getType());
             dummy.position = reg;
             return dummy;
@@ -81,7 +87,7 @@ public class EnterLIR extends ModulePass<Void> {
     
     public void insertCallerSaved(Instruction.AbstractCall call) {
         // 插入caller saved
-        var dummies = calleeSaved.stream().map(reg -> {
+        var dummies = Arrays.stream(callerSavedUsableRegs).map(reg -> {
             var dummy = helper.dummyDef(reg.getType());
             dummy.position = reg;
             return dummy;
@@ -106,7 +112,7 @@ public class EnterLIR extends ModulePass<Void> {
                 fcpy.position = reg;
                 continue;
             }
-            fcpy.position = new StackPosition(stackState.allocate(Types.Float));
+            fcpy.position = new StackPosition(stackState.allocate(Types.Float), true);
         }
 
         for (int i = 0; i < intArgs.size(); i++) {
@@ -122,7 +128,7 @@ public class EnterLIR extends ModulePass<Void> {
                 var icpy = helper.icpy(arg.value);
                 call.insertBefore(icpy);
                 arg.replaceValue(icpy);
-                icpy.position = new StackPosition(stackState.allocate(Types.Int));
+                icpy.position = new StackPosition(stackState.allocate(Types.Int), true);
             }
         }
 
@@ -132,7 +138,7 @@ public class EnterLIR extends ModulePass<Void> {
                 var icpy = helper.icpy(arg.value);
                 call.insertBefore(icpy);
                 arg.replaceValue(icpy);
-                icpy.position = new StackPosition(stackState.allocate(arg.value.type));
+                icpy.position = new StackPosition(stackState.allocate(arg.value.type), true);
             }
         }
 

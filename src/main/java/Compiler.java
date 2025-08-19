@@ -2,6 +2,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -62,22 +63,31 @@ public class Compiler {
             em.printErrs();
             return;
         }
-        System.out.println(mir);
-
-        System.out.println("Interpreting test...");
-        var testInFile = new File(input.substring(0, input.length() - 3) + ".in");
-        var testInStream = testInFile.exists() ? new FileInputStream(testInFile) : null;
-        var is = new ByteArrayInputStream(testInStream != null ? testInStream.readAllBytes() : new byte[0]);
-        if (testInStream != null) testInStream.close();
-        var os = new ByteArrayOutputStream();
-        var interpreter = new Interpreter(new PrintStream(os), is);
-        interpreter.process(mir);
-        var out = os.toString();
-        System.out.println("Test output: \n" + out);
+        if (false) {
+             System.out.println("Interpreting test...");
+            var testInFile = new File(input.substring(0, input.length() - 3) + ".in");
+            var testInStream = testInFile.exists() ? new FileInputStream(testInFile) : null;
+            var is = new ByteArrayInputStream(testInStream != null ? testInStream.readAllBytes() : new byte[0]);
+            if (testInStream != null) testInStream.close();
+            var os = new ByteArrayOutputStream();
+            var interpreter = new Interpreter(new PrintStream(os), is);
+            interpreter.process(mir);
+            var out = os.toString();
+            System.out.println("Test output: \n" + out);
+        }
 
         var cgen = new AsmCGen();
         cgen.process(mir);
-        System.out.println(cgen.toString());
+        var riscVCode = cgen.toString();
+        System.out.println(riscVCode);
+        File out = new File(output);
+        if (out.exists()) {
+            out.delete();
+        }
+        try (var outStream = new FileOutputStream(out)) {
+            outStream.write(riscVCode.getBytes());
+            outStream.close();
+        }
         /* 
         var calc = new StackCalculator();
         calc.visit(compUnit);

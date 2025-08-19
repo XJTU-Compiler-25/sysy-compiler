@@ -11,6 +11,13 @@ public final class BlockArgument extends Value {
         this.block = block;
     }
 
+    @Override
+    public final String shortName() {
+        if (position == null) return "%" + id;
+        else return "%" + id + "[" + position.toString() + "]";
+    }
+
+
     public boolean isParam() {
         return block == block.getFunction().entry;
     }

@@ -4,11 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import org.junit.jupiter.api.MethodOrderer;
@@ -60,8 +62,11 @@ public final class TestSolution {
                             var mirBuilder = new MirBuilder();
                             var module = mirBuilder.build(ast);
                             //System.out.println(module);
-                            MirPipelines.DEFAULT.process(module);
-                            System.out.println(module);
+                            //Assertions.assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+                                MirPipelines.DEFAULT.process(module);
+                            //});
+                            
+                            //System.out.println(module);
 
                             if (false) {
                                 System.out.println("Interpreting test...");
@@ -73,7 +78,7 @@ public final class TestSolution {
                                 System.out.println("Test output: \n" + out);
                                 //Assertions.assertEquals(testOut, out);
                             }
-
+                            
                             var riscVCode = Compiler.CompileToRiscV(ast);
                             var out = new File(f.getParent(), f.getName() + ".s");
                             if (out.exists()) out.delete();

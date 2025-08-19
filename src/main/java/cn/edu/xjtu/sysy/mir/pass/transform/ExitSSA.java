@@ -6,6 +6,7 @@ import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +28,6 @@ public final class ExitSSA extends ModulePass<Void> {
         currentFunction = function;
         removePhi();
     }
-
 
     private void removePhi() {
         // 先实现将 call conv 传递到 entry args

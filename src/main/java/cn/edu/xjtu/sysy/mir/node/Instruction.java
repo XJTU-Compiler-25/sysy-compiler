@@ -37,6 +37,17 @@ public abstract sealed class Instruction extends User {
         return type == Types.Void;
     }
 
+    public final List<Value> getOperands() {
+        return used.stream().map(it -> it.value).collect(Collectors.toList());
+    }
+
+    // 计算中间值应该都为 local value
+    @Override
+    public final String shortName() {
+        if (position == null) return "%" + id;
+        else return "%" + id + "[" + position.toString() + "]";
+    }
+
     @Override
     public abstract String toString();
 
