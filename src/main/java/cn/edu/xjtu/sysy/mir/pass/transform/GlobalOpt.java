@@ -17,23 +17,8 @@ public final class GlobalOpt extends ModulePass<Void> {
 
     @Override
     public void visit(Module module) {
-        removeUncalledFunction(module);
         removeUnusedGlobalVars(module);
         localize(module);
-    }
-
-    public void removeUncalledFunction(Module module) {
-        var callgraph = getResult(CallGraphAnalysis.class);
-
-        for (var iterator = module.getFunctions().iterator(); iterator.hasNext(); ) {
-            var func = iterator.next();
-            if (func.name.equals("main")) continue; // main 函数不能被删掉
-
-            if (callgraph.getFunctionsCalled(func).isEmpty()) {
-                iterator.remove();
-                func.dispose();
-            }
-        }
     }
 
     // aggressively，因为我们编译的东西都不会被外部调用

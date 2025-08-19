@@ -22,12 +22,15 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
+                    DFE::new,
                     GlobalOpt::new,
                     HoistAlloca::new,
                     EnterSSA::new,
-                    //Inline::new,
-                    SCCP::new,
+                    Inline::new,
+                    DFE::new,
+                    HoistAlloca::new,
                     ConstFold::new,
+                    SCCP::new,
                     IDivReduce::new,
                     InstCombine::new,
                     DCE::new,
@@ -40,7 +43,7 @@ public final class MirPipelines {
                     DCE::new,
                     CFGSimplify::new,
                     EnterLIR::new,
-                    //LIRInstCombine::new,
+                    SplitCriticalEdges::new,
                     RegisterAllocator::new,
                     ExitSSA::new,
                     HoistAlloca::new

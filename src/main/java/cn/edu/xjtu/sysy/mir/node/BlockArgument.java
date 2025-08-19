@@ -11,11 +11,6 @@ public final class BlockArgument extends Value {
         this.block = block;
     }
 
-    @Override
-    public String shortName() {
-        return "%" + id;
-    }
-
     public boolean isParam() {
         return block == block.getFunction().entry;
     }

@@ -41,12 +41,6 @@ public abstract sealed class Instruction extends User {
         return used.stream().map(it -> it.value).collect(Collectors.toList());
     }
 
-    // 计算中间值应该都为 local value
-    @Override
-    public final String shortName() {
-        return "%" + id;
-    }
-
     @Override
     public abstract String toString();
 
@@ -286,18 +280,18 @@ public abstract sealed class Instruction extends User {
             return List.of(getTrueTarget(), getFalseTarget());
         }
 
-        public void replaceTrueTarget(BasicBlock newTarget) {
+        public void setTrueTarget(BasicBlock newTarget) {
             trueTarget.replaceValue(newTarget);
         }
 
-        public void replaceFalseTarget(BasicBlock newTarget) {
+        public void setFalseTarget(BasicBlock newTarget) {
             falseTarget.replaceValue(newTarget);
         }
 
         @Override
         public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
-            if (oldTarget == trueTarget.value) replaceTrueTarget(newTarget);
-            if (oldTarget == falseTarget.value) replaceFalseTarget(newTarget);
+            if (oldTarget == trueTarget.value) setTrueTarget(newTarget);
+            if (oldTarget == falseTarget.value) setFalseTarget(newTarget);
         }
 
         public void putTrueParam(BlockArgument arg, Value value) {
@@ -307,7 +301,7 @@ public abstract sealed class Instruction extends User {
         }
 
         public void putFalseParam(BlockArgument arg, Value value) {
-            var use = trueParams.get(arg);
+            var use = falseParams.get(arg);
             if (use == null) falseParams.put(arg, use(value));
             else use.replaceValue(value);
         }
@@ -417,6 +411,10 @@ public abstract sealed class Instruction extends User {
             super(block, type);
             var argLen = args.length;
             for (var arg : args) this.args.add(use(arg));
+        }
+
+        public List<Value> getArgs() {
+            return args.stream().map(it -> it.value).toList();
         }
 
         public Value getArg(int index) {
