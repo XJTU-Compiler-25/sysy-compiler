@@ -27,30 +27,20 @@ public final class EnterSSA extends ModulePass<Void> {
         super.visit(module);
     }
 
+    private Function currentFunction;
     @Override
     public void visit(Function function) {
-        findCandidate(function);
-        for (var param : function.params) {
-            var arg = param.second();
-            arg.type = ((Type.Pointer) arg.type).baseType;
-            promotableVar.add(arg);
-
-            for (var use : arg.usedBy) {
-                if (use.user instanceof Instruction.GetElemPtr gep) {
-                    if (!gep.getIndex(0).equals(ImmediateValues.iZero)) unreachable();
-                    gep.removeIndex(0);
-                }
-            }
-        }
+        currentFunction = function;
+        findCandidate();
         insertBlockArgument();
-        renaming(function);
+        renaming();
     }
 
-    private final ArrayList<Value> promotableVar = new ArrayList<>();
-    private void findCandidate(Function function) {
+    private final ArrayList<Instruction.Alloca> promotableVar = new ArrayList<>();
+    private void findCandidate() {
         promotableVar.clear();
         // 所有 alloca 都在函数 entry 块
-        for (var iterator = function.entry.instructions.iterator(); iterator.hasNext(); ) {
+        for (var iterator = currentFunction.entry.instructions.iterator(); iterator.hasNext(); ) {
             var instr = iterator.next();
             if (instr instanceof Instruction.Alloca alloca) {
                 // 标量值的 alloca 可以提升
@@ -64,17 +54,12 @@ public final class EnterSSA extends ModulePass<Void> {
         }
     }
 
-    private final HashMap<BlockArgument, Value> blockArgToVar = new HashMap<>();
+    private final HashMap<BlockArgument, Instruction.Alloca> blockArgToVar = new HashMap<>();
     private void insertBlockArgument() {
         blockArgToVar.clear();
 
         for (var var : promotableVar) {
-            var varType = switch (var) {
-                case Instruction.Alloca it -> it.allocatedType;
-                case BlockArgument it -> it.type;
-                default -> throw new RuntimeException();
-            };
-
+            var varType = var.allocatedType;
             var defBlocks = new HashSet<BasicBlock>();
             for (var use : var.usedBy) if (use.user instanceof Instruction.Store store) defBlocks.add(store.getBlock());
 
@@ -103,16 +88,10 @@ public final class EnterSSA extends ModulePass<Void> {
         }
     }
 
-    private void renaming(Function function) {
-        var entry = function.entry;
+    private void renaming() {
+        var entry = currentFunction.entry;
         var entryIncomingVals = new HashMap<Value, Value>();
-        for (var var : promotableVar) {
-            switch (var) {
-                case BlockArgument it -> entryIncomingVals.put(it, it);
-                case Instruction.Alloca it -> entryIncomingVals.put(var, ImmediateValues.undefined());
-                default -> unsupported(var);
-            }
-        }
+        for (var var : promotableVar) entryIncomingVals.put(var, ImmediateValues.undefined());
 
         // 从 entry 向后继方向 DFS
         var visited = new HashSet<BasicBlock>();
@@ -190,6 +169,24 @@ public final class EnterSSA extends ModulePass<Void> {
                     }
                 }
                 default -> {}
+            }
+        }
+    }
+
+    private void rewriteParamLoads() {
+        for (var block : currentFunction.blocks) {
+            for (var iterator = block.instructions.iterator(); iterator.hasNext(); ) {
+                var instr = iterator.next();
+                if (instr instanceof Instruction.Load load) {
+                    if (load.getAddress() instanceof BlockArgument arg) {
+                        var alloca = blockArgToVar.get(arg);
+                        if (alloca != null) {
+                            load.replaceAllUsesWith(alloca);
+                            load.dispose();
+                            iterator.remove();
+                        }
+                    }
+                }
             }
         }
     }

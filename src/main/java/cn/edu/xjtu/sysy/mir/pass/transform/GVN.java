@@ -10,9 +10,7 @@ import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfo;
 import cn.edu.xjtu.sysy.mir.pass.analysis.FuncInfoAnalysis;
 import cn.edu.xjtu.sysy.symbol.Type;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
@@ -36,9 +34,9 @@ public final class GVN extends ModulePass<Void> {
             int[] operands
     ) {
         private static GVNKey of(Instruction inst) {
-            var operands = inst.usedList.stream().mapToInt(it -> switch (it.value) {
-                case ImmediateValue.IntConst c -> c.value;
-                case ImmediateValue.FloatConst c -> Float.floatToIntBits(c.value);
+            var operands = getOperands(inst).stream().mapToInt(it -> switch (it) {
+                case ImmediateValue.IntConst ic -> ic.value;
+                case ImmediateValue.FloatConst fc -> Float.floatToIntBits(fc.value);
                 case Value v -> v.id;
             }).toArray();
             // 如果可交换，则 sort operand
@@ -104,6 +102,22 @@ public final class GVN extends ModulePass<Void> {
         for (var child : domInfo.getDomChildren(block)) visit(child);
 
         table = oldTable; // 恢复之前的表
+    }
+
+    private static List<Value> getOperands(Instruction inst) {
+        return switch (inst) {
+            case AbstractUnary it -> List.of(it.getOperand());
+            case AbstractBinary it -> List.of(it.getLhs(), it.getRhs());
+            case Call it -> it.getArgs();
+            case GetElemPtr it -> {
+                var l = new ArrayList<Value>();
+                l.add(it.getBasePtr());
+                l.addAll(it.getIndices());
+                yield l;
+            }
+            case Alloca _, Load _, Store _, Dummy _, Imm _, ILi _, FLi _, IMv _, FMv _, ICpy _, FCpy _,
+                 CallExternal _, Terminator _ -> unreachable();
+        };
     }
 
 }

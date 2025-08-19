@@ -37,10 +37,6 @@ public abstract sealed class Instruction extends User {
         return type == Types.Void;
     }
 
-    public final List<Value> getOperands() {
-        return used.stream().map(it -> it.value).collect(Collectors.toList());
-    }
-
     @Override
     public abstract String toString();
 

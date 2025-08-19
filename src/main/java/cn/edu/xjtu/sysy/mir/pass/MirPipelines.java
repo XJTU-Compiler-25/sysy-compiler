@@ -22,30 +22,30 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
-                    DFE::new,
+                    //DFE::new,
                     GlobalOpt::new,
                     HoistAlloca::new,
                     EnterSSA::new,
                     Inline::new,
-                    DFE::new,
+                    //DFE::new,
                     HoistAlloca::new,
-                    ConstFold::new,
-                    SCCP::new,
-                    IDivReduce::new,
-                    InstCombine::new,
+                    //ConstFold::new,
+                    //SCCP::new,
+                    //IDivReduce::new,
+                    //InstCombine::new,
+                    //DCE::new,
+                    //ParamOpt::new,
+                    //GVN::new,
+                    //GCM::new,
                     DCE::new,
-                    ParamOpt::new,
-                    GVN::new,
-                    GCM::new,
-                    DCE::new,
-                    LoopCanonicalize::new,
-                    SCCP::new,
-                    DCE::new,
+                    //LoopCanonicalize::new,
+                    //SCCP::new,
+                    //DCE::new,
                     CFGSimplify::new,
-                    EnterLIR::new,
-                    SplitCriticalEdges::new,
-                    RegisterAllocator::new,
-                    ExitSSA::new,
+                    //EnterLIR::new,
+                    //SplitCriticalEdges::new,
+                    //RegisterAllocator::new,
+                    //ExitSSA::new,
                     HoistAlloca::new
             )
             .build();
@@ -62,6 +62,12 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
+                    HoistAlloca::new,
+                    EnterSSA::new,
+                    EnterLIR::new,
+                    SplitCriticalEdges::new,
+                    RegisterAllocator::new,
+                    HoistAlloca::new
             )
             .build();
 
