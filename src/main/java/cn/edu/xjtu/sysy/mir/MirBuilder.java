@@ -15,7 +15,7 @@ import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.*;
-import static cn.edu.xjtu.sysy.util.Assertions.unsupported;
+import static cn.edu.xjtu.sysy.util.Assertions.*;
 
 /**
  * Middle IR Builder
@@ -102,9 +102,22 @@ public final class MirBuilder implements ErrManaged {
         curFunc = func;
         symbol.address = func;
 
-        helper.changeBlock(func.entry);
+        var entry = func.entry;
+        helper.changeBlock(entry);
 
-        for (var arg : symbol.params) arg.address = func.addNewParam(arg.name, arg.type);
+        for (var arg : symbol.params) {
+            var type = arg.type;
+            var ba = func.addNewParam(arg.name, type);
+            switch (type) {
+                case Type.Scalar _ -> {
+                    var alloca = helper.insertAlloca(type);
+                    arg.address = alloca;
+                    helper.insertStore(alloca, ba);
+                }
+                case Type.Array _, Type.Pointer _ -> arg.address = ba;
+                case Type.Function _, Type.Void _ -> unreachable();
+            }
+        }
 
         visit(node.body);
 
@@ -196,12 +209,21 @@ public final class MirBuilder implements ErrManaged {
                 var symbol = indexAccess.lhs.resolution;
                 var indexes = indexAccess.indexes;
                 var indexSize = indexes.size();
-                var indices = new Value[indexSize + 1];
-                // "数组类型的变量"的值（Alloca） 的类型是 指向数组的指针，需要先解引用
-                indices[0] = iZero;
-                for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
-                var getPtr = helper.insertGetElementPtr(symbol.address, indices);
-                helper.insertStore(getPtr, visit(value));
+                Instruction gep = switch (symbol.address) {
+                    case BlockArgument arg -> {
+                        requires(arg.isParam());
+                        var indices = new Value[indexSize];
+                        for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
+                        yield helper.insertGetElementPtr(symbol.address, indices);
+                    }
+                    case Value v -> {
+                        var indices = new Value[indexSize + 1];
+                        indices[0] = iZero; // 数组类型的变量的值（Alloca） 的类型是 指向数组的指针，需要先解引用
+                        for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
+                        yield helper.insertGetElementPtr(v, indices);
+                    }
+                };
+                helper.insertStore(gep, visit(value));
             }
             default -> unsupported(target);
         }
@@ -405,20 +427,31 @@ public final class MirBuilder implements ErrManaged {
 
     public Value visit(Expr.VarAccess node) {
         var symbol = node.resolution;
-
-        return helper.insertLoad(symbol.address);
+        return switch (symbol.type) {
+            case Type.Array _, Type.Pointer _ -> symbol.address;
+            default -> helper.insertLoad(symbol.address);
+        };
     }
 
     public Value visit(Expr.IndexAccess node) {
         var symbol = node.lhs.resolution;
         var indexes = node.indexes;
         var indexSize = indexes.size();
-        var indices = new Value[indexSize + 1];
-        indices[0] = iZero; // 数组类型的变量的值（Alloca） 的类型是 指向数组的指针，需要先解引用
-        for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
-        var elementPtr = helper.insertGetElementPtr(symbol.address, indices);
-
-        return helper.insertLoad(elementPtr);
+        Instruction gep = switch (symbol.address) {
+            case BlockArgument arg -> {
+                requires(arg.isParam());
+                var indices = new Value[indexSize];
+                for (int i = 0; i < indexSize; i++) indices[i] = visit(indexes.get(i));
+                yield helper.insertGetElementPtr(symbol.address, indices);
+            }
+            case Value v -> {
+                var indices = new Value[indexSize + 1];
+                indices[0] = iZero; // 数组类型的变量的值（Alloca） 的类型是 指向数组的指针，需要先解引用
+                for (int i = 0; i < indexSize; i++) indices[i + 1] = visit(indexes.get(i));
+                yield helper.insertGetElementPtr(v, indices);
+            }
+        };
+        return helper.insertLoad(gep);
     }
 
     public Value visit(Expr.Literal node) {
@@ -444,7 +477,7 @@ public final class MirBuilder implements ErrManaged {
             case Float2Int -> helper.insertF2i(visit(nv));
             case Int2Float -> helper.insertI2f(visit(nv));
             case Ptr2Bool -> iOne; // !ptr 的场景 ptr 都当 true 吧
-            case Decay -> nv instanceof Expr.VarAccess va ? helper.insertGetElementPtr(va.resolution.address, iZero)
+            case Decay -> nv instanceof Expr.VarAccess va ? helper.insertGetElementPtr(va.resolution.address, iZero, iZero)
                     : helper.insertGetElementPtr(visit(nv), iZero);
             case DecayAll -> {
                 var indices = new Value[((Type.Array) nv.type).dimensions.length];

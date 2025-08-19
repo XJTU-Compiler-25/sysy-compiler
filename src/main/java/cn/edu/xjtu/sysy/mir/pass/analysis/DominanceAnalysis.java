@@ -22,30 +22,30 @@ public final class DominanceAnalysis extends ModulePass<DomInfo> {
             var entry = function.entry;
             var blocks = cfg.getRPOBlocks(function);
 
-            for (var block : blocks)
-                if (block != entry) idomMap.put(block, entry);
+            for (var block : blocks) idomMap.put(block, entry);
 
             // 计算支配性
             boolean changed = true;
             while (changed) {
                 changed = false;
                 for (var block : blocks) {
-                    // entry 的 dom 不需要更新，小剪枝
-                    if (block == entry) continue;
                     var preds = cfg.getPredBlocksOf(block);
 
                     if (preds.isEmpty()) continue;
-                    var newDom = preds.iterator().next();
+                    BasicBlock newIdom = null;
                     // 自己的 dom 就是所有 pred 在支配树上共同祖先
-                    for (var pred : preds)
-                        newDom = lca(pred, newDom, idomMap);
+                    for (var pred : preds) {
+                        if (newIdom == null) newIdom = pred;
+                        else newIdom = lca(pred, newIdom, idomMap);
+                    }
 
-                    if (idomMap.get(block) != newDom) {
-                        idomMap.put(block, newDom);
+                    if (idomMap.get(block) != newIdom) {
+                        idomMap.put(block, newIdom);
                         changed = true;
                     }
                 }
             }
+            idomMap.remove(entry);
 
             // 收集被直接支配者集合
             for (var block : blocks) {

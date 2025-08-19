@@ -24,11 +24,10 @@ public final class Inline extends ModulePass<Void> {
     private final HashSet<Function> inlineCandidate = new HashSet<>();
     @Override
     public void visit(Module module) {
-        funcInfo = getResult(FuncInfoAnalysis.class);
-
         var modified = false;
         do {
             modified = false;
+            funcInfo = getRefreshedResult(FuncInfoAnalysis.class);
             selectCandidate(module.getFunctions());
             for (var function : module.getFunctions()) modified |= processFunction(function);
         } while (modified);
@@ -66,11 +65,12 @@ public final class Inline extends ModulePass<Void> {
 
     private final HashMap<Value, Value> valueCopy = new HashMap<>();
     private Value getClonedValue(Value value) {
-        return switch (value) {
-            case BasicBlock _, Function _ -> unreachable();
-            case ImmediateValue _, GlobalVar _ -> value;
-            case BlockArgument _, Instruction _ -> valueCopy.get(value);
-        };
+        if (value instanceof BasicBlock || value instanceof Function) return unreachable();
+        if (value instanceof ImmediateValue || value instanceof GlobalVar) return value;
+        if (value instanceof BlockArgument || value instanceof Instruction)
+            if (valueCopy.containsKey(value)) return valueCopy.get(value);
+
+        throw new NoSuchElementException("not found " + value);
     }
 
     private final HashMap<BasicBlock, BasicBlock> blockCopy = new HashMap<>();
@@ -84,6 +84,11 @@ public final class Inline extends ModulePass<Void> {
             // 没有被选择为内联对象
             // 注意，由于如果 caller 递归，不会被选择为 inlining candidate，所以不用判断 caller == callee
             if (!isInliningCandidate(callee)) continue;
+
+            invalidate(CFGAnalysis.class);
+            var domInfo = getRefreshedResult(DominanceAnalysis.class);
+            valueCopy.clear();
+            blockCopy.clear();
 
             var continuationBlock = new BasicBlock(caller);
             caller.addBlock(continuationBlock);
@@ -112,9 +117,11 @@ public final class Inline extends ModulePass<Void> {
                 blockCopy.put(oldBlock, newBlock);
                 caller.addBlock(newBlock);
 
-                for (var oldArg : oldBlock.args) {
-                    var newArg = newBlock.addBlockArgument(oldArg.type);
-                    valueCopy.put(oldArg, newArg);
+                if (oldBlock != callee.entry) {
+                    for (var oldArg : oldBlock.args) {
+                        var newArg = newBlock.addBlockArgument(oldArg.type);
+                        valueCopy.put(oldArg, newArg);
+                    }
                 }
             }
 
@@ -131,7 +138,8 @@ public final class Inline extends ModulePass<Void> {
                 valueCopy.put(param, arg);
             }
 
-            for (var oldBlock : callee.blocks) {
+            var dfn = domInfo.getDFN(callee);
+            for (var oldBlock : dfn) {
                 var newBlock = blockCopy.get(oldBlock);
 
                 for (var oldInst : oldBlock.instructions) {
@@ -144,9 +152,6 @@ public final class Inline extends ModulePass<Void> {
                 var newTerm = cloneTerminator(newBlock, oldTerm, valueCopy, blockCopy, continuationBlock, retValArg);
                 newBlock.setTerminator(newTerm);
             }
-
-            valueCopy.clear();
-            blockCopy.clear();
             return true;
         }
         return false;
