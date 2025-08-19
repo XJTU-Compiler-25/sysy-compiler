@@ -22,6 +22,7 @@ import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.AsmCGen;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 
@@ -78,7 +79,8 @@ public final class TestSolution {
                                 System.out.println("Test output: \n" + out);
                                 //Assertions.assertEquals(testOut, out);
                             }
-                            
+                            var cgen = new AsmCGen();
+                            cgen.process(module);
                             var riscVCode = Compiler.CompileToRiscV(ast);
                             var out = new File(f.getParent(), f.getName() + ".s");
                             if (out.exists()) out.delete();
