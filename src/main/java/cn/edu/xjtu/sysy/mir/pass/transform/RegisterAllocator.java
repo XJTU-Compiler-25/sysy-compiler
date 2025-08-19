@@ -138,16 +138,21 @@ public final class RegisterAllocator extends ModulePass<Void> {
         return spillCost;
     }
 
-    private final HashMap<Register, Value> inUse = new HashMap<>();
+    private final Map<Register, Value> inUse = new HashMap<>();
     private void color() {
         inUse.clear();
         saveCostCache.clear();
 
         // 先序遍历支配树，就能得到冲突图的完美消去序列的倒序，即着色顺序
         for (var block : domInfo.getDFN(currentFunction)) {
+            System.out.println(block.shortName());
             var blockLiveIn = liveRangeInfo.getLiveOut(block.getFirstInstruction());
             for (var v : new ArrayList<>(inUse.values())) {
                 if (!blockLiveIn.contains(v)) {
+                    if (v.id == 51) {
+                        System.out.println(11);
+                        System.out.println(blockLiveIn);
+                    }
                     var pos = v.position;
                     if (pos instanceof Register reg) inUse.remove(reg);
                 }
@@ -169,6 +174,7 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 var liveOut = liveRangeInfo.getLiveOut(inst);
                 for (var v : new ArrayList<>(inUse.values())) {
                     if (!liveIn.contains(v)) {
+                        if (v.id == 51) System.out.println("11!" + inst.toString());
                         var pos = v.position;
                         if (pos instanceof Register reg) inUse.remove(reg);
                     }
@@ -183,6 +189,11 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 // void 类型的指令不产生值，不需要寄存器
                 if (inst.notProducingValue()) continue;
                 if (inst.notUsed()) continue;
+
+                if (inst.id == 42) {
+                    System.out.println(42);
+                    System.out.println(inUse.keySet());
+                }
                 // 需要分配寄存器
                 var reg = allocateRegister(inst);
 

@@ -15,6 +15,7 @@ import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSavedUsableRegs;
 import static cn.edu.xjtu.sysy.riscv.ValueUtils.callerSavedUsableRegs;
+import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 @SuppressWarnings("unchecked")
@@ -32,8 +33,10 @@ public class EnterLIR extends ModulePass<Void> {
 
         // 给 entry 中的 alloca 分配空间
         for (var inst : entry.instructions) {
-            if (inst instanceof Instruction.Alloca alloca)
-                alloca.position = new StackPosition(stackState.allocate(alloca.type));
+            if (inst instanceof Instruction.Alloca alloca) {
+                alloca.position = new StackPosition(stackState.allocate(alloca.allocatedType));
+            }
+                
         }
 
         // 插入 callee saved
