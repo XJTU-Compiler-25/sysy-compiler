@@ -7,7 +7,7 @@ import static cn.edu.xjtu.sysy.symbol.Types.alignmentOf;
 import static cn.edu.xjtu.sysy.symbol.Types.sizeOf;
 
 public final class StackState {
-    StackState() { }
+    public StackState() { }
 
     public int cursor = 0;
 
@@ -26,7 +26,7 @@ public final class StackState {
         cursor = MathUtils.roundTo(cursor, alignment);
     }
 
-    public int getSize() {
+    public int size() {
         return cursor;
     }
 

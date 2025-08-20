@@ -3,6 +3,7 @@ package cn.edu.xjtu.sysy.mir.node;
 import java.util.ArrayList;
 import java.util.function.Predicate;
 
+import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Type;
 

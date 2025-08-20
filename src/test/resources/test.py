@@ -15,7 +15,7 @@ def compile_assembly(asm_file):
     executable = f"{basename}.out"
     try:
         subprocess.run(
-            ["riscv64-linux-gnu-gcc", "-march=rv64gc", "-mabi=lp64d", "-static", asm_file, "sylib.c", "-o", executable],
+            ["clang", "-march=rv64gc", "-mabi=lp64d", "-static", asm_file, "sylib.c", "-o", executable],
             check=True,
             stderr=subprocess.PIPE
         )

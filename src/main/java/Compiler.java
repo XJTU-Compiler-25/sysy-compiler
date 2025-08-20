@@ -1,27 +1,19 @@
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 
+import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.pass.SimpleCodegen;
+import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 import cn.edu.xjtu.sysy.ast.AstBuilder;
 import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.ast.node.CompUnit;
-import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
-import cn.edu.xjtu.sysy.ast.pass.RiscVCGen;
-import cn.edu.xjtu.sysy.ast.pass.StackCalculator;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
-import cn.edu.xjtu.sysy.mir.pass.AsmCGen;
-import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 import cn.edu.xjtu.sysy.parse.SysYLexer;
 import cn.edu.xjtu.sysy.parse.SysYParser;
-import cn.edu.xjtu.sysy.riscv.RiscVWriter;
 import cn.edu.xjtu.sysy.util.Assertions;
 
 /**
@@ -35,71 +27,50 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * testcase.sysy -S -o testcase.s -O1
  */
 public class Compiler {
+    public static void main(String[] args) throws Exception {
 
-    public static void main(String[] args) throws IOException {
-        Assertions.requires(args.length > 4, "Not enough arguments");
+        String input = null, output = null;
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].endsWith(".sy") || args[i].endsWith(".sysy")) {
+                input = args[i];
+            }
+            if (args[i].equals("-o")) {
+                output = args[i+1];
+            }
+        }
 
-        var input = args[0];
-        var output = args[3];
+        Assertions.requires(input != null && output != null, "Not enough arguments");
 
-        var em = ErrManager.GLOBAL;
-        var testCodeStream = new FileInputStream(input);
-        var testCode = new String(testCodeStream.readAllBytes());
-        var compUnit = compileToAst(em, testCode);
+        CharStream inputStream = CharStreams.fromFileName(input);
+        SysYLexer lexer = new SysYLexer(inputStream);
+        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+        SysYParser parser = new SysYParser(tokenStream);
+
+        ErrManager em = new ErrManager();
+        SysYParser.CompUnitContext cst = parser.compUnit();
+        AstBuilder astBuilder = new AstBuilder(em);
+        CompUnit compUnit = astBuilder.visitCompUnit(cst);
+
         AstPipelines.DEFAULT.process(compUnit);
-        if (em.hasErr()) {
-            em.printErrs();
-            return;
-        }
-        var pp = new AstPrettyPrinter();
-        //pp.visit(compUnit);
+        em.printErrs();
+        MirBuilder mirBuilder = new MirBuilder(em);
+        Module mir = mirBuilder.build(compUnit);
+        em.printErrs();
 
-        var mirBuilder = new MirBuilder(em);
-        var mir = mirBuilder.build(compUnit);
-        //System.out.println(mir);
-        MirPipelines.DEFAULT.process(mir);
-        if (em.hasErr()) {
-            em.printErrs();
-            return;
-        }
-        System.out.println(mir);
+        var cgen = new SimpleCodegen();
+        cgen.visit(mir);
 
-        System.out.println("Interpreting test...");
-        var testInFile = new File(input.substring(0, input.length() - 3) + ".in");
-        var testInStream = testInFile.exists() ? new FileInputStream(testInFile) : null;
-        var is = new ByteArrayInputStream(testInStream != null ? testInStream.readAllBytes() : new byte[0]);
-        if (testInStream != null) testInStream.close();
-        var os = new ByteArrayOutputStream();
-        var interpreter = new Interpreter(new PrintStream(os), is);
-        interpreter.process(mir);
-        var out = os.toString();
-        System.out.println("Test output: \n" + out);
-
-        var cgen = new AsmCGen();
-        cgen.process(mir);
-        System.out.println(cgen.toString());
-        /* 
-        var calc = new StackCalculator();
-        calc.visit(compUnit);
-        var asm = new RiscVWriter();
-        var cgen = new RiscVCGen(asm);
-        cgen.visit(compUnit);
-        
-        asm.emitAll();
-        var riscVCode = asm.toString();
-        //System.out.println(riscVCode);
+        var riscVCode = cgen.output();
         File out = new File(output);
-        if (out.exists()) {
-            out.delete();
-        }
+        if (out.exists()) out.delete();
+        out.createNewFile();
         try (var outStream = new FileOutputStream(out)) {
             outStream.write(riscVCode.getBytes());
-            outStream.close();
         }
-        */
     }
 
-    public static CompUnit compileToAst(ErrManager em, String s) {
+
+    public static CompUnit compileToAst(String s) {
         var cs = CharStreams.fromString(s);
         var lexer = new SysYLexer(cs);
         var tokens = new CommonTokenStream(lexer);
@@ -109,14 +80,16 @@ public class Compiler {
         return ast;
     }
 
-    public static String CompileToRiscV(CompUnit ast) {
-        var calc = new StackCalculator();
-        var writer = new RiscVWriter();
-        var cgen = new RiscVCGen(writer);
-        calc.visit(ast);
-        cgen.visit(ast);
-        writer.emitAll();
-        return writer.toString();
+    public static String compileToRiscV(CompUnit ast) {
+        AstPipelines.DEFAULT.process(ast);
+
+        var mirBuilder = new MirBuilder();
+        var mir = mirBuilder.build(ast);
+        MirPipelines.STACK.process(mir);
+
+        var cgen = new SimpleCodegen();
+        cgen.process(mir);
+        return cgen.output();
     }
 
 }
