@@ -37,6 +37,10 @@ public final class Worklist<E> {
         if (set.add(e)) queue.addLast(e);
     }
 
+    public void addFirst(E e) {
+        if (set.add(e)) queue.addFirst(e);
+    }
+
     public void clear() {
         queue.clear();
         set.clear();

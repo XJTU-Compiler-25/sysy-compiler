@@ -1,8 +1,6 @@
 import java.io.*;
 
-import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.SimpleCodegen;
-import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
@@ -27,7 +25,8 @@ import cn.edu.xjtu.sysy.util.Assertions;
  * testcase.sysy -S -o testcase.s -O1
  */
 public class Compiler {
-    public static void main(String[] args) throws Exception {
+
+    public static void main(String[] args) throws IOException {
 
         String input = null, output = null;
         for (int i = 0; i < args.length; i++) {
@@ -68,7 +67,6 @@ public class Compiler {
             outStream.write(riscVCode.getBytes());
         }
     }
-
 
     public static CompUnit compileToAst(String s) {
         var cs = CharStreams.fromString(s);

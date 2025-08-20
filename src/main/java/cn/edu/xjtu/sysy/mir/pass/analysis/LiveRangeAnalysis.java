@@ -1,15 +1,26 @@
 package cn.edu.xjtu.sysy.mir.pass.analysis;
 
-import cn.edu.xjtu.sysy.mir.node.*;
-import cn.edu.xjtu.sysy.mir.node.Module;
-import cn.edu.xjtu.sysy.mir.pass.ModulePass;
-import cn.edu.xjtu.sysy.util.Worklist;
-
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import cn.edu.xjtu.sysy.mir.node.BasicBlock;
+import cn.edu.xjtu.sysy.mir.node.BlockArgument;
+import cn.edu.xjtu.sysy.mir.node.Function;
+import cn.edu.xjtu.sysy.mir.node.GlobalVar;
+import cn.edu.xjtu.sysy.mir.node.Instruction;
+import cn.edu.xjtu.sysy.mir.node.Module;
+import cn.edu.xjtu.sysy.mir.node.Value;
+import cn.edu.xjtu.sysy.mir.pass.ModulePass;
+import cn.edu.xjtu.sysy.mir.util.ModulePrinter;
+import cn.edu.xjtu.sysy.symbol.Types;
+import cn.edu.xjtu.sysy.util.Assertions;
+import cn.edu.xjtu.sysy.util.Pair;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 // 这是一个在 enter LIR 之后才会运行的分析
 // 所以反向数据流分析直接从 epilogue 开始反向扫描
@@ -17,31 +28,150 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
 
     private HashMap<Instruction, Set<Value>> liveIn;
     private HashMap<Instruction, Set<Value>> liveOut;
-    private HashMap<Value, Set<Instruction>> instsValueLiveBefore;
+
+    private HashMap<BasicBlock, Set<Value>> liveInBlock;
+    private HashMap<BasicBlock, Set<Value>> liveOutBlock;
+    //private HashMap<Value, Set<Instruction>> instsValueLiveBefore;
 
     private CFG cfg;
-    private final HashMap<Instruction, Set<? extends Instruction>> preds = new HashMap<>();
-    private final HashMap<Instruction, Set<? extends Instruction>> succs = new HashMap<>();
+    //private final HashMap<Instruction, Set<? extends Instruction>> preds = new HashMap<>();
+    //private final HashMap<Instruction, Set<? extends Instruction>> succs = new HashMap<>();
 
     @Override
     public LiveRangeInfo process(Module module) {
         liveOut = new HashMap<>();
         liveIn = new HashMap<>();
-        instsValueLiveBefore = new HashMap<>();
+        liveInBlock = new HashMap<>();
+        liveOutBlock = new HashMap<>();
+        //instsValueLiveBefore = new HashMap<>();
 
         cfg = getResult(CFGAnalysis.class);
-        preds.clear();
-        succs.clear();
-
+        //preds.clear();
+        //succs.clear();
+        /* 
         for (var f : module.getFunctions()) {
             collectPredSucc(f);
             markFunction(f);
         }
-        collectAliveAfter();
+        collectAliveAfter();*/
 
-        return new LiveRangeInfo(liveIn, liveOut, instsValueLiveBefore);
+        module.functions.values().forEach(func -> visit(func));
+
+        ModulePrinter.printModule(module);
+ 
+        /*module.functions.values().forEach(func -> {
+            cfg.getRPOBlocks(func).forEach(block -> {
+                block.instructions.forEach(inst -> {
+                    System.out.println();
+                    System.out.println(liveOut.get(inst).stream().map(v -> v.shortName()).collect(Collectors.toSet()));
+                    System.out.println(inst);
+                    System.out.println(liveIn.get(inst).stream().map(v -> v.shortName()).collect(Collectors.toSet()));
+                    System.out.println();
+                });
+                var inst = block.terminator;
+                System.out.println();
+                System.out.println(liveOut.get(inst).stream().map(v -> v.shortName()).collect(Collectors.toSet()));
+                System.out.println(inst);
+                System.out.println(liveIn.get(inst).stream().map(v -> v.shortName()).collect(Collectors.toSet()));
+                System.out.println();
+            });
+        });*/
+        return new LiveRangeInfo(liveIn, liveOut);
     }
 
+    // 初始情况，也就是格的下界
+    private Set<Value> initial() {
+        return new HashSet<>();
+    }
+
+    // 拷贝，将src的值拷贝到dst
+    private void copy(Set<Value> dst, Set<Value> src) {
+        dst.clear();
+        dst.addAll(src);
+    }
+
+    // 合并，在控制流交汇的地方选择取交或者取并
+    private void merge(Set<Value> dst, Set<Value> src1, Set<Value> src2) {
+        dst.clear();
+        dst.addAll(src1);
+        dst.addAll(src2);
+    }
+
+    // 单条语句的转换函数
+    private void flowThrough(Instruction instr, Set<Value> in, Set<Value> out) {
+        out.clear();
+        out.addAll(in);
+        gen(instr).forEach(out::add);
+        kill(instr).forEach(out::remove);
+    }
+
+    private Stream<Value> gen(Instruction instr) {
+        return instr.used.stream().map(it -> it.value).filter(it ->
+            it instanceof Instruction || it instanceof BlockArgument
+        );
+    }
+
+    private Stream<Value> kill(Instruction instr) {
+        if (instr.notProducingValue()) return Stream.empty();
+        return Stream.of(instr);
+    }
+
+    protected boolean meet(BasicBlock block, Set<Value> in) {
+        if (!liveInBlock.containsKey(block)) {
+            liveInBlock.put(block, in);
+            return true;
+        }
+        var inout = liveInBlock.get(block);
+        Set<Value> tmp = initial();
+        merge(tmp, inout, in);
+        if (tmp.equals(inout)) {
+            return false;
+        }
+        liveInBlock.put(block, tmp);
+        return true;
+    }
+
+    protected void flowThrough(BasicBlock b) {
+        var in = liveInBlock.get(b);
+        flowThrough(b, in);
+    }
+
+    protected void flowThrough(BasicBlock block, Set<Value> in) {
+        var instrs = block.getInstructionsAndTerminator().reversed();
+        var inFlow = in;
+        var outFlow = initial();
+        // 按顺序遍历每条指令，进行分析
+        for (var instr : instrs) {
+            liveIn.put(instr, inFlow);
+            flowThrough(instr, inFlow, outFlow);
+            liveOut.put(instr, outFlow);
+
+            inFlow = outFlow;
+            outFlow = initial();
+        }
+        copy(outFlow, inFlow);
+        block.args.forEach(outFlow::remove);
+        liveOutBlock.put(block, outFlow);
+    }
+
+    @Override
+    public void visit(Function function) {
+        var worklist =
+                new Worklist<>(Collections.singleton(Pair.pair(function.epilogue, initial())));
+        while (!worklist.isEmpty()) {
+            var e = worklist.poll();
+            var cur = e.first();
+            var in = e.second();
+            boolean changed = meet(cur, in);
+            if (changed) {
+                flowThrough(cur);
+                for (var succ : cfg.getPredBlocksOf(cur))
+                    worklist.add(Pair.pair(succ, liveOutBlock.get(cur)));
+            }
+        }
+    }
+
+    /* 
     private void collectPredSucc(Function function) {
         var blocks = cfg.getRPOBlocks(function);
 
@@ -111,5 +241,5 @@ public final class LiveRangeAnalysis extends ModulePass<LiveRangeInfo> {
             for (var succ : succs) after.addAll(liveIn.get(succ));
         });
     }
-
+        */
 }

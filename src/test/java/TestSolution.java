@@ -21,6 +21,7 @@ import cn.edu.xjtu.sysy.ast.AstPipelines;
 import cn.edu.xjtu.sysy.ast.pass.AstPrettyPrinter;
 import cn.edu.xjtu.sysy.error.ErrManager;
 import cn.edu.xjtu.sysy.mir.MirBuilder;
+import cn.edu.xjtu.sysy.mir.pass.AsmCGen;
 import cn.edu.xjtu.sysy.mir.pass.Interpreter;
 import cn.edu.xjtu.sysy.mir.pass.MirPipelines;
 
@@ -62,19 +63,12 @@ public final class TestSolution {
                             var module = mirBuilder.build(ast);
                             //System.out.println(module);
                             MirPipelines.STACK.process(module);
+                            //Assertions.assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+                                MirPipelines.DEFAULT.process(module);
+                            //});
+                            
                             //System.out.println(module);
 
-
-                            if (false) {
-                                System.out.println("Interpreting test...");
-                                var is = new ByteArrayInputStream(testIn != null ? testIn : new byte[0]);
-                                var os = new ByteArrayOutputStream();
-                                var interpreter = new Interpreter(new PrintStream(os), is);
-                                interpreter.process(module);
-                                var out = os.toString();
-                                System.out.println("Test output: \n" + out);
-                                //Assertions.assertEquals(testOut, out);
-                            }
 
                             var cgen = new SimpleCodegen();
                             cgen.visit(module);

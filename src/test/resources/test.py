@@ -23,7 +23,7 @@ def compile_assembly(asm_file):
     except subprocess.CalledProcessError as e:
         return None
 
-def run_test(executable, input_file=None, timeout=1000):
+def run_test(executable, input_file=None, timeout=5):
     """运行可执行文件，返回标准输出和返回码"""
     try:
         stdin = None

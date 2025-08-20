@@ -1,8 +1,8 @@
 package cn.edu.xjtu.sysy.riscv.node;
 
-import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseToDense;
-
 import cn.edu.xjtu.sysy.mir.node.ImmediateValue;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.iZero;
+import static cn.edu.xjtu.sysy.mir.node.ImmediateValues.sparseToDense;
 import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
@@ -18,7 +18,7 @@ public final class Global {
     }
 
     public String shortName() {
-        return "$" + name;
+        return name;
     }
 
     /*
@@ -35,16 +35,26 @@ public final class Global {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        builder.append(shortName()).append(":\n");
+        builder.append("  .globl ").append(name).append("\n");
+        if (initVal == null || initVal.equals(iZero)) {
+            builder.append("  .bss\n");
+        } else {
+            builder.append("  .data\n");
+        }
+        builder .append("  .align ").append(Types.sizeOf(varType) == 4 ? 2 : 3).append("\n")
+                .append("  .type ").append(name).append(", @object\n")
+                .append("  .size ").append(name).append(", ").append(Types.sizeOf(varType)).append("\n")
+                .append(shortName()).append(":\n");
+               
         switch (initVal) {
             case ImmediateValue.Undefined _, ImmediateValue.ZeroInit _-> {
-                builder.append("    .zero ").append(Types.sizeOf(varType)).append("\n");
+                builder.append("  .zero ").append(Types.sizeOf(varType)).append("\n");
             }
             case ImmediateValue.IntConst it -> {
-                builder.append("    .word ").append(it.value).append("\n");
+                builder.append("  .word ").append(it.value).append("\n");
             }
             case ImmediateValue.FloatConst it -> {
-                builder.append("    .word ").append(Float.floatToRawIntBits(it.value)).append("\n");
+                builder.append("  .word ").append(Float.floatToRawIntBits(it.value)).append("\n");
             }
             case ImmediateValue.DenseArray it -> {
                 int zeros = 0;
@@ -54,9 +64,9 @@ public final class Global {
                         continue;
                     }
                     if (zeros > 0) {
-                        builder.append("    .zero ").append(zeros).append("\n");
+                        builder.append("  .zero ").append(zeros).append("\n");
                     }
-                    builder.append("    .word ").append(val).append("\n");
+                    builder.append("  .word ").append(val).append("\n");
                 }
             }
             case ImmediateValue.SparseArray it -> {
@@ -67,9 +77,9 @@ public final class Global {
                         continue;
                     }
                     if (zeros > 0) {
-                        builder.append("    .zero ").append(zeros).append("\n");
+                        builder.append("  .zero ").append(zeros).append("\n");
                     }
-                    builder.append("    .word ").append(val).append("\n");
+                    builder.append("  .word ").append(val).append("\n");
                 }
             }
         }

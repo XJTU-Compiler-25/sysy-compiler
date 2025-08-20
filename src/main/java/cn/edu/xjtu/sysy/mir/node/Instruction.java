@@ -37,8 +37,19 @@ public abstract sealed class Instruction extends User {
         return type == Types.Void;
     }
 
+
     public final boolean producingValue() {
         return type != Types.Void;
+
+    public final List<Value> getOperands() {
+        return used.stream().map(it -> it.value).collect(Collectors.toList());
+    }
+
+    // 计算中间值应该都为 local value
+    @Override
+    public final String shortName() {
+        if (position == null) return "%" + id;
+        else return "%" + id + "[" + position.toString() + "]";
     }
 
     @Override
@@ -457,7 +468,7 @@ public abstract sealed class Instruction extends User {
 
         @Override
         public String getLabel() {
-            return getCallee().shortName();
+            return getCallee().name;
         }
     }
 
@@ -493,10 +504,15 @@ public abstract sealed class Instruction extends User {
      */
     public static final class Alloca extends Instruction {
         public Type allocatedType;
-
+        public boolean zeroInit;
         Alloca(BasicBlock block, Type type) {
+            this(block, type, false);
+        }
+
+        Alloca(BasicBlock block, Type type, boolean zeroInit) {
             super(block, Types.ptrOf(type));
             this.allocatedType = type;
+            this.zeroInit = zeroInit;
         }
 
         @Override

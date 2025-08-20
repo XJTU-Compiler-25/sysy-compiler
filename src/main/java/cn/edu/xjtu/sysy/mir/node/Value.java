@@ -17,6 +17,7 @@ public abstract sealed class Value permits BasicBlock, BlockArgument, Function, 
     public final ArrayList<Use> usedBy = new ArrayList<>();
 
     public ValuePosition position;
+    public ValuePosition precolor;
 
     public Value(Type type) {
         this.type = type;
