@@ -164,6 +164,34 @@ public class AsmCGen extends ModulePass<Void> {
         return isArgument ? Int.SP : Int.FP;
     }
 
+    private Register.Int getElemPtr(GetElemPtr it, Register.Int ret, Register.Int tmp1, Register.Int tmp2) {
+        var bv = it.getBasePtr();
+        var base = getAddr(bv, ret, tmp1, tmp2);
+        var strides = Types.strides(bv.type);
+        int offset = 0;
+        boolean init = true;
+        for (int i = 0; i < it.getIndexCount(); i++) {
+            if (it.getIndex(i) instanceof ImmediateValue.IntConst ic) {
+                offset += ic.value * strides[i];
+                continue;
+            }
+            if (init) {
+                init = false;
+                if (offset != 0) asm.addi(ret, base, offset * 4, tmp1);
+                else if (ret != base) asm.mv(ret, base);
+            }
+            var now = getInt(it.getIndex(i), tmp1, tmp2);
+            asm.li(tmp2, strides[i] * 4);
+            asm.mul(tmp2, now, tmp2);
+            asm.add(ret, ret, tmp2);
+        }
+        if (init) {
+            if (offset != 0) asm.addi(ret, base, offset * 4, tmp1);
+            else if (ret != base) asm.mv(ret, base);
+        }
+        return ret;
+    }
+
     private Register.Int getAddr(Value value, Register.Int ret, Register.Int tmp1, Register.Int tmp2) {
         Assertions.requires(value.type instanceof Type.Pointer || value.type instanceof Type.Array);
         return switch (value) {
@@ -179,32 +207,6 @@ public class AsmCGen extends ModulePass<Void> {
                     }
                     default -> unreachable();
                 };
-            }
-            case Instruction.GetElemPtr it -> {
-                var bv = it.getBasePtr();
-                var base = getAddr(bv, ret, tmp1, tmp2);
-                var strides = Types.strides(bv.type);
-                int offset = 0;
-                boolean init = true;
-                for (int i = 0, len = it.getIndexCount(); i < len; i++) {
-                    if (it.getIndex(i) instanceof ImmediateValue.IntConst ic) {
-                        offset += ic.value * strides[i];
-                        continue;
-                    }
-                    if (init) {
-                        init = false;
-                        if (offset != 0) asm.addi(base, base, offset * 4, tmp1);
-                        continue;
-                    }
-                    var now = getInt(it.getIndex(i), tmp1, tmp2);
-                    asm.li(tmp2, strides[i] * 4);
-                    asm.mul(now, now, tmp2);
-                    asm.add(base, base, now);
-                }
-                if (init) {
-                    if (offset != 0) asm.addi(base, base, offset * 4, tmp1);
-                }
-                yield base;
             }
             default -> {
                 yield switch(value.position) {
@@ -422,7 +424,7 @@ public class AsmCGen extends ModulePass<Void> {
                 }
             }
             case GetElemPtr it -> {
-                // 延迟计算
+                asm.mv(it, getElemPtr(it, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg));
             }
             // 数学运算
             case IAdd it -> {
@@ -647,16 +649,32 @@ public class AsmCGen extends ModulePass<Void> {
                 asm.fmv(it.dst, src);
             }
             case Instruction.ICpy it -> {
-                Register.Int src = switch (it.src.value.type) {
-                    case Type.Int _ -> getInt(it.src.value, ValueUtils.spillIntReg, ValueUtils.intScratchReg);
-                    case Type.Pointer _ -> getAddr(it.src.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
-                    default -> unreachable();
-                };
-                asm.mv(it, src);
+                if (it.precolor != null && it.precolor != it.position) {
+                    asm.mv(it, (Register.Int) it.precolor);
+                    Register.Int src = switch (it.src.value.type) {
+                        case Type.Int _ -> getInt(it.src.value, ValueUtils.spillIntReg, ValueUtils.intScratchReg);
+                        case Type.Pointer _ -> getAddr(it.src.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                        default -> unreachable();
+                    };
+                    asm.mv((Register.Int) it.precolor, src);
+                } else {
+                    Register.Int src = switch (it.src.value.type) {
+                        case Type.Int _ -> getInt(it.src.value, ValueUtils.spillIntReg, ValueUtils.intScratchReg);
+                        case Type.Pointer _ -> getAddr(it.src.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg);
+                        default -> unreachable();
+                    };
+                    asm.mv(it, src);
+                }
             }
             case Instruction.FCpy it -> {
-                var src = getFloat(it.src.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
-                asm.fmv(it, src);
+                if (it.precolor != null && it.precolor != it.position) {
+                    asm.fmv(it, (Register.Float) it.precolor);
+                    var src = getFloat(it.src.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                    asm.fmv((Register.Float) it.precolor, src);
+                } else {
+                    var src = getFloat(it.src.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg);
+                    asm.fmv(it, src);
+                }
             }
             case Instruction.Addi it -> {
                 var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg, ValueUtils.intScratchReg);
@@ -690,7 +708,41 @@ public class AsmCGen extends ModulePass<Void> {
                 var lhs = getInt(it.getLhs(), ValueUtils.spillIntReg, ValueUtils.intScratchReg);
                 asm.slti(it, lhs, it.imm);
             }
-            case Dummy _ -> {
+            case Dummy it -> {
+                if (it.precolor != null && it.precolor != it.position) {
+                    switch (it.type) {
+                        case Type.Float _ -> {
+                            Register.Float precolor = (Register.Float) it.precolor;
+                            asm.fmv(it, precolor);
+                        } 
+                        case Type.Int _ -> {
+                            Register.Int precolor = (Register.Int) it.precolor;
+                            asm.mv(it, precolor);
+                        }
+                        default -> {
+                            Register.Int precolor = (Register.Int) it.precolor;
+                            asm.mv(it, precolor);
+                        }
+                    }
+                }
+                for (var use : it.used) {
+                    if (use.value.precolor != null && use.value.precolor != use.value.position) {
+                        switch (use.value.type) {
+                            case Type.Float _ -> {
+                                Register.Float precolor = (Register.Float) use.value.precolor;
+                                asm.fmv(precolor, getFloat(use.value, ValueUtils.spillFloatReg, ValueUtils.intScratchReg));
+                            } 
+                            case Type.Int _ -> {
+                                Register.Int precolor = (Register.Int) use.value.precolor;
+                                asm.mv(precolor, getInt(use.value, ValueUtils.spillIntReg, ValueUtils.intScratchReg));
+                            }
+                            default -> {
+                                Register.Int precolor = (Register.Int) use.value.precolor;
+                                asm.mv(precolor, getAddr(use.value, ValueUtils.spillIntReg, ValueUtils.spillIntReg2, ValueUtils.intScratchReg));
+                            }
+                        }
+                    }
+                }
                 // Ignore
             }
         }

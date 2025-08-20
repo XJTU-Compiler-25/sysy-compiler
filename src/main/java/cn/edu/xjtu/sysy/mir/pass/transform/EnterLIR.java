@@ -2,6 +2,8 @@ package cn.edu.xjtu.sysy.mir.pass.transform;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import cn.edu.xjtu.sysy.mir.node.BasicBlock;
 import cn.edu.xjtu.sysy.mir.node.Function;
@@ -15,7 +17,6 @@ import cn.edu.xjtu.sysy.riscv.Register;
 import cn.edu.xjtu.sysy.riscv.StackPosition;
 import static cn.edu.xjtu.sysy.riscv.ValueUtils.calleeSavedUsableRegs;
 import static cn.edu.xjtu.sysy.riscv.ValueUtils.callerSavedUsableRegs;
-import cn.edu.xjtu.sysy.symbol.Type;
 import cn.edu.xjtu.sysy.symbol.Types;
 
 @SuppressWarnings("unchecked")
@@ -43,6 +44,7 @@ public class EnterLIR extends ModulePass<Void> {
         var dummies = Arrays.stream(calleeSavedUsableRegs).map(reg -> {
             var dummy = helper.dummyDef(reg.getType());
             dummy.position = reg;
+            dummy.precolor = reg;
             return dummy;
         }).toArray(Dummy[]::new);
         for (var dummy : dummies) function.entry.instructions.addFirst(dummy);
@@ -90,12 +92,6 @@ public class EnterLIR extends ModulePass<Void> {
     
     public void insertCallerSaved(Instruction.AbstractCall call) {
         // 插入caller saved
-        var dummies = Arrays.stream(callerSavedUsableRegs).map(reg -> {
-            var dummy = helper.dummyDef(reg.getType());
-            dummy.position = reg;
-            return dummy;
-        }).toArray(Dummy[]::new);
-        for (var dummy : dummies) call.insertBefore(dummy);
 
         var floatArgs = call.args.stream().filter(
             arg -> arg.value.type == Types.Float
@@ -105,6 +101,7 @@ public class EnterLIR extends ModulePass<Void> {
             arg -> arg.value.type != Types.Float
         ).toList();
 
+        var usedRegs = new HashMap<Register, Instruction>();
         for (int i = 0; i < floatArgs.size(); i++) {
             var arg = floatArgs.get(i);
             var fcpy = helper.fcpy(arg.value);
@@ -113,6 +110,8 @@ public class EnterLIR extends ModulePass<Void> {
             var reg = Register.FA(i);
             if (reg != null) {
                 fcpy.position = reg;
+                fcpy.precolor = reg;
+                usedRegs.put(reg, fcpy);
                 continue;
             }
             fcpy.position = new StackPosition(stackState.allocate(Types.Float), true);
@@ -125,6 +124,8 @@ public class EnterLIR extends ModulePass<Void> {
                 call.insertBefore(icpy);
                 arg.replaceValue(icpy);
                 icpy.position = Register.A(i);
+                icpy.precolor = Register.A(i);
+                usedRegs.put(Register.A(i), icpy);
                 continue;
             }
             if (arg.value.type == Types.Int) {
@@ -143,6 +144,19 @@ public class EnterLIR extends ModulePass<Void> {
                 arg.replaceValue(icpy);
                 icpy.position = new StackPosition(stackState.allocate(arg.value.type), true);
             }
+        }
+
+        var dummies = Arrays.stream(callerSavedUsableRegs).map(reg -> { 
+            if (usedRegs.containsKey(reg)) {
+                return usedRegs.get(reg);
+            }
+            var dummy = helper.dummyDef(reg.getType());
+            dummy.position = reg;
+            dummy.precolor = reg;
+            return dummy;
+        }).toArray(Instruction[]::new);
+        for (var dummy : dummies) {
+            if (dummy instanceof Dummy) call.insertBefore(dummy);
         }
 
         call.insertAfter(helper.dummyUse(dummies));
