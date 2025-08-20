@@ -61,6 +61,7 @@ import static cn.edu.xjtu.sysy.riscv.node.Instr.Reg.Op.XOR;
 import cn.edu.xjtu.sysy.riscv.node.Instr.RegZ;
 import cn.edu.xjtu.sysy.riscv.node.Instr.Ret;
 import cn.edu.xjtu.sysy.riscv.node.Instr.Store;
+import cn.edu.xjtu.sysy.symbol.Types;
 import static cn.edu.xjtu.sysy.util.Assertions.unreachable;
 
 @SuppressWarnings({"unused"})
@@ -697,7 +698,10 @@ public final class AsmWriter {
             }
             case StackPosition(int offset, boolean isArgument) -> {
                 instrs.add(new RegZ(op, ValueUtils.spillIntReg, rs1));
-                sw(ValueUtils.spillIntReg, getFP(isArgument), -offset, ValueUtils.intScratchReg);
+                if (dst.type == Types.Int)
+                    sw(ValueUtils.spillIntReg, getFP(isArgument), -offset, ValueUtils.intScratchReg);
+                else
+                    sd(ValueUtils.spillIntReg, getFP(isArgument), -offset, ValueUtils.intScratchReg);
             }
             default -> unreachable();
         }

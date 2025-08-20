@@ -32,8 +32,8 @@ public final class RegisterAllocator extends ModulePass<Void> {
         domInfo = getResult(DominanceAnalysis.class);
         loopInfo = getResult(LoopAnalysis.class);
         liveRangeInfo = getResult(LiveRangeAnalysis.class);
-        //ModulePrinter.printModule(module);
         for (var f : module.getFunctions()) allocate(f);
+        ModulePrinter.printModule(module);
     }
 
     private Function currentFunction;
@@ -43,7 +43,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
         originalInstructions.clear();
         for (var block : domInfo.getDFN(currentFunction))
             originalInstructions.put(block, block.getInstructionsAndTerminator());
-        
         spill();
         liveRangeInfo = getRefreshedResult(LiveRangeAnalysis.class);
         color();
@@ -83,9 +82,17 @@ public final class RegisterAllocator extends ModulePass<Void> {
             }
         }
 
-        var stackState = currentFunction.stackState;
         for (var value : needToSpill) {
-            var type = value.type;
+            spill(value);
+        }
+        helper.changeBlockToNull();
+
+        // reload 延迟到 codegen
+    }
+
+    private void spill(Value value) {
+        var stackState = currentFunction.stackState;
+        var type = value.type;
             var pos = new StackPosition(stackState.allocate(type));
             value.position = pos;
 
@@ -106,10 +113,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 }
                 default -> unreachable();
             }
-        }
-        helper.changeBlockToNull();
-
-        // reload 延迟到 codegen
     }
 
     private final HashMap<Value, Integer> spillCostCache = new HashMap<>();
@@ -138,51 +141,77 @@ public final class RegisterAllocator extends ModulePass<Void> {
         return spillCost;
     }
 
-    private final Map<Register, Value> inUse = new HashMap<>();
+    //private final Map<BasicBlock, Map<Register, Value>> inUse = new HashMap<>();
     private void color() {
-        inUse.clear();
+        //inUse.clear();
         saveCostCache.clear();
-
+        //currentFunction.blocks.forEach(block -> inUse.put(block, new HashMap<>()));
         // 先序遍历支配树，就能得到冲突图的完美消去序列的倒序，即着色顺序
         for (var block : domInfo.getDFN(currentFunction)) {
-            System.out.println(block.shortName());
+            /*System.out.println(block.shortName());
             var blockLiveIn = liveRangeInfo.getLiveOut(block.getFirstInstruction());
-            for (var v : new ArrayList<>(inUse.values())) {
+            for (var v : new ArrayList<>(inUse.get(block).values())) {
                 if (!blockLiveIn.contains(v)) {
                     if (v.id == 51) {
                         System.out.println(11);
                         System.out.println(blockLiveIn);
                     }
                     var pos = v.position;
-                    if (pos instanceof Register reg) inUse.remove(reg);
+                    if (pos instanceof Register reg) inUse.get(block).remove(reg);
                 }
-            }
+            }*/
             for (var arg : block.args) {
                 if (arg.position != null) {
-                    if (arg.position instanceof Register reg) inUse.put(reg, arg);
+                    //if (arg.position instanceof Register reg) inUse.get(block).put(reg, arg);
+                    if (arg.position instanceof Register reg) {
+                        var map = getInUseExceptSelf(arg);
+                        var val = map.get(reg);
+                        if (val != null) {
+                            spill(arg);
+                            arg.type = val.type;
+                        }
+                    }
                     continue;
                 }
                 if (arg.notUsed()) continue;
                 var reg = allocateRegister(arg);
 
                 arg.position = reg;
-                inUse.put(reg, arg);
+                //inUse.get(block).put(reg, arg);
             }
 
             for (var inst : originalInstructions.get(block)) {
                 var liveIn = liveRangeInfo.getLiveIn(inst);
                 var liveOut = liveRangeInfo.getLiveOut(inst);
-                for (var v : new ArrayList<>(inUse.values())) {
+                /*for (var v : new ArrayList<>(inUse.get(block).values())) {
                     if (!liveIn.contains(v)) {
-                        if (v.id == 51) System.out.println("11!" + inst.toString());
                         var pos = v.position;
-                        if (pos instanceof Register reg) inUse.remove(reg);
+                        if (pos instanceof Register reg) inUse.get(block).remove(reg);
                     }
-                }
+                }*/
 
                 // 有预着色
                 if (inst.position != null) {
-                    if (inst.position instanceof Register reg) inUse.put(reg, inst);
+                    //if (inst.position instanceof Register reg) inUse.get(block).put(reg, inst);
+                    if (inst.position instanceof Register reg) {
+                        var map = getInUseExceptSelf(inst);
+                        var val = map.get(reg);
+                        if (val != null) {
+                            spill(inst);
+                            inst.type = val.type;
+                        }
+                    }
+                    continue;
+                }
+
+                if (inst instanceof Instruction.Jmp jmp) {
+                    //inUse.get(jmp.getTarget()).putAll(inUse.get(block));
+                    continue;
+                }
+
+                if (inst instanceof Instruction.AbstractBr br) {
+                    //inUse.get(br.getTrueTarget()).putAll(inUse.get(block));
+                    //inUse.get(br.getFalseTarget()).putAll(inUse.get(block));
                     continue;
                 }
 
@@ -190,28 +219,54 @@ public final class RegisterAllocator extends ModulePass<Void> {
                 if (inst.notProducingValue()) continue;
                 if (inst.notUsed()) continue;
 
-                if (inst.id == 42) {
-                    System.out.println(42);
-                    System.out.println(inUse.keySet());
-                }
                 // 需要分配寄存器
                 var reg = allocateRegister(inst);
 
                 inst.position = reg;
-                inUse.put(reg, inst);
+               // inUse.get(block).put(reg, inst);
             }
         }
     }
 
+    private Set<Register> getInUse(Value val) {
+        return switch(val) {
+            case Instruction it -> getInUse(it);
+            case BlockArgument it -> getInUse(it);
+            default -> unreachable();
+        };
+    }
+
+    private Set<Register> getInUse(Instruction inst) {
+        return liveRangeInfo.getLiveIn(inst).stream().filter(in -> in.position instanceof Register)
+            .map(in -> (Register) in.position).collect(Collectors.toSet());
+    }
+
+    private Set<Register> getInUse(BlockArgument arg) {
+        return liveRangeInfo.getLiveOut(arg.block.getFirstInstruction()).stream()
+            .filter(in -> in.position instanceof Register)
+            .map(in -> (Register) in.position).collect(Collectors.toSet());
+    }
+
+    private Map<Register, Value> getInUseExceptSelf(Instruction inst) {
+        return liveRangeInfo.getLiveIn(inst).stream().filter(in -> in != inst && in.position instanceof Register)
+            .collect(Collectors.toMap((x -> (Register)x.position), (x -> x)));
+    }
+
+    private Map<Register, Value> getInUseExceptSelf(BlockArgument arg) {
+        return liveRangeInfo.getLiveOut(arg.block.getFirstInstruction()).stream()
+            .filter(in -> in != arg && in.position instanceof Register)
+            .collect(Collectors.toMap((x -> (Register)x.position), (x -> x)));
+    }
+
     private Register allocateRegister(Value value) {
         var isInt = value.type != Types.Float;
-
+        var inUse = getInUse(value);
         for (var candidate : isInt ? callerSavedUsableIntRegs : callerSavedUsableFloatRegs) {
-            if (!inUse.containsKey(candidate)) return candidate;
+            if (!inUse.contains(candidate)) return candidate;
         }
 
         for (var candidate : isInt ? calleeSavedUsableIntRegs : calleeSavedUsableFloatRegs) {
-            if (!inUse.containsKey(candidate)) return candidate;
+            if (!inUse.contains(candidate)) return candidate;
         }
 
         return fail("unable to allocate register for " + value + " in function " + currentFunction.name);

@@ -7,6 +7,7 @@ import cn.edu.xjtu.sysy.riscv.StackPosition;
 import cn.edu.xjtu.sysy.riscv.ValuePosition;
 import cn.edu.xjtu.sysy.symbol.Types;
 import cn.edu.xjtu.sysy.util.Assertions;
+import cn.edu.xjtu.sysy.util.Worklist;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -202,6 +203,11 @@ public final class ExitSSA extends ModulePass<Void> {
     }
 
     private ArrayList<Instruction> move(HashMap<Value, Value> map, boolean isInt) {
+        HashMap<Register, Value> reversedMap = new HashMap<>();
+        for (var key : map.keySet()) {
+            if (map.get(key).position instanceof Register reg)
+                reversedMap.put(reg, key);
+        }
         var instrs = new ArrayList<Instruction>();
         Instruction tmp = null;
         var visited = new HashSet<Value>();
@@ -230,7 +236,31 @@ public final class ExitSSA extends ModulePass<Void> {
                     cur = prev;
                 }
             }
-            processChain(path, instrs, map, isInt);
+            var chain = new ArrayList<>(path);
+            var valueChain = new ArrayList<ValuePosition>();
+            chain.forEach(x -> valueChain.add(x.position)); 
+            if (!chain.isEmpty()) {
+                while (chain.getFirst().position instanceof Register reg && reversedMap.containsKey(reg)) {
+                    var first = reversedMap.get(reg);
+                    visited.add(first);
+                    var idx = valuePath.indexOf(first.position);
+                    if (idx != -1) {
+                        var cycle = chain.subList(0, idx + 1);
+                        if (tmp == null) {
+                            tmp = helper.dummyDef(cur.type);
+                            tmp.position = isInt ? phiElimIntReg : phiElimFloatReg;
+                            instrs.addFirst(tmp);
+                        }
+                        processCycle(cycle, instrs, map, tmp, isInt);
+                        chain = new ArrayList<>(chain.subList(idx + 1, chain.size()));
+                        break;
+                    } else {
+                        chain.addFirst(first);
+                        valueChain.addFirst(first.position);
+                    }
+                }
+            }
+            processChain(chain, instrs, map, isInt);
         }
         return instrs;
     }
@@ -251,8 +281,8 @@ public final class ExitSSA extends ModulePass<Void> {
                             : helper.fmv(route.getFirst(), map.get(route.getFirst())));
             return;
         }
-        moves.add(isInt ? helper.imv(tmp, map.get(route.getFirst()))
-                        : helper.fmv(tmp, map.get(route.getFirst())));
+        moves.add(isInt ? helper.imv(tmp, route.getFirst())
+                        : helper.fmv(tmp, route.getFirst()));
         for (int i = 0; i < route.size() - 1; i++) {
             var dst = route.get(i);
             moves.add(isInt ? helper.imv(dst, map.get(dst)) : helper.fmv(dst, map.get(dst)));
