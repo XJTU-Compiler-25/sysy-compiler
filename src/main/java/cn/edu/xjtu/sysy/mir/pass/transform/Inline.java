@@ -138,7 +138,7 @@ public final class Inline extends ModulePass<Void> {
                 valueCopy.put(param, arg);
             }
 
-            var dfn = domInfo.getDFN(callee);
+            var dfn = domInfo.getRPO(callee);
             for (var oldBlock : dfn) {
                 var newBlock = blockCopy.get(oldBlock);
 

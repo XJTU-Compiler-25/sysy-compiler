@@ -29,6 +29,10 @@ public final class Worklist<E> {
         return e;
     }
 
+    public E peek() {
+        return queue.peekFirst();
+    }
+
     public void add(E e) {
         if (set.add(e)) queue.addLast(e);
     }

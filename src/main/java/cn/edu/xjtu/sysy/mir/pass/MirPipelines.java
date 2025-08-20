@@ -4,7 +4,6 @@ import cn.edu.xjtu.sysy.Pipeline;
 import cn.edu.xjtu.sysy.mir.node.Module;
 import cn.edu.xjtu.sysy.mir.pass.analysis.*;
 import cn.edu.xjtu.sysy.mir.pass.transform.*;
-import cn.edu.xjtu.sysy.mir.pass.transform.loop.*;
 
 public final class MirPipelines {
 
@@ -22,7 +21,7 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
-                    //DFE::new,
+                    DFE::new,
                     GlobalOpt::new,
                     HoistAlloca::new,
                     EnterSSA::new,
@@ -38,9 +37,6 @@ public final class MirPipelines {
                     GVN::new,
                     GCM::new,
                     DCE::new,
-                    LoopCanonicalize::new,
-                    SCCP::new,
-                    DCE::new,
                     CFGSimplify::new,
                     EnterLIR::new,
                     SplitCriticalEdges::new,
@@ -50,7 +46,7 @@ public final class MirPipelines {
             )
             .build();
 
-    public static final Pipeline<Module> UNOPTIMIZED = Pipeline.builder(Module.class)
+    public static final Pipeline<Module> STACK = Pipeline.builder(Module.class)
             .addAnalyses(
                     AliasAnalysis::new,
                     CFGAnalysis::new,
@@ -62,12 +58,26 @@ public final class MirPipelines {
                     SCEV::new
             )
             .addTransformers(
+                    DFE::new,
+                    GlobalOpt::new,
                     HoistAlloca::new,
                     EnterSSA::new,
-                    EnterLIR::new,
+                    DFE::new,
+                    HoistAlloca::new,
+                    ConstFold::new,
+                    SCCP::new,
+                    IDivReduce::new,
+                    InstCombine::new,
+                    DCE::new,
+                    ParamOpt::new,
+                    GVN::new,
+                    GCM::new,
+                    DCE::new,
+                    CFGSimplify::new,
+                    SimpleEnterLIR::new,
                     SplitCriticalEdges::new,
-                    RegisterAllocator::new,
-                    HoistAlloca::new
+                    SimpleExitSSA::new,
+                    SimpleCodegen::new
             )
             .build();
 

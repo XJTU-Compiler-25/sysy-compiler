@@ -53,7 +53,6 @@ public final class RegisterAllocator extends ModulePass<Void> {
     private void spill() {
         spillCostCache.clear();
 
-        var entry = currentFunction.entry;
         var needToSpill = new HashSet<Value>();
         for (var block : domInfo.getDFN(currentFunction)) {
             for (var inst : originalInstructions.get(block)) {

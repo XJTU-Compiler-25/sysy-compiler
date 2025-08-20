@@ -37,6 +37,10 @@ public abstract sealed class Instruction extends User {
         return type == Types.Void;
     }
 
+
+    public final boolean producingValue() {
+        return type != Types.Void;
+
     public final List<Value> getOperands() {
         return used.stream().map(it -> it.value).collect(Collectors.toList());
     }
@@ -1141,6 +1145,10 @@ public abstract sealed class Instruction extends User {
         public String toString() {
             return String.format("imv %s, %s", dst.shortName(), src.value.shortName());
         }
+
+        public Value getSrc() {
+            return src.value;
+        }
     }
 
     public static final class FMv extends Instruction {
@@ -1156,6 +1164,10 @@ public abstract sealed class Instruction extends User {
         @Override
         public String toString() {
             return String.format("fmv %s, %s", dst.shortName(), src.value.shortName());
+        }
+
+        public Value getSrc() {
+            return src.value;
         }
     }
 
